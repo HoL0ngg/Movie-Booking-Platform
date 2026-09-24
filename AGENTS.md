@@ -1,32 +1,77 @@
-# Cinema Booking Platform — Codex Instructions
+# Cinema Booking Platform — Agent Instructions
 
-## Mission
+## 1. Project Mission
 
 Build and maintain a reliable cinema ticket booking platform using a microservices architecture.
 
-The highest-priority system properties are:
+The most important system properties are:
 
 1. booking correctness
 2. prevention of double booking
 3. payment correctness
 4. transactional consistency
 5. idempotency
-6. service ownership boundaries
+6. clear service boundaries
 7. maintainability
 8. security
 9. observability
 10. user experience
 
-Performance optimizations must never weaken booking or payment correctness.
+Correctness must never be sacrificed for performance or implementation convenience.
 
 ---
 
-# Architecture
+# 2. Technology Stack
 
-The system contains:
+## Frontend
+
+* React
+* TypeScript
+* Vite
+* React Router
+* TanStack Query
+* Zustand when global client state is appropriate
+* Framer Motion
+* Three.js / React Three Fiber
+
+## Backend
+
+* Java
+* Spring Boot
+* Spring Web
+* Spring Security
+* Spring Data JPA
+* Spring Validation
+* PostgreSQL
+* Redis
+* Kafka
+* Flyway
+* OpenAPI / Swagger
+
+## Testing
+
+* JUnit 5
+* Mockito
+* Spring Boot Test
+* Testcontainers
+* Playwright
+
+## Infrastructure
+
+* Docker
+* Docker Compose
+* PostgreSQL
+* Redis
+* Kafka
+
+---
+
+# 3. System Architecture
+
+The initial system consists of:
 
 * frontend/web
-* API Gateway
+* api-gateway
 * auth-service
 * movie-service
 * cinema-service
@@ -34,592 +79,691 @@ The system contains:
 * payment-service
 * notification-service
 
-Infrastructure:
-
-* PostgreSQL
-* Redis
-* Kafka
-* Docker Compose
-
 Communication:
 
-* REST for synchronous requests
-* Kafka for domain events
+* REST for synchronous request/response operations
+* Kafka for asynchronous domain events
 
-Distributed workflow:
+Distributed workflows should use:
 
 * Saga
 * Transactional Outbox
 
+Do not introduce additional microservices unless there is a clear business capability and bounded-context reason.
+
 ---
 
-# Core Architecture Rule
+# 4. Service Ownership
 
-Each microservice owns its data.
+Each microservice owns its own data.
 
 A service MUST NOT:
 
-* query another service's database
-* write another service's tables
+* query another service's database directly
+* modify another service's tables
 * create cross-service SQL joins
+* depend on another service's persistence entities
 
-Inter-service data must be accessed through:
+Cross-service communication must happen through:
 
-* API calls
-* events
-
----
-
-# Booking Correctness Rule
-
-booking-service is the authoritative owner of showtime seat availability.
-
-PostgreSQL is the source of truth.
-
-Redis is NOT the source of truth for seat ownership.
-
-Redis may only support:
-
-* caching
-* TTL helpers
-* rate limiting
-* transient notifications
-
-Never implement booking correctness exclusively with:
-
-* Redis lock
-* frontend state
-* in-memory lock
-* synchronized Java blocks
-
-because the application may run multiple instances.
+* APIs
+* domain events
 
 ---
 
-# Seat State Machine
+# 5. Service Responsibilities
 
-Allowed states:
+## auth-service
 
-AVAILABLE
-HELD
-PAYMENT_PENDING
-SOLD
+Owns:
 
-Common transitions:
+* users
+* authentication
+* credentials
+* roles
+* tokens
 
-AVAILABLE -> HELD
+Responsibilities:
 
-HELD -> PAYMENT_PENDING
-
-PAYMENT_PENDING -> SOLD
-
-HELD -> AVAILABLE
-
-PAYMENT_PENDING -> AVAILABLE
-
-Transitions must be explicit domain operations.
-
-Do not update seat states directly from controllers.
+* registration
+* login
+* authentication
+* authorization
+* user identity
 
 ---
 
-# Reservation Transaction
+## movie-service
 
-When reserving seats:
+Owns:
 
-1. validate request
-2. sort seat IDs
-3. begin transaction
-4. lock requested showtime seat rows
-5. check availability
-6. reject entire reservation if any required seat is unavailable
-7. update all requested seats atomically
-8. create reservation
-9. create outbox event
-10. commit
+* movies
+* genres
+* actors
+* directors
+* movie metadata
 
-Use PostgreSQL row-level locking where required.
+Responsibilities:
 
-Acquire locks in deterministic order.
-
-Prefer correctness over lock-free complexity.
+* movie catalog
+* movie details
+* search
+* filtering
+* now-showing and upcoming movies
 
 ---
 
-# Double Booking Invariant
+## cinema-service
 
-For every:
+Owns:
 
-(showtimeId, seatId)
+* cinemas
+* auditoriums
+* physical seat definitions
+* showtimes
 
-at most one successful booking may exist.
+Responsibilities:
 
-This invariant must be protected by:
+* cinema configuration
+* auditorium configuration
+* seat layouts
+* showtime scheduling
 
-* database transaction
-* locking
-* constraints
-* state validation
-
-not by UI behavior.
-
----
-
-# Reservation Expiration
-
-Seat holds must expire.
-
-Expiration duration must be configurable.
-
-Expiration processing must be:
-
-* transactional
-* idempotent
-* safe when multiple workers run concurrently
-
-Expired holds must eventually return seats to AVAILABLE.
+Physical seat definitions do not represent booking availability.
 
 ---
 
-# Payment
+## booking-service
 
-payment-service owns provider integrations.
+Owns:
 
-booking-service must never call a payment gateway directly.
+* showtime seat inventory
+* reservations
+* bookings
+* booking items
+* seat holds
 
-Use a payment provider interface.
+booking-service is the authoritative owner of booking state and seat availability.
 
-Example implementations may later include:
+PostgreSQL is the authoritative source of truth for seat ownership.
 
-* Stripe
-* VNPay
-* MoMo
-* ZaloPay
+Redis must never be the only authority for seat reservation correctness.
 
-Payment API requests must be idempotent.
+For any booking-related work, read:
 
-Payment webhooks must be idempotent.
-
-Persist:
-
-* payment attempt
-* provider transaction ID
-* provider event ID
-* idempotency key
-* state
-* amount
-* timestamps
-
-Never trust frontend redirects as proof of successful payment.
+`skills/booking-concurrency/SKILL.md`
 
 ---
 
-# Distributed Transactions
+## payment-service
 
-Never attempt cross-service database transactions.
+Owns:
 
-Use:
+* payment attempts
+* provider transaction references
+* payment state
+* refund state
+* webhook processing
 
-Saga
-+
-Transactional Outbox
+Payment provider integrations must be isolated inside payment-service.
 
-Important workflow:
+booking-service must never integrate directly with an external payment provider.
 
-ReservationCreated
-→ PaymentRequested
-→ PaymentSucceeded
-→ BookingConfirmed
+For payment-related work, read:
 
-Failure:
-
-PaymentFailed
-→ ReservationReleased
+`skills/payment/SKILL.md`
 
 ---
 
-# Outbox Rule
+## notification-service
 
-For any critical domain event:
+Responsibilities:
 
-business mutation
-+
-outbox insert
+* booking confirmation
+* email notifications
+* payment notifications
+* optional ticket or QR delivery
 
-must happen in the same local database transaction.
+Notification processing should be asynchronous.
 
-Never implement:
-
-save database
-commit
-publish Kafka event
-
-as independent critical steps.
+Notification failure must not roll back a successful booking.
 
 ---
 
-# Event Consumers
+# 6. Critical System Invariants
 
-Kafka consumers must assume:
+The following rules must always remain true.
 
-at-least-once delivery.
+## Booking
 
-Therefore all event handlers must be idempotent.
+For a given:
 
-Store processed event IDs where necessary.
+`(showtimeId, seatId)`
 
-Never assume an event is delivered exactly once.
+at most one successful booking may own that seat.
+
+Booking correctness must be enforced on the backend.
+
+Frontend state must never be trusted for seat ownership.
+
+PostgreSQL remains authoritative.
 
 ---
 
-# API Design
+## Payment
 
-Controllers should:
+A successful frontend redirect is not proof of successful payment.
 
-* parse HTTP requests
-* perform basic validation
+Payment status must be verified server-side.
+
+Payment operations and provider callbacks must support idempotency.
+
+---
+
+## Events
+
+Kafka consumers must assume at-least-once delivery.
+
+Consumers handling business-critical events must be idempotent.
+
+Critical business state changes and corresponding outgoing events must use the Transactional Outbox pattern.
+
+---
+
+## Database Ownership
+
+No service may directly access another service's database.
+
+---
+
+# 7. Backend Architecture
+
+Prefer the following package structure inside Spring Boot services:
+
+```text
+com.cinema.<service>
+├── application/
+│   ├── command/
+│   ├── query/
+│   └── service/
+├── domain/
+│   ├── model/
+│   ├── event/
+│   ├── repository/
+│   └── exception/
+├── infrastructure/
+│   ├── persistence/
+│   ├── messaging/
+│   ├── config/
+│   └── client/
+└── interfaces/
+    └── rest/
+```
+
+Use this structure pragmatically.
+
+Do not create abstractions without a real architectural reason.
+
+Controllers should be thin.
+
+Controllers should primarily:
+
+* validate HTTP input
 * call application services
 * map responses
 
-Controllers must not contain:
-
-* transaction logic
-* locking logic
-* payment logic
-* complex domain logic
-
-Use standard error responses.
-
-Example:
-
-{
-"code": "SEAT_ALREADY_RESERVED",
-"message": "One or more requested seats are unavailable.",
-"traceId": "...",
-"timestamp": "..."
-}
+Do not place complex business, transaction, or locking logic inside controllers.
 
 ---
 
-# Backend Package Structure
+# 8. Database Rules
+
+Use PostgreSQL.
+
+Use Flyway for schema migrations.
+
+Persistent environments must not rely on:
+
+```properties
+spring.jpa.hibernate.ddl-auto=update
+```
+
+Use database constraints where appropriate to protect business invariants.
+
+Never use floating-point types for currency.
+
+For any work involving:
+
+* schema design
+* indexes
+* migrations
+* transaction boundaries
+* locking
+* database constraints
+
+read:
+
+`skills/database-design/SKILL.md`
+
+---
+
+# 9. Event-Driven Architecture
+
+Use Kafka for asynchronous domain communication.
+
+Events represent completed business facts.
 
 Prefer:
 
-com.cinema.<service>
-├── application
-│   ├── command
-│   ├── query
-│   └── service
-├── domain
-│   ├── model
-│   ├── event
-│   ├── repository
-│   └── exception
-├── infrastructure
-│   ├── persistence
-│   ├── messaging
-│   ├── config
-│   └── client
-└── interfaces
-└── rest
+```text
+PaymentSucceeded
+BookingConfirmed
+SeatHoldExpired
+```
 
-Avoid unnecessary abstraction.
+instead of command-like event names such as:
 
-Do not introduce interfaces without a real boundary.
+```text
+UpdateBookingStatus
+SetSeatAvailable
+```
 
----
+For work involving:
 
-# Database
+* Kafka
+* events
+* Saga
+* Transactional Outbox
+* event consumers
+* event producers
 
-Use Flyway.
+read:
 
-Every schema change requires a migration.
-
-Never use Hibernate automatic schema updates in production-oriented configuration.
-
-Do not use:
-
-spring.jpa.hibernate.ddl-auto=update
-
-for persistent environments.
-
-Use:
-
-validate
-
-when appropriate.
+`skills/event-driven/SKILL.md`
 
 ---
 
-# PostgreSQL Constraints
+# 10. Frontend Architecture
 
-Use database constraints whenever an invariant can be enforced by the database.
+Prefer feature-based organization:
 
-Examples:
+```text
+frontend/web/src/
+├── api/
+├── assets/
+├── components/
+├── features/
+│   ├── auth/
+│   ├── movies/
+│   ├── cinemas/
+│   ├── showtimes/
+│   ├── booking/
+│   ├── payment/
+│   └── profile/
+├── hooks/
+├── layouts/
+├── pages/
+├── routes/
+├── stores/
+├── three/
+├── types/
+└── utils/
+```
 
-* foreign keys inside service boundaries
-* unique constraints
-* check constraints
-* indexes
+Use TanStack Query primarily for server state.
 
-Do not rely only on Java validation.
+Do not unnecessarily duplicate server data into global client state.
 
----
+For React UI/UX work, read:
 
-# Concurrency Testing
-
-booking-service changes affecting reservation state MUST include real PostgreSQL integration tests.
-
-Use Testcontainers.
-
-Required scenario:
-
-100 concurrent attempts to reserve the same seat.
-
-Expected:
-
-success count = 1
-
-Do not use H2 to validate locking behavior.
-
----
-
-# Redis
-
-Redis is optional for correctness.
-
-The application should remain logically correct even if Redis cache is flushed.
-
-Never keep irreplaceable booking state only in Redis.
+`skills/frontend-ui/SKILL.md`
 
 ---
 
-# Frontend
+# 11. Three.js
 
-Frontend stack:
+Three.js is a progressive enhancement.
 
-* React
-* TypeScript
-* Vite
-* TanStack Query
-* React Router
-* React Three Fiber
-* Framer Motion
+Core booking functionality must remain usable without WebGL.
 
-Prefer feature organization.
+Three.js must not be required for:
 
-frontend/web/src/features/
-
-* auth
-* movies
-* cinemas
-* showtimes
-* booking
+* forms
+* authentication
+* seat reservation correctness
+* checkout
 * payment
-* profile
 
-Server state belongs primarily in TanStack Query.
+For Three.js or React Three Fiber work, read:
 
-Do not duplicate server data unnecessarily in global state.
-
----
-
-# Three.js
-
-Three.js is progressive enhancement.
-
-Never make core booking dependent on WebGL.
-
-Support:
-
-prefers-reduced-motion.
-
-Lazy load heavy visual components.
-
-Avoid unnecessary GPU-intensive animation.
+`skills/threejs/SKILL.md`
 
 ---
 
-# Accessibility
-
-Interactive components must support:
-
-* keyboard navigation
-* visible focus state
-* semantic HTML
-* appropriate aria labels
-* sufficient contrast
-
-Seat maps must not rely exclusively on color.
-
-Every seat needs an accessible label.
-
-Example:
-
-"A5, VIP seat, available"
-
----
-
-# Testing
-
-Backend:
-
-* unit tests
-* integration tests
-* Testcontainers
-* concurrency tests
-
-Frontend:
-
-* component tests where useful
-* Playwright critical journeys
-
-Critical E2E flow:
-
-movie
-→ cinema
-→ showtime
-→ seats
-→ reservation
-→ checkout
-→ payment
-→ ticket
-
----
-
-# Security
+# 12. Security
 
 Never commit:
 
 * API keys
 * database passwords
 * JWT secrets
-* payment secrets
+* payment provider secrets
+* private credentials
 
-Use environment variables.
+Use environment variables or secret management.
 
 Never log:
 
 * passwords
+* raw JWT tokens
 * payment secrets
-* JWTs
-* sensitive provider payloads
+* sensitive provider credentials
 
-Validate authorization at backend boundaries.
+Authorization must be enforced on the backend.
+
+Do not rely on frontend role checks for security.
 
 ---
 
-# Observability
+# 13. Observability
 
-Generate or propagate correlation IDs.
+Generate or propagate correlation IDs between services.
 
 Prefer structured logging.
 
-Important operations should log:
+Where relevant, include identifiers such as:
 
 * traceId
-* userId when safe
 * reservationId
 * bookingId
 * paymentId
 * showtimeId
 
-Never log sensitive payment credentials.
+Do not log sensitive credentials or payment secrets.
+
+The architecture should remain compatible with:
+
+* OpenTelemetry
+* Prometheus
+* Grafana
+
+without requiring unnecessary monitoring complexity during early phases.
 
 ---
 
-# Code Change Workflow
+# 14. Testing
+
+Tests must verify business invariants, not only HTTP status codes.
+
+Backend testing may include:
+
+* unit tests
+* integration tests
+* Testcontainers
+* concurrency tests
+
+Frontend critical workflows should be tested with Playwright.
+
+For implementation or testing work, read:
+
+`skills/testing/SKILL.md`
+
+Concurrency-sensitive booking tests must use real PostgreSQL behavior rather than H2.
+
+---
+
+# 15. Skill Routing
+
+Specialized engineering instructions are stored under:
+
+`skills/`
+
+Before implementing a task, identify and read all relevant skills.
+
+A task may require multiple skills.
+
+## Microservices
+
+For:
+
+* service boundaries
+* new services
+* inter-service APIs
+* distributed workflows
+
+read:
+
+`skills/microservice-architecture/SKILL.md`
+
+---
+
+## Database
+
+For:
+
+* PostgreSQL
+* schema
+* migration
+* indexes
+* constraints
+* transactions
+* locking
+
+read:
+
+`skills/database-design/SKILL.md`
+
+---
+
+## Booking & Concurrency
+
+For:
+
+* seat availability
+* seat reservation
+* holds
+* booking
+* concurrency
+* expiration
+* double-booking prevention
+
+read:
+
+`skills/booking-concurrency/SKILL.md`
+
+---
+
+## Payment
+
+For:
+
+* payment
+* payment provider
+* webhook
+* refund
+* idempotency
+
+read:
+
+`skills/payment/SKILL.md`
+
+---
+
+## Event-Driven Architecture
+
+For:
+
+* Kafka
+* domain events
+* Saga
+* Outbox
+* event consumers
+* event producers
+
+read:
+
+`skills/event-driven/SKILL.md`
+
+---
+
+## Frontend
+
+For:
+
+* React
+* frontend architecture
+* UI
+* UX
+* accessibility
+
+read:
+
+`skills/frontend-ui/SKILL.md`
+
+---
+
+## Three.js
+
+For:
+
+* Three.js
+* React Three Fiber
+* 3D scenes
+* WebGL effects
+
+read:
+
+`skills/threejs/SKILL.md`
+
+---
+
+## Testing
+
+For:
+
+* unit tests
+* integration tests
+* Testcontainers
+* concurrency tests
+* E2E tests
+
+read:
+
+`skills/testing/SKILL.md`
+
+---
+
+## Code Review
+
+Before considering an implementation task complete, read:
+
+`skills/code-review/SKILL.md`
+
+---
+
+# 16. Task Workflow
 
 Before implementing a task:
 
-1. read this AGENTS.md
-2. locate relevant skill
-3. inspect architecture docs
-4. inspect current implementation
-5. inspect tests
-6. identify affected invariant
-7. implement smallest coherent change
-8. add/update tests
-9. run tests
-10. summarize changes
+1. Read this `AGENTS.md`.
+2. Identify relevant skills.
+3. Read the required `SKILL.md` files.
+4. Inspect relevant architecture documentation.
+5. Inspect the existing implementation.
+6. Inspect existing tests.
+7. Identify affected system invariants.
+8. Implement the smallest coherent change.
+9. Add or update tests.
+10. Run relevant tests.
+11. Review the implementation using `skills/code-review/SKILL.md`.
+
+Do not modify architecture implicitly.
+
+If a change affects an important architectural decision, update or create an ADR.
 
 ---
 
-# Skills
+# 17. Architecture Documentation
 
-Relevant skills are stored under:
+Important design decisions belong in:
 
-skills/
+```text
+docs/
+├── architecture.md
+├── service-boundaries.md
+├── database-design.md
+├── booking-flow.md
+├── concurrency.md
+├── payment-flow.md
+├── event-catalog.md
+├── api-contracts.md
+└── ADR/
+```
 
-Use the corresponding skill before working on that area.
+`AGENTS.md` defines repository-wide rules.
 
-Examples:
+`SKILL.md` defines specialized implementation guidance.
 
-booking change:
-skills/booking-concurrency/SKILL.md
+`docs/` explains architecture and design decisions.
 
-database change:
-skills/database-design/SKILL.md
-
-payment change:
-skills/payment/SKILL.md
-
-microservice boundary change:
-skills/microservice-architecture/SKILL.md
-
-frontend UI change:
-skills/frontend-ui/SKILL.md
-
-Three.js:
-skills/threejs/SKILL.md
-
-testing:
-skills/testing/SKILL.md
-
-code review:
-skills/code-review/SKILL.md
+Avoid duplicating large amounts of information between these locations.
 
 ---
 
-# Forbidden Changes
+# 18. Forbidden Patterns
 
 Do not:
 
-* share databases between services
-* use distributed transactions
-* depend solely on Redis locks
-* mutate booking state from frontend confirmation
+* share databases between microservices
+* perform cross-service SQL joins
+* introduce distributed ACID transactions
+* use Redis as the only seat-locking mechanism
+* use in-memory Java locks for distributed booking correctness
+* trust frontend booking state
 * trust frontend payment success
-* remove idempotency
-* remove concurrency tests
-* put domain logic inside controllers
-* publish critical events outside the Outbox pattern
+* remove payment idempotency
+* place domain logic inside controllers
+* publish critical domain events without the Outbox strategy
+* create unnecessary microservices
 * introduce synchronous service chains without justification
-* create a new microservice for trivial functionality
-* add Three.js to simple UI where CSS is sufficient
+* expose payment secrets to the frontend
+* make core booking depend on Three.js or WebGL
+* weaken concurrency guarantees merely to make tests pass
 
 ---
 
-# Decision Priority
+# 19. Decision Priority
 
-When trade-offs arise, prioritize:
+When engineering trade-offs arise, prioritize:
 
+```text
 correctness
-
 > data consistency
 > security
 > maintainability
 > observability
 > performance
 > visual effects
+```
 
-unless an ADR explicitly states otherwise.
+unless an accepted ADR explicitly establishes a different trade-off.
 
 ---
 
-# Completion Requirement
+# 20. Definition of Done
 
-For every completed task report:
+A task is complete only when applicable requirements are satisfied:
+
+* implementation is complete
+* relevant tests pass
+* service boundaries remain valid
+* database migration is included when necessary
+* concurrency invariants remain protected
+* idempotency is preserved
+* architecture documentation is updated when required
+* code review skill has been applied
+
+At completion, report:
 
 ## Changed
 
@@ -627,19 +771,19 @@ Files changed.
 
 ## Architecture
 
-Any architectural implications.
+Architectural impact, if any.
 
 ## Database
 
-Migration changes.
+Schema or migration changes, if any.
 
 ## Tests
 
-Tests added and results.
+Tests added or updated and their results.
 
 ## Risks
 
-Known risks.
+Known risks or limitations.
 
 ## Follow-up
 

@@ -1,0 +1,6 @@
+openapi: 3.1.0
+info:
+  title: Cinema Notification Service API
+  version: 0.1.0
+  description: No public customer operations in Phase 1; delivery is event-driven.
+paths: {}

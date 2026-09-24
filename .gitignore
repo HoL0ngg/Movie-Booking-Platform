@@ -1,0 +1,30 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+
+# Java and Maven
+**/target/
+.m2/
+.mvn/timing.properties
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Logs and runtime files
+*.log
+logs/
+*.pid
+
+# Operating systems
+.DS_Store
+Thumbs.db

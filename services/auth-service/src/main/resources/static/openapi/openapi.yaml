@@ -1,0 +1,59 @@
+openapi: 3.1.0
+info:
+  title: Cinema Auth Service API
+  version: 0.1.0
+  description: Phase 1 contract only; operations are not implemented yet.
+servers:
+  - url: /api/v1
+paths:
+  /auth/register:
+    post:
+      operationId: register
+      responses:
+        "201": {description: Account created}
+        "400": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+  /auth/login:
+    post:
+      operationId: login
+      responses:
+        "200": {description: Authentication accepted}
+        "401": {$ref: "#/components/responses/Error"}
+  /auth/refresh:
+    post:
+      operationId: refreshSession
+      responses:
+        "200": {description: Session refreshed}
+        "401": {$ref: "#/components/responses/Error"}
+  /auth/logout:
+    post:
+      operationId: logout
+      security: [{bearerAuth: []}]
+      responses:
+        "204": {description: Session revoked or already absent}
+  /me:
+    get:
+      operationId: getCurrentUser
+      security: [{bearerAuth: []}]
+      responses:
+        "200": {description: Safe current-user profile}
+        "401": {$ref: "#/components/responses/Error"}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  responses:
+    Error:
+      description: Standard error
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/Error"}
+  schemas:
+    Error:
+      type: object
+      required: [code, message, traceId, timestamp]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        traceId: {type: string}
+        timestamp: {type: string, format: date-time}
+        details: {type: object, additionalProperties: true}

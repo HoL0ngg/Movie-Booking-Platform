@@ -1,0 +1,102 @@
+openapi: 3.1.0
+info:
+  title: Cinema Booking Service API
+  version: 0.1.0
+  description: Phase 1 contract only. PostgreSQL remains authoritative for seat ownership.
+servers:
+  - url: /api/v1
+paths:
+  /showtimes/{showtimeId}/seats:
+    get:
+      operationId: getSeatAvailability
+      parameters:
+        - {name: showtimeId, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: Authoritative-at-read-time availability snapshot}
+  /reservations:
+    post:
+      operationId: createReservation
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: "#/components/parameters/IdempotencyKey"}
+      responses:
+        "201": {description: Complete seat set held atomically}
+        "409": {$ref: "#/components/responses/Error"}
+  /reservations/{reservationId}:
+    get:
+      operationId: getReservation
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: "#/components/parameters/ReservationId"}
+      responses:
+        "200": {description: Owned reservation and deadline}
+        "404": {$ref: "#/components/responses/Error"}
+  /reservations/{reservationId}/checkout:
+    post:
+      operationId: startCheckout
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: "#/components/parameters/ReservationId"}
+        - {$ref: "#/components/parameters/IdempotencyKey"}
+      responses:
+        "202": {description: Payment Saga accepted; success is not implied}
+        "409": {$ref: "#/components/responses/Error"}
+        "410": {$ref: "#/components/responses/Error"}
+  /reservations/{reservationId}/release:
+    post:
+      operationId: releaseReservation
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: "#/components/parameters/ReservationId"}
+        - {$ref: "#/components/parameters/IdempotencyKey"}
+      responses:
+        "204": {description: Eligible hold released or already released}
+        "409": {$ref: "#/components/responses/Error"}
+  /bookings/{bookingId}:
+    get:
+      operationId: getBooking
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: bookingId, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: Booking and Saga status}
+        "404": {$ref: "#/components/responses/Error"}
+  /bookings/{bookingId}/ticket:
+    get:
+      operationId: getTicket
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: bookingId, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: Confirmed ticket entitlement}
+        "409": {$ref: "#/components/responses/Error"}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  parameters:
+    ReservationId:
+      name: reservationId
+      in: path
+      required: true
+      schema: {type: string}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, minLength: 8, maxLength: 128}
+  responses:
+    Error:
+      description: Standard error
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/Error"}
+  schemas:
+    Error:
+      type: object
+      required: [code, message, traceId, timestamp]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        traceId: {type: string}
+        timestamp: {type: string, format: date-time}
+        details: {type: object, additionalProperties: true}

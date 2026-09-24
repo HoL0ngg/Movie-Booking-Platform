@@ -1,0 +1,18 @@
+openapi: 3.1.0
+info:
+  title: Cinema Booking API Gateway
+  version: 0.1.0
+  description: >-
+    Phase 1 edge contract index. Downstream services own operation schemas and
+    authorization; the gateway owns routing and cross-cutting edge behavior only.
+servers:
+  - url: http://localhost:8080
+paths: {}
+x-downstream-contracts:
+  auth-service: http://localhost:8081/openapi/openapi.yaml
+  movie-service: http://localhost:8082/openapi/openapi.yaml
+  cinema-service: http://localhost:8083/openapi/openapi.yaml
+  booking-service: http://localhost:8084/openapi/openapi.yaml
+  payment-service: http://localhost:8085/openapi/openapi.yaml
+  notification-service: http://localhost:8086/openapi/openapi.yaml
+

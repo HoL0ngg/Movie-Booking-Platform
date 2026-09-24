@@ -1,6 +1,8 @@
 # REST API Contract Baseline
 
-Status: Phase 0 conceptual contract; OpenAPI files begin in Phase 1
+Status: Phase 1 contract baseline; operations remain unimplemented
+
+Static OpenAPI 3.1 contracts are published from each Spring Boot module at `/openapi/openapi.yaml` and listed by the gateway contract. They are contract artifacts, not evidence that an operation is implemented. This document remains the semantic authority until implementation-time DTO schemas and contract tests are added.
 
 ## Conventions
 

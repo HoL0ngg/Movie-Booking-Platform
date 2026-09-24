@@ -1,0 +1,94 @@
+asyncapi: 3.0.0
+info:
+  title: Cinema Booking Domain Events
+  version: 1.0.0
+  description: >-
+    Phase 1 Kafka contract. Delivery is at least once, aggregateId is the message key,
+    and every state-changing consumer must deduplicate eventId durably.
+defaultContentType: application/json
+servers:
+  local:
+    host: localhost:29092
+    protocol: kafka
+    description: Local development broker only
+channels:
+  showtimeEvents:
+    address: cinema.showtime-events.v1
+    messages:
+      ShowtimePublished: {$ref: "#/components/messages/ShowtimePublished"}
+      ShowtimeCancelled: {$ref: "#/components/messages/ShowtimeCancelled"}
+  bookingEvents:
+    address: cinema.booking-events.v1
+    messages:
+      ReservationCreated: {$ref: "#/components/messages/ReservationCreated"}
+      SeatsHeld: {$ref: "#/components/messages/SeatsHeld"}
+      SeatHoldExpired: {$ref: "#/components/messages/SeatHoldExpired"}
+      ReservationReleased: {$ref: "#/components/messages/ReservationReleased"}
+      PaymentRequested: {$ref: "#/components/messages/PaymentRequested"}
+      BookingConfirmed: {$ref: "#/components/messages/BookingConfirmed"}
+      BookingCancelled: {$ref: "#/components/messages/BookingCancelled"}
+      RefundRequested: {$ref: "#/components/messages/RefundRequested"}
+  paymentEvents:
+    address: cinema.payment-events.v1
+    messages:
+      PaymentSucceeded: {$ref: "#/components/messages/PaymentSucceeded"}
+      PaymentFailed: {$ref: "#/components/messages/PaymentFailed"}
+      RefundCompleted: {$ref: "#/components/messages/RefundCompleted"}
+      RefundFailed: {$ref: "#/components/messages/RefundFailed"}
+operations:
+  consumeShowtimeEvents:
+    action: receive
+    channel: {$ref: "#/channels/showtimeEvents"}
+    summary: booking-service consumes idempotently.
+  consumeBookingEvents:
+    action: receive
+    channel: {$ref: "#/channels/bookingEvents"}
+    summary: payment-service and notification-service consume only their documented event types.
+  consumePaymentEvents:
+    action: receive
+    channel: {$ref: "#/channels/paymentEvents"}
+    summary: booking-service and notification-service consume only their documented event types.
+components:
+  messages:
+    ShowtimePublished:
+      name: ShowtimePublished
+      payload: {$ref: "./event-envelope.schema.json#/$defs/ShowtimePublished"}
+    ShowtimeCancelled:
+      name: ShowtimeCancelled
+      payload: {$ref: "./event-envelope.schema.json#/$defs/ShowtimeCancelled"}
+    ReservationCreated:
+      name: ReservationCreated
+      payload: {$ref: "./event-envelope.schema.json#/$defs/ReservationCreated"}
+    SeatsHeld:
+      name: SeatsHeld
+      payload: {$ref: "./event-envelope.schema.json#/$defs/SeatsHeld"}
+    SeatHoldExpired:
+      name: SeatHoldExpired
+      payload: {$ref: "./event-envelope.schema.json#/$defs/SeatHoldExpired"}
+    ReservationReleased:
+      name: ReservationReleased
+      payload: {$ref: "./event-envelope.schema.json#/$defs/ReservationReleased"}
+    PaymentRequested:
+      name: PaymentRequested
+      payload: {$ref: "./event-envelope.schema.json#/$defs/PaymentRequested"}
+    PaymentSucceeded:
+      name: PaymentSucceeded
+      payload: {$ref: "./event-envelope.schema.json#/$defs/PaymentSucceeded"}
+    PaymentFailed:
+      name: PaymentFailed
+      payload: {$ref: "./event-envelope.schema.json#/$defs/PaymentFailed"}
+    BookingConfirmed:
+      name: BookingConfirmed
+      payload: {$ref: "./event-envelope.schema.json#/$defs/BookingConfirmed"}
+    BookingCancelled:
+      name: BookingCancelled
+      payload: {$ref: "./event-envelope.schema.json#/$defs/BookingCancelled"}
+    RefundRequested:
+      name: RefundRequested
+      payload: {$ref: "./event-envelope.schema.json#/$defs/RefundRequested"}
+    RefundCompleted:
+      name: RefundCompleted
+      payload: {$ref: "./event-envelope.schema.json#/$defs/RefundCompleted"}
+    RefundFailed:
+      name: RefundFailed
+      payload: {$ref: "./event-envelope.schema.json#/$defs/RefundFailed"}

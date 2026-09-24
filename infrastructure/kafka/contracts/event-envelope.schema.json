@@ -1,0 +1,335 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cinema.example/contracts/event-envelope.schema.json",
+  "title": "Cinema domain event v1",
+  "oneOf": [
+    { "$ref": "#/$defs/ShowtimePublished" },
+    { "$ref": "#/$defs/ShowtimeCancelled" },
+    { "$ref": "#/$defs/ReservationCreated" },
+    { "$ref": "#/$defs/SeatsHeld" },
+    { "$ref": "#/$defs/SeatHoldExpired" },
+    { "$ref": "#/$defs/ReservationReleased" },
+    { "$ref": "#/$defs/PaymentRequested" },
+    { "$ref": "#/$defs/PaymentSucceeded" },
+    { "$ref": "#/$defs/PaymentFailed" },
+    { "$ref": "#/$defs/BookingConfirmed" },
+    { "$ref": "#/$defs/BookingCancelled" },
+    { "$ref": "#/$defs/RefundRequested" },
+    { "$ref": "#/$defs/RefundCompleted" },
+    { "$ref": "#/$defs/RefundFailed" }
+  ],
+  "$defs": {
+    "Envelope": {
+      "type": "object",
+      "required": ["eventId", "eventType", "eventVersion", "aggregateId", "occurredAt", "traceId", "payload"],
+      "properties": {
+        "eventId": { "type": "string", "format": "uuid" },
+        "eventType": { "type": "string" },
+        "eventVersion": { "const": 1 },
+        "aggregateId": { "type": "string", "minLength": 1 },
+        "occurredAt": { "type": "string", "format": "date-time" },
+        "traceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "payload": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "Uuid": { "type": "string", "format": "uuid" },
+    "UuidList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/Uuid" }
+    },
+    "ShowtimePublished": {
+      "allOf": [
+        { "$ref": "#/$defs/Envelope" },
+        { "properties": {
+          "eventType": { "const": "ShowtimePublished" },
+          "payload": {
+            "type": "object",
+            "required": ["showtimeId", "cinemaId", "auditoriumId", "movieId", "startsAt", "salesCloseAt", "currency", "seats", "snapshotVersion"],
+            "properties": {
+              "showtimeId": { "$ref": "#/$defs/Uuid" },
+              "cinemaId": { "$ref": "#/$defs/Uuid" },
+              "auditoriumId": { "$ref": "#/$defs/Uuid" },
+              "movieId": { "$ref": "#/$defs/Uuid" },
+              "startsAt": { "type": "string", "format": "date-time" },
+              "salesCloseAt": { "type": "string", "format": "date-time" },
+              "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+              "snapshotVersion": { "type": "integer", "minimum": 1 },
+              "seats": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": ["seatId", "label", "type", "priceMinor"],
+                  "properties": {
+                    "seatId": { "$ref": "#/$defs/Uuid" },
+                    "label": { "type": "string" },
+                    "type": { "type": "string" },
+                    "priceMinor": { "type": "integer", "minimum": 0 }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        } }
+      ]
+    },
+    "ShowtimeCancelled": {
+      "allOf": [{ "$ref": "#/$defs/Envelope" }, { "properties": {
+        "eventType": { "const": "ShowtimeCancelled" },
+        "payload": { "$ref": "#/$defs/ShowtimeCancelledPayload" }
+      } }]
+    },
+    "ShowtimeCancelledPayload": {
+      "type": "object",
+      "required": ["showtimeId", "snapshotVersion", "reasonCode", "cancelledAt"],
+      "properties": {
+        "showtimeId": { "$ref": "#/$defs/Uuid" },
+        "snapshotVersion": { "type": "integer", "minimum": 1 },
+        "reasonCode": { "type": "string" },
+        "cancelledAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "ReservationCreated": {
+      "allOf": [{ "$ref": "#/$defs/Envelope" }, { "properties": {
+        "eventType": { "const": "ReservationCreated" },
+        "payload": { "$ref": "#/$defs/ReservationHeldPayload" }
+      } }]
+    },
+    "SeatsHeld": {
+      "allOf": [{ "$ref": "#/$defs/Envelope" }, { "properties": {
+        "eventType": { "const": "SeatsHeld" },
+        "payload": { "$ref": "#/$defs/SeatsHeldPayload" }
+      } }]
+    },
+    "ReservationHeldPayload": {
+      "type": "object",
+      "required": ["reservationId", "userId", "showtimeId", "seatIds", "holdExpiresAt"],
+      "properties": {
+        "reservationId": { "$ref": "#/$defs/Uuid" },
+        "userId": { "$ref": "#/$defs/Uuid" },
+        "showtimeId": { "$ref": "#/$defs/Uuid" },
+        "seatIds": { "$ref": "#/$defs/UuidList" },
+        "holdExpiresAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "SeatsHeldPayload": {
+      "type": "object",
+      "required": ["reservationId", "showtimeId", "seatIds", "holdExpiresAt"],
+      "properties": {
+        "reservationId": { "$ref": "#/$defs/Uuid" },
+        "showtimeId": { "$ref": "#/$defs/Uuid" },
+        "seatIds": { "$ref": "#/$defs/UuidList" },
+        "holdExpiresAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "SeatHoldExpired": {
+      "allOf": [{ "$ref": "#/$defs/Envelope" }, { "properties": {
+        "eventType": { "const": "SeatHoldExpired" },
+        "payload": { "$ref": "#/$defs/ExpiredPayload" }
+      } }]
+    },
+    "ExpiredPayload": {
+      "type": "object",
+      "required": ["reservationId", "userId", "showtimeId", "seatIds", "expiredAt"],
+      "properties": {
+        "reservationId": { "$ref": "#/$defs/Uuid" },
+        "userId": { "$ref": "#/$defs/Uuid" },
+        "showtimeId": { "$ref": "#/$defs/Uuid" },
+        "seatIds": { "$ref": "#/$defs/UuidList" },
+        "expiredAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "ReservationReleased": {
+      "allOf": [{ "$ref": "#/$defs/Envelope" }, { "properties": {
+        "eventType": { "const": "ReservationReleased" },
+        "payload": { "$ref": "#/$defs/ReleasedPayload" }
+      } }]
+    },
+    "ReleasedPayload": {
+      "type": "object",
+      "required": ["reservationId", "showtimeId", "seatIds", "reasonCode", "releasedAt"],
+      "properties": {
+        "reservationId": { "$ref": "#/$defs/Uuid" },
+        "bookingId": { "$ref": "#/$defs/Uuid" },
+        "showtimeId": { "$ref": "#/$defs/Uuid" },
+        "seatIds": { "$ref": "#/$defs/UuidList" },
+        "reasonCode": { "type": "string" },
+        "releasedAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "PaymentRequested": {
+      "allOf": [{ "$ref": "#/$defs/Envelope" }, { "properties": {
+        "eventType": { "const": "PaymentRequested" },
+        "payload": { "$ref": "#/$defs/PaymentRequestedPayload" }
+      } }]
+    },
+    "PaymentRequestedPayload": {
+      "type": "object",
+      "required": ["paymentId", "bookingId", "reservationId", "userId", "amountMinor", "currency", "idempotencyKey", "requestedAt"],
+      "properties": {
+        "paymentId": { "$ref": "#/$defs/Uuid" },
+        "bookingId": { "$ref": "#/$defs/Uuid" },
+        "reservationId": { "$ref": "#/$defs/Uuid" },
+        "userId": { "$ref": "#/$defs/Uuid" },
+        "amountMinor": { "type": "integer", "minimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 128 },
+        "requestedAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "PaymentSucceeded": {
+      "allOf": [{ "$ref": "#/$defs/Envelope" }, { "properties": {
+        "eventType": { "const": "PaymentSucceeded" },
+        "payload": { "$ref": "#/$defs/PaymentSucceededPayload" }
+      } }]
+    },
+    "PaymentSucceededPayload": {
+      "type": "object",
+      "required": ["paymentId", "bookingId", "reservationId", "amountMinor", "currency", "provider", "providerTransactionId", "succeededAt"],
+      "properties": {
+        "paymentId": { "$ref": "#/$defs/Uuid" },
+        "bookingId": { "$ref": "#/$defs/Uuid" },
+        "reservationId": { "$ref": "#/$defs/Uuid" },
+        "amountMinor": { "type": "integer", "minimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "provider": { "type": "string" },
+        "providerTransactionId": { "type": "string" },
+        "succeededAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "PaymentFailed": {
+      "allOf": [{ "$ref": "#/$defs/Envelope" }, { "properties": {
+        "eventType": { "const": "PaymentFailed" },
+        "payload": { "$ref": "#/$defs/PaymentFailedPayload" }
+      } }]
+    },
+    "PaymentFailedPayload": {
+      "type": "object",
+      "required": ["paymentId", "bookingId", "reservationId", "provider", "failureCode", "failedAt"],
+      "properties": {
+        "paymentId": { "$ref": "#/$defs/Uuid" },
+        "bookingId": { "$ref": "#/$defs/Uuid" },
+        "reservationId": { "$ref": "#/$defs/Uuid" },
+        "provider": { "type": "string" },
+        "failureCode": { "type": "string" },
+        "failedAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "BookingConfirmed": {
+      "allOf": [{ "$ref": "#/$defs/Envelope" }, { "properties": {
+        "eventType": { "const": "BookingConfirmed" },
+        "payload": { "$ref": "#/$defs/BookingConfirmedPayload" }
+      } }]
+    },
+    "BookingCancelled": {
+      "allOf": [{ "$ref": "#/$defs/Envelope" }, { "properties": {
+        "eventType": { "const": "BookingCancelled" },
+        "payload": { "$ref": "#/$defs/BookingCancelledPayload" }
+      } }]
+    },
+    "BookingConfirmedPayload": {
+      "type": "object",
+      "required": ["bookingId", "reservationId", "paymentId", "userId", "showtimeId", "seatIds", "confirmedAt"],
+      "properties": {
+        "bookingId": { "$ref": "#/$defs/Uuid" },
+        "reservationId": { "$ref": "#/$defs/Uuid" },
+        "paymentId": { "$ref": "#/$defs/Uuid" },
+        "userId": { "$ref": "#/$defs/Uuid" },
+        "showtimeId": { "$ref": "#/$defs/Uuid" },
+        "seatIds": { "$ref": "#/$defs/UuidList" },
+        "confirmedAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "BookingCancelledPayload": {
+      "type": "object",
+      "required": ["bookingId", "reservationId", "userId", "showtimeId", "seatIds", "reasonCode", "cancelledAt"],
+      "properties": {
+        "bookingId": { "$ref": "#/$defs/Uuid" },
+        "reservationId": { "$ref": "#/$defs/Uuid" },
+        "paymentId": { "$ref": "#/$defs/Uuid" },
+        "userId": { "$ref": "#/$defs/Uuid" },
+        "showtimeId": { "$ref": "#/$defs/Uuid" },
+        "seatIds": { "$ref": "#/$defs/UuidList" },
+        "reasonCode": { "type": "string", "minLength": 1 },
+        "cancelledAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "RefundRequested": {
+      "allOf": [{ "$ref": "#/$defs/Envelope" }, { "properties": {
+        "eventType": { "const": "RefundRequested" },
+        "payload": { "$ref": "#/$defs/RefundRequestedPayload" }
+      } }]
+    },
+    "RefundRequestedPayload": {
+      "type": "object",
+      "required": ["refundRequestId", "paymentId", "bookingId", "userId", "amountMinor", "currency", "reasonCode", "idempotencyKey"],
+      "properties": {
+        "refundRequestId": { "$ref": "#/$defs/Uuid" },
+        "paymentId": { "$ref": "#/$defs/Uuid" },
+        "bookingId": { "$ref": "#/$defs/Uuid" },
+        "userId": { "$ref": "#/$defs/Uuid" },
+        "amountMinor": { "type": "integer", "minimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "reasonCode": { "type": "string" },
+        "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 128 }
+      },
+      "additionalProperties": false
+    },
+    "RefundCompleted": {
+      "allOf": [{ "$ref": "#/$defs/Envelope" }, { "properties": {
+        "eventType": { "const": "RefundCompleted" },
+        "payload": { "$ref": "#/$defs/RefundCompletedPayload" }
+      } }]
+    },
+    "RefundCompletedPayload": {
+      "type": "object",
+      "required": ["refundId", "refundRequestId", "paymentId", "bookingId", "userId", "amountMinor", "currency", "providerRefundId", "refundedAt"],
+      "properties": {
+        "refundId": { "$ref": "#/$defs/Uuid" },
+        "refundRequestId": { "$ref": "#/$defs/Uuid" },
+        "paymentId": { "$ref": "#/$defs/Uuid" },
+        "bookingId": { "$ref": "#/$defs/Uuid" },
+        "userId": { "$ref": "#/$defs/Uuid" },
+        "amountMinor": { "type": "integer", "minimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "providerRefundId": { "type": "string" },
+        "refundedAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "RefundFailed": {
+      "allOf": [{ "$ref": "#/$defs/Envelope" }, { "properties": {
+        "eventType": { "const": "RefundFailed" },
+        "payload": { "$ref": "#/$defs/RefundFailedPayload" }
+      } }]
+    },
+    "RefundFailedPayload": {
+      "type": "object",
+      "required": ["refundId", "refundRequestId", "paymentId", "failureCode", "failedAt", "retryable"],
+      "properties": {
+        "refundId": { "$ref": "#/$defs/Uuid" },
+        "refundRequestId": { "$ref": "#/$defs/Uuid" },
+        "paymentId": { "$ref": "#/$defs/Uuid" },
+        "failureCode": { "type": "string" },
+        "failedAt": { "type": "string", "format": "date-time" },
+        "retryable": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

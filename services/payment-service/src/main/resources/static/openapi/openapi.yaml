@@ -1,0 +1,61 @@
+openapi: 3.1.0
+info:
+  title: Cinema Payment Service API
+  version: 0.1.0
+  description: Phase 1 contract only. Browser redirects never confirm payment.
+servers:
+  - url: /
+paths:
+  /api/v1/payments/{paymentId}:
+    get:
+      operationId: getPayment
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: "#/components/parameters/PaymentId"}
+      responses:
+        "200": {description: Authorized payment state and safe checkout instruction}
+        "404": {$ref: "#/components/responses/Error"}
+  /api/v1/payments/{paymentId}/refunds:
+    get:
+      operationId: getRefunds
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: "#/components/parameters/PaymentId"}
+      responses:
+        "200": {description: Authorized refund state}
+        "404": {$ref: "#/components/responses/Error"}
+  /provider-webhooks/{provider}:
+    post:
+      operationId: receiveProviderWebhook
+      description: Provider-authenticated raw request ingress; no provider is integrated in Phase 1.
+      parameters:
+        - {name: provider, in: path, required: true, schema: {type: string}}
+      responses:
+        "202": {description: Provider payload durably accepted according to provider protocol}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  parameters:
+    PaymentId:
+      name: paymentId
+      in: path
+      required: true
+      schema: {type: string}
+  responses:
+    Error:
+      description: Standard error
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/Error"}
+  schemas:
+    Error:
+      type: object
+      required: [code, message, traceId, timestamp]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        traceId: {type: string}
+        timestamp: {type: string, format: date-time}
+        details: {type: object, additionalProperties: true}

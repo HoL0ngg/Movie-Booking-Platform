@@ -1,0 +1,11 @@
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes: []
+management:
+  health:
+    redis:
+      enabled: false
+

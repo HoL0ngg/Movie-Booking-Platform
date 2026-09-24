@@ -1,0 +1,71 @@
+server:
+  port: ${NOTIFICATION_SERVICE_PORT:8086}
+
+spring:
+  application:
+    name: notification-service
+  datasource:
+    url: ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:54326/cinema_notification}
+    username: ${NOTIFICATION_DB_USER:cinema_notification_app}
+    password: ${NOTIFICATION_DB_PASSWORD:}
+    hikari:
+      connection-timeout: 3000
+      maximum-pool-size: 10
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    clean-disabled: true
+    validate-migration-naming: true
+    locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    consumer:
+      group-id: notification-service
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+    listener:
+      ack-mode: record
+      missing-topics-fatal: false
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+
+cinema:
+  messaging:
+    booking-topic: cinema.booking-events.v1
+    payment-topic: cinema.payment-events.v1
+    booking-quarantine-topic: cinema.booking-events.quarantine.v1
+    payment-quarantine-topic: cinema.payment-events.quarantine.v1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    url: /openapi/openapi.yaml
+
+logging:
+  structured:
+    format:
+      console: ecs
+
+info:
+  app:
+    name: ${spring.application.name}
+    phase: 1

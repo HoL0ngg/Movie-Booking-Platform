@@ -1,0 +1,7 @@
+spring:
+  kafka:
+    listener:
+      auto-startup: false
+    admin:
+      fail-fast: false
+

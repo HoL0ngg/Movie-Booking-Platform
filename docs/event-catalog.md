@@ -1,6 +1,8 @@
 # Kafka Event Catalog
 
-Status: Phase 0 contract baseline
+Status: Phase 1 contract baseline
+
+The machine-readable AsyncAPI and JSON Schema artifacts are in `infrastructure/kafka/contracts/`. Local development creates three partitions per topic, seven-day retention for event topics, fourteen-day retention for quarantine topics, and replication factor one. Those values are local-only; production partitioning, retention, replication, and ACLs require an environment-specific decision before deployment.
 
 ## Delivery contract
 
@@ -39,7 +41,7 @@ Initial logical topics group events by owning bounded context:
 - `cinema.booking-events.v1`
 - `cinema.payment-events.v1`
 
-The `.v1` suffix versions topic-level compatibility, not every event payload. Final partition counts, retention, replication, ACLs, and dead-letter/quarantine destinations are Phase 1 environment decisions. Producers may write only their owned topic; consumers receive least-privilege read access.
+The `.v1` suffix versions topic-level compatibility, not every event payload. Local values are documented above. Production partition counts, retention, replication, ACLs, and quarantine operations remain deployment decisions. Producers may write only their owned topic; consumers receive least-privilege read access.
 
 ## Event catalog
 
