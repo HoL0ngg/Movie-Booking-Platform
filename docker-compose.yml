@@ -1,0 +1,6 @@
+name: cinema-booking
+
+# Phase 0 placeholder. Phase 1 will add pinned PostgreSQL, Kafka, Redis, and
+# observability services with health checks, isolated credentials, and volumes.
+services: {}
+
