@@ -1,0 +1,7 @@
+// Implemented application schema only. All six V1 Flyway migrations are
+// comment-only baselines; no application tables or foreign keys exist yet.
+// Flyway's runtime-managed schema history is outside this domain model.
+Project cinema_booking_platform {
+  database_type: 'PostgreSQL'
+  Note: 'No application tables are defined by the current migrations or JPA mappings. The six service-owned databases are documented in database-er-diagram.md.'
+}
