@@ -1,28 +1,10 @@
-# Implemented database schema
+# Database diagrams
 
-## Database Overview
+The tables below are implemented by each service's V2 Flyway migration. [DBML](schema.dbml) lists columns and relationships; [database design](../database-design.md) explains PostgreSQL-specific checks and future application transitions. DBML's six namespaces represent six **separate databases**. The business workflows are not implemented yet.
 
-As of the current repository state, the implemented **application schema is empty**. Each of the six stateful services has its own PostgreSQL database, Flyway configuration, and comment-only `V1__baseline.sql` migration. There are no JPA entities or other ORM mappings. The gateway has no database. This diagram reflects the repository's migrations and mappings; it does not claim to inventory a running database or Flyway's runtime-managed schema history.
+## System-level ownership
 
-| Service domain | Configured database | Implemented application tables |
-|---|---|---:|
-| Authentication | `cinema_auth` | 0 |
-| Movie catalog | `cinema_movie` | 0 |
-| Cinema and showtimes | `cinema_cinema` | 0 |
-| Booking and seat inventory | `cinema_booking` | 0 |
-| Payment and refunds | `cinema_payment` | 0 |
-| Notifications | `cinema_notification` | 0 |
-
-### Physical ER diagram
-
-There are no implemented application entities or relationships to draw. The empty ER diagram is intentional; adding conceptual tables here would misstate the physical schema.
-
-```mermaid
-erDiagram
-    %% No application tables or foreign-key relationships are implemented.
-```
-
-The following is a **database ownership map**, not an ER diagram. Its arrows identify configured service-to-database ownership, not table relationships.
+Arrows here mean service ownership of a database, **not** foreign keys. The gateway has no database.
 
 ```mermaid
 flowchart LR
@@ -34,19 +16,264 @@ flowchart LR
     Notification[notification-service] --> NotificationDB[(cinema_notification)]
 ```
 
-## Important Relationships
+## Authentication database
 
-There are no implemented primary keys, foreign keys, unique constraints, junction tables, or physical one-to-one, one-to-many, or many-to-many relationships. The services are designed to exchange identifiers through APIs and events, but no application-level relationship is implemented in persistence yet. No cross-service foreign key should be inferred from the planned `user_id`, `movie_id`, or `showtime_id` references in [database-design.md](../database-design.md).
+```mermaid
+erDiagram
+    USERS ||--o{ USER_ROLES : receives
+    ROLES ||--o{ USER_ROLES : grants
+    USERS ||--o{ REFRESH_SESSIONS : owns
+    USERS {
+        uuid id PK
+        text email_normalized UK
+        text password_hash
+        varchar status
+        timestamptz created_at
+    }
+    ROLES {
+        uuid id PK
+        varchar code UK
+    }
+    USER_ROLES {
+        uuid user_id PK, FK
+        uuid role_id PK, FK
+        timestamptz granted_at
+    }
+    REFRESH_SESSIONS {
+        uuid id PK
+        uuid user_id FK
+        bytea token_hash UK
+        timestamptz expires_at
+        timestamptz revoked_at
+    }
+```
 
-## Design Notes
+## Movie catalog database
 
-- All six services configure Flyway migrations at `classpath:db/migration` and Hibernate `ddl-auto: validate`; each currently has only a comment-only V1 baseline.
-- Separate JDBC URLs and users are configured for the six databases. The local [Compose file](../../docker-compose.yml) defines a distinct PostgreSQL container and volume for each.
-- No application columns, nullable fields, indexes, status types, cascade rules, soft-delete markers, audit fields, optimistic-lock versions, or concurrency fields are implemented. No application transaction or outbox table is represented in the current schema.
-- The proposed booking `showtime_seats` structure and other tables in [database-design.md](../database-design.md) are a logical design for later migrations, not present-day tables. The importable [DBML](schema.dbml) intentionally contains no `Table` or `Ref` declarations.
+```mermaid
+erDiagram
+    MOVIES ||--o{ MOVIE_GENRES : classified_as
+    GENRES ||--o{ MOVIE_GENRES : contains
+    MOVIES {
+        uuid id PK
+        text title
+        int duration_minutes
+        date release_date
+        varchar status
+    }
+    GENRES {
+        uuid id PK
+        text name UK
+    }
+    MOVIE_GENRES {
+        uuid movie_id PK, FK
+        uuid genre_id PK, FK
+    }
+```
 
-## Schema Discrepancies
+## Cinema and showtime database
 
-The Phase 0 [database design](../database-design.md) describes a conceptual `showtime_seats` table and expected auth, catalog, cinema, booking, payment, notification, outbox, and inbox tables. None appears in the six current Flyway baselines or JPA mappings. This is a planned-versus-implemented gap, consistent with [project-status.md](../project-status.md) placing core domain services in progress; it is not evidence that a migration is missing from an implemented feature.
+`SEATS` describes permanent auditorium positions. Live availability is held by booking, not here. `SHOWTIMES.movie_id` is a logical movie-service ID without a database FK.
 
-When a service adds its first domain migration, update these diagrams from that migration and its mappings. Keep each database separate, and label any cross-service identifier as a logical reference rather than a foreign key.
+```mermaid
+erDiagram
+    CINEMAS ||--o{ AUDITORIUMS : contains
+    AUDITORIUMS ||--o{ SEATS : defines
+    AUDITORIUMS ||--o{ SHOWTIMES : hosts
+    CINEMAS {
+        uuid id PK
+        text name
+        text city
+        text timezone
+    }
+    AUDITORIUMS {
+        uuid id PK
+        uuid cinema_id FK
+        text name
+    }
+    SEATS {
+        uuid id PK
+        uuid auditorium_id FK
+        varchar row_label
+        int seat_number
+        varchar seat_type
+        boolean is_active
+    }
+    SHOWTIMES {
+        uuid id PK
+        uuid auditorium_id FK
+        uuid movie_id
+        timestamptz starts_at
+        timestamptz ends_at
+        bigint price_minor
+        varchar status
+        bigint snapshot_version
+    }
+    OUTBOX_EVENTS {
+        uuid event_id PK
+        uuid aggregate_id
+        varchar event_type
+        timestamptz published_at
+    }
+```
+
+`OUTBOX_EVENTS` is intentionally unconnected: its `aggregate_id` is an event key, not a physical FK to one table.
+
+## Booking database
+
+`SHOWTIME_SNAPSHOTS` and `SHOWTIME_SEATS` contain copied cinema identifiers without cross-database FKs. `SHOWTIME_SEATS` is the sole authoritative availability table. `BOOKING_ITEMS` is created only when a booking confirms; its unique `(showtime_id, seat_id)` prevents a second successful sale.
+
+```mermaid
+erDiagram
+    SHOWTIME_SNAPSHOTS ||--o{ SHOWTIME_SEATS : inventories
+    SHOWTIME_SNAPSHOTS ||--o{ RESERVATIONS : receives
+    RESERVATIONS ||--o{ RESERVATION_SEATS : selects
+    SHOWTIME_SEATS ||--o{ RESERVATION_SEATS : selected_in
+    RESERVATIONS ||--o| BOOKINGS : checks_out_as
+    RESERVATIONS ||--o{ SHOWTIME_SEATS : currently_holds
+    BOOKINGS ||--o{ SHOWTIME_SEATS : currently_owns
+    BOOKINGS ||--o{ BOOKING_ITEMS : entitles
+    SHOWTIME_SEATS ||--o| BOOKING_ITEMS : sold_as
+    SHOWTIME_SNAPSHOTS {
+        uuid showtime_id PK
+        uuid cinema_id
+        uuid auditorium_id
+        uuid movie_id
+        varchar status
+        bigint snapshot_version
+    }
+    SHOWTIME_SEATS {
+        uuid showtime_id PK, FK
+        uuid seat_id PK
+        bigint price_minor
+        varchar status
+        uuid reservation_id FK
+        uuid booking_id FK
+        timestamptz hold_expires_at
+        bigint version
+    }
+    RESERVATIONS {
+        uuid id PK
+        uuid showtime_id FK
+        uuid user_id
+        varchar status
+        timestamptz hold_expires_at
+    }
+    RESERVATION_SEATS {
+        uuid reservation_id PK, FK
+        uuid showtime_id FK
+        uuid seat_id PK, FK
+        bigint price_minor
+    }
+    BOOKINGS {
+        uuid id PK
+        uuid reservation_id FK, UK
+        uuid showtime_id FK
+        uuid payment_id UK
+        bigint amount_minor
+        varchar status
+    }
+    BOOKING_ITEMS {
+        uuid id PK
+        uuid booking_id FK
+        uuid showtime_id FK
+        uuid seat_id FK
+        bigint price_minor
+    }
+    IDEMPOTENCY_KEYS {
+        uuid actor_id PK
+        varchar operation PK
+        varchar idempotency_key PK
+        bytea request_hash
+    }
+    OUTBOX_EVENTS {
+        uuid event_id PK
+        uuid aggregate_id
+        varchar event_type
+        timestamptz published_at
+    }
+    PROCESSED_EVENTS {
+        varchar consumer_name PK
+        uuid event_id PK
+        timestamptz processed_at
+    }
+```
+
+The reservation/booking-to-seat references use composite local FKs with `showtime_id`; the Mermaid lines simplify those composite keys for readability. `IDEMPOTENCY_KEYS.actor_id`, `BOOKINGS.payment_id`, and the inbox/outbox event IDs are not physical FKs to other databases or arbitrary aggregates.
+
+## Payment database
+
+Booking, reservation, and user IDs are logical references. Provider transaction, event, merchant, and refund identifiers are local unique identities; no raw card data is modeled.
+
+```mermaid
+erDiagram
+    PAYMENTS ||--o{ PAYMENT_ATTEMPTS : tries
+    PAYMENTS ||--o{ PROVIDER_EVENTS : receives
+    PAYMENTS ||--o| REFUNDS : compensates
+    PAYMENTS {
+        uuid id PK
+        uuid booking_id UK
+        uuid reservation_id
+        uuid user_id
+        bigint amount_minor
+        varchar currency
+        varchar status
+    }
+    PAYMENT_ATTEMPTS {
+        uuid id PK
+        uuid payment_id FK
+        varchar provider
+        varchar merchant_reference
+        varchar provider_transaction_id
+        varchar status
+    }
+    PROVIDER_EVENTS {
+        uuid id PK
+        uuid payment_id FK
+        varchar provider
+        varchar event_identity
+        timestamptz received_at
+    }
+    REFUNDS {
+        uuid id PK
+        uuid payment_id FK, UK
+        uuid refund_request_id UK
+        varchar merchant_reference
+        varchar provider_refund_id
+        varchar status
+    }
+    OUTBOX_EVENTS {
+        uuid event_id PK
+        uuid aggregate_id
+        varchar event_type
+        timestamptz published_at
+    }
+    PROCESSED_EVENTS {
+        varchar consumer_name PK
+        uuid event_id PK
+        timestamptz processed_at
+    }
+```
+
+## Notification database
+
+One notification row is both the durable event deduplication record and the delivery job. `source_event_id` and `user_id` are logical IDs, not local FKs. Its unique `(source_event_id, channel)` prevents duplicate jobs for the same delivery channel.
+
+```mermaid
+erDiagram
+    NOTIFICATIONS {
+        uuid id PK
+        uuid source_event_id
+        uuid user_id
+        varchar channel
+        text recipient_address
+        varchar status
+        int attempt_count
+        timestamptz next_attempt_at
+        varchar provider_message_id
+    }
+```
+
+## Relationship and implementation boundary
+
+Every ER relationship above corresponds to an implemented **local** DBML `Ref`. Cross-service IDs appear as plain attributes and will be resolved through APIs or events when those workflows are implemented. The V2 migrations are authoritative if a diagram ever differs from the database.

@@ -1,6 +1,6 @@
 # Cinema Booking Platform
 
-This repository is at **Phase 1: infrastructure and service skeletons**. It contains the Phase 0 architecture baseline plus buildable Spring Boot technical shells, local infrastructure, health/metrics endpoints, trace propagation, fail-closed security, Flyway baselines, and machine-readable REST/event contracts. It intentionally contains no booking, payment, authentication, catalog, scheduling, or notification business logic yet.
+This repository is in **Phase 2: core domain services**. Phase 1 established buildable Spring Boot technical shells, local infrastructure, health/metrics endpoints, trace propagation, fail-closed security, and machine-readable REST/event contracts. Six service-owned PostgreSQL schemas now have Flyway migrations, JPA entities, and repositories. Booking, payment, authentication, catalog, scheduling, and notification business logic is not implemented yet.
 
 ## Repository layout
 
@@ -57,7 +57,7 @@ The seven deployables are independent Maven modules under `gateway/` and `servic
 
 Machine-readable contracts live with each service at `src/main/resources/static/openapi/openapi.yaml`. Kafka contracts live in `infrastructure/kafka/contracts/`.
 
-## Phase 1 quick start
+## Local quick start
 
 Prerequisites: Java 21+, Maven 3.9+, Docker Engine, and Docker Compose.
 
@@ -81,4 +81,4 @@ The gateway listens on `8080`; service ports are `8081` through `8086`. See [loc
 
 Before any implementation, read `AGENTS.md`, load the relevant skill under `skills/`, inspect these architecture documents and applicable ADRs, identify the invariant at risk, then make and test the smallest coherent change. Architecture changes require a new or superseding ADR.
 
-Phase 1 has established infrastructure and application skeletons while preserving these boundaries. Business logic begins only in a later, explicitly requested phase.
+Phase 1 established infrastructure and application skeletons. Phase 2 has added the database layer while preserving these boundaries; business APIs and workflows remain future work.

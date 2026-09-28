@@ -1,134 +1,97 @@
-# Database Design Strategy
+# Physical database design
 
-Status: Phase 0 logical design; not an executable migration
+Status: **implemented schema, application workflows pending**. Phase 2 is active. Each service has a V2 Flyway migration, JPA entities, and repositories for the tables in [schema.dbml](database/schema.dbml); [ER diagrams](database/database-er-diagram.md) show the same schema. The V1 migrations remain comment-only baselines. This document's reservation, Saga, and provider workflows describe requirements for later service logic.
 
-## Ownership and deployment
+## Ownership and ID strategy
 
-Each stateful service receives a separate PostgreSQL database and restricted database role. A common PostgreSQL instance may host these databases in local development, but grants must prevent cross-service access.
-
-| Service | Logical database | Principal owned data |
+| Database | Owning service | Tables |
 |---|---|---|
-| `auth-service` | `cinema_auth` | users, credentials, roles, sessions/tokens, security audit |
-| `movie-service` | `cinema_movie` | movies and catalog metadata |
-| `cinema-service` | `cinema_cinema` | cinemas, auditoriums, seats, showtimes |
-| `booking-service` | `cinema_booking` | showtime seats, reservations, bookings/tickets, price snapshots, Saga/idempotency/outbox/inbox |
-| `payment-service` | `cinema_payment` | payments, attempts, provider events/transactions, refunds, idempotency/outbox/inbox |
-| `notification-service` | `cinema_notification` | preferences, notification jobs, attempts, delivery state, inbox |
+| `cinema_auth` | auth-service | `users`, `roles`, `user_roles`, `refresh_sessions` |
+| `cinema_movie` | movie-service | `movies`, `genres`, `movie_genres` |
+| `cinema_cinema` | cinema-service | `cinemas`, `auditoriums`, `seats`, `showtimes`, `outbox_events` |
+| `cinema_booking` | booking-service | `showtime_snapshots`, `showtime_seats`, `reservations`, `reservation_seats`, `bookings`, `booking_items`, `idempotency_keys`, `outbox_events`, `processed_events` |
+| `cinema_payment` | payment-service | `payments`, `payment_attempts`, `provider_events`, `refunds`, `outbox_events`, `processed_events` |
+| `cinema_notification` | notification-service | `notifications` |
 
-The gateway has no domain database. Foreign keys exist only within one database. References such as `user_id`, `movie_id`, and cinema-owned `showtime_id` are opaque external IDs unless represented by an intentionally maintained local projection.
+The gateway owns no database. Each database has its own connection, role, migrations, and transactions. DBML namespaces are a visual grouping of **separate physical databases**, not a proposal to put these tables into one shared PostgreSQL database. All DBML `Ref` declarations stay within one database.
 
-## Migration rules
+Use UUID primary identifiers for domain rows and events. A service generates an ID before publishing it, so other services can carry the same opaque ID through retries without relying on a central sequence; UUIDv7 is a suitable generation choice if every producer uses a compatible implementation, but the column type remains PostgreSQL `uuid`. Composite identities are used where the invariant requires them: `(showtime_id, seat_id)` for booking inventory, `(consumer_name, event_id)` for inboxes, and composite keys for junction/deduplication records. Time values are `timestamptz` UTC instants. Money is nonnegative integer minor units plus uppercase ISO-4217 currency, never floating point.
 
-- Flyway owns every schema change. Persistent environments use Hibernate `ddl-auto=validate` (or no schema generation), never `update`.
-- Migrations define all primary keys, unique constraints, foreign keys, checks, defaults, and indexes.
-- Changes must be compatible with rolling deployment: expand, backfill/observe, switch readers/writers, then contract in a later release.
-- Destructive changes require a retention/export decision and a forward-fix or restore plan.
-- Store instants as UTC `timestamptz`; store money as integer minor units plus ISO-4217 currency; never use floating point.
+## Physical and logical relationships
 
-## Booking database core
+Within a database, the DBML `Ref` lines represent implemented physical FKs. The important local chains are `users → refresh_sessions/user_roles ← roles`, `movies → movie_genres ← genres`, `cinemas → auditoriums → seats/showtimes`, `showtime_snapshots → showtime_seats/reservations → bookings → booking_items`, and `payments → payment_attempts/provider_events/refunds`. `reservation_seats` records the immutable selected set and locked-in unit prices; `booking_items` records confirmed ticket entitlements. Neither requires another service's database.
 
-`showtime_seats` is the authoritative seat-state table. The conceptual PostgreSQL shape is:
+The following are **logical IDs only**, with no physical FK or cross-database join:
 
-```sql
-CREATE TABLE showtime_seats (
-    showtime_id     uuid        NOT NULL,
-    seat_id         uuid        NOT NULL,
-    status          text        NOT NULL,
-    held_by         uuid,
-    reservation_id  uuid,
-    booking_id      uuid,
-    hold_expires_at timestamptz,
-    version         bigint      NOT NULL DEFAULT 0,
-    updated_at      timestamptz NOT NULL DEFAULT clock_timestamp(),
-    PRIMARY KEY (showtime_id, seat_id),
-    CHECK (status IN ('AVAILABLE', 'HELD', 'PAYMENT_PENDING', 'SOLD')),
-    CHECK (version >= 0),
-    CHECK (
-        (status = 'AVAILABLE'
-            AND held_by IS NULL AND reservation_id IS NULL
-            AND booking_id IS NULL AND hold_expires_at IS NULL)
-        OR
-        (status = 'HELD'
-            AND held_by IS NOT NULL AND reservation_id IS NOT NULL
-            AND booking_id IS NULL AND hold_expires_at IS NOT NULL)
-        OR
-        (status = 'PAYMENT_PENDING'
-            AND held_by IS NOT NULL AND reservation_id IS NOT NULL
-            AND booking_id IS NOT NULL AND hold_expires_at IS NOT NULL)
-        OR
-        (status = 'SOLD'
-            AND held_by IS NULL AND reservation_id IS NOT NULL
-            AND booking_id IS NOT NULL AND hold_expires_at IS NULL)
-    )
-);
+| Referencing database/column | Owning database/identity | Propagation |
+|---|---|---|
+| cinema `showtimes.movie_id` | movie `movies.id` | Versioned API/validated schedule command |
+| booking `showtime_snapshots.showtime_id/cinema_id/auditorium_id/movie_id` and `showtime_seats.seat_id` | cinema and movie identities | `ShowtimePublished` snapshot |
+| booking `reservations.user_id`, `bookings.user_id`, `idempotency_keys.actor_id` | auth `users.id` | Authenticated request identity |
+| booking `bookings.payment_id` | payment `payments.id` | Stable ID reserved by booking and carried in `PaymentRequested` |
+| payment `payments.booking_id/reservation_id/user_id` and `refunds.refund_request_id` | booking/auth identities | Saga events |
+| notification `notifications.source_event_id/user_id` | Kafka event/auth identity | Consumed event and authorized recipient lookup |
 
-CREATE INDEX ix_showtime_seats_expiring
-    ON showtime_seats (hold_expires_at, showtime_id, seat_id)
-    WHERE status IN ('HELD', 'PAYMENT_PENDING');
-```
+The references do not grant read/write access to remote tables. Local composite FKs pair reservation, booking, and seat IDs with their `showtime_id` so records cannot silently attach to another showtime; the booking-to-reservation FK also enforces the same `user_id`. Ordinary FKs use `ON DELETE RESTRICT/NO ACTION`; historical booking/payment rows are not cascaded away. Role assignment and catalog genre membership are explicit junction tables. There is no blanket soft-delete scheme.
 
-The final migration may use PostgreSQL enum types or constrained text after implementation review. `reservation_id` and `booking_id` become local foreign keys once table creation order is defined. The composite primary key prevents duplicate inventory rows, while locked state validation prevents two owners from progressing the same row. `version` supports auditing/stale-write detection but does not replace pessimistic locks.
+## Cinema schedule and inventory ownership
 
-Related booking tables are expected to include:
+`cinema.seats` is the physical auditorium layout. It has no live availability field. `cinema.showtimes` owns the schedule and starts with one uniform `price_minor` per seat; `ShowtimePublished` copies each active seat's ID, label, type, and that price into an immutable bookable snapshot. If seat-specific pricing becomes a requirement, add an explicit cinema-owned pricing model before changing this contract.
 
-- `reservations`: user/showtime, state, hold deadline, request identity, created/updated times.
-- `reservation_seats`: reservation and the composite showtime/seat IDs; uniqueness prevents duplicate membership.
-- `bookings`: unique reservation, immutable amount/currency/price snapshot, state, confirmation time.
-- `tickets` or ticket entitlement: unique booking/seat identity; exact representation remains open.
-- `idempotency_keys`: operation scope, actor, key, request hash, status/result reference/serialized safe response, expiry.
-- `booking_sagas`: durable workflow state and applied payment/refund references if not fully represented by booking state.
-- `outbox_events` and `processed_events` as described below.
+`booking.showtime_snapshots` is a local, versioned projection of published showtimes. `booking.showtime_seats` is the authoritative live inventory. Booking consumes `ShowtimePublished` idempotently, creates one row per seat, and never overwrites held/sold ownership with a replay or later schedule message. Showtime cancellation closes new sales; handling already paid tickets requires a separate explicit policy. There is **no `showtime_seats` table in the cinema database**, because booking could not atomically lock it without crossing a service boundary.
 
-No booking table has a foreign key into cinema or auth databases.
+The cinema publication/cancellation transaction writes `showtimes` and `outbox_events` together. Booking's event transaction writes `processed_events`, its local snapshot/inventory effect, and any derived outbox row together. No remote database participates in either transaction.
 
-## Reservation transaction and lock order
+## Constraints and important indexes
 
-After validation, seat IDs are normalized, deduplicated, and sorted by a canonical representation. The application begins one transaction, resolves the idempotency key, and acquires every row lock in that order:
+The DBML lists PKs, local FKs, unique keys, ordinary indexes, types, and nullable columns. The V2 Flyway migrations implement these PostgreSQL-specific rules; DBML is documentation, not executable DDL:
+
+| Table(s) | Required checks / specialized indexes |
+|---|---|
+| auth `users`, `refresh_sessions` | `email_normalized = lower(btrim(email))`; unique normalized email and token hash. Store only a hash of the refresh token; `expires_at > created_at`. |
+| movie `movies`; cinema `seats`/`showtimes` | Positive duration/seat number; `starts_at < ends_at`, `sales_close_at <= starts_at`, `price_minor >= 0`, `snapshot_version > 0`. Published showtimes in one auditorium cannot overlap: a PostgreSQL GiST exclusion constraint on `(auditorium_id, tstzrange(starts_at, ends_at, '[)'))` where status is `PUBLISHED` uses `btree_gist`. |
+| booking `showtime_seats` | PK `(showtime_id, seat_id)`; `version >= 0`, `price_minor >= 0`. A status-shape CHECK requires: AVAILABLE has no owner/deadline; HELD has reservation/deadline but no booking; PAYMENT_PENDING has reservation, booking, deadline; SOLD has reservation/booking but no deadline. The expiry index is partial on `(hold_expires_at, showtime_id, seat_id)` for HELD/PAYMENT_PENDING. |
+| booking `reservation_seats`, `bookings`, `booking_items` | Positive/nonnegative unit prices and amount; one booking per reservation; one payment ID per booking. Insert `booking_items` only in the confirming transaction. Unique `(showtime_id, seat_id)` on booking items is the durable second guard against selling the same seat twice. This initial design never resells a confirmed seat after refund. |
+| booking `idempotency_keys`; booking/payment `processed_events` | Atomic PK claims, canonical request hashes, and stable stored outcomes for committed commands. The CHECK pairs response status/body nullability; application transactions must not commit an unfinished claim. Inbox PK `(consumer_name, event_id)` commits with local effects. |
+| payment `payments`, `payment_attempts`, `provider_events`, `refunds` | Nonnegative amounts and currency format checks; unique scoped payment request key, `booking_id`, provider merchant reference, non-null provider transaction ID, `(provider, event_identity)`, refund request ID, scoped refund request key, and provider refund ID. The initial design allows one full refund per payment. PostgreSQL unique indexes permit multiple NULL provider IDs while preventing duplicate non-NULL IDs; exact cross-service amount/currency matching remains application work. |
+| cinema/booking/payment `outbox_events` | `event_id` PK, positive event version, nonnegative publish attempts; partial relay index on `(next_attempt_at, created_at)` where `published_at IS NULL`. Publication marks only after broker acknowledgment. |
+| notification `notifications` | Unique `(source_event_id, channel)` deduplicates event delivery creation; nonnegative attempt count and due-work index on pending/failed notifications. Use a stable notification ID as the provider idempotency reference when supported. |
+
+All status columns have PostgreSQL CHECK constraints rather than unconstrained free text. Allowed values: user ACTIVE/DISABLED; movie DRAFT/PUBLISHED/ARCHIVED; cinema showtime DRAFT/PUBLISHED/CANCELLED; booking snapshot PUBLISHED/CANCELLED; seat AVAILABLE/HELD/PAYMENT_PENDING/SOLD; reservation HELD/PAYMENT_PENDING/CONFIRMED/RELEASED/EXPIRED; booking PAYMENT_PENDING/CONFIRMED/CANCELLED/REFUND_PENDING/REFUNDED; payment REQUESTED/PROVIDER_PENDING/SUCCEEDED/FAILED/REFUND_PENDING/REFUNDED/REFUND_FAILED; attempt REQUESTED/PROVIDER_PENDING/SUCCEEDED/FAILED/UNKNOWN; refund REQUESTED/PROVIDER_PENDING/COMPLETED/FAILED; notification PENDING/SENT/FAILED. Currency columns have a three-uppercase-letter check and still need ISO-4217 validation at the service boundary.
+
+## Seat reservation concurrency
+
+PostgreSQL in booking-service is the sole serialization point. The seat lifecycle uses the existing platform names `AVAILABLE → HELD → PAYMENT_PENDING → SOLD`; `SOLD` is the requested “BOOKED” outcome. Valid release/expiry/failure transitions return a still-owned HELD or PAYMENT_PENDING seat to AVAILABLE. The original hold deadline continues through PAYMENT_PENDING unless a separately approved bounded extension policy is designed.
+
+For a reservation command, validate the authenticated actor, seat IDs, and idempotency key; deduplicate and sort IDs using one PostgreSQL-compatible UUID byte order. In a short `READ COMMITTED` transaction, atomically claim the scoped idempotency key, then lock each requested `showtime_seats` row in canonical order with `SELECT ... FOR UPDATE`. After all locks are acquired, require exactly the requested rows, a published/onsale showtime, and AVAILABLE status for every seat. Create the reservation and immutable `reservation_seats`, set all seats to HELD with one database-time deadline, store the repeatable outcome, and insert `ReservationCreated`/`SeatsHeld` outbox records before commit. A business conflict rolls back the command, including its key claim, without changing any seat. No provider, REST, Kafka, or Redis call occurs while locks are held.
 
 ```sql
-SELECT showtime_id, seat_id, status, hold_expires_at, reservation_id
+-- Execute once per seat ID, in the canonical sorted order.
+SELECT status, reservation_id, booking_id, hold_expires_at
 FROM showtime_seats
-WHERE showtime_id = :showtime_id
-  AND seat_id = ANY(:seat_ids)
-ORDER BY seat_id
+WHERE showtime_id = :showtime_id AND seat_id = :seat_id
 FOR UPDATE;
 ```
 
-The implementation must verify that the query plan preserves the intended lock order; locking individual rows in sorted order is the conservative fallback. It rejects the whole command if the row count differs or any row is not `AVAILABLE`. All seat updates, the reservation, idempotent result, and outbox records commit together. No HTTP/provider/Kafka call occurs while locks are held.
+If two users request the same seat, the second waits on its row lock. After the first commits HELD, the waiter re-reads that row under lock, sees it is no longer AVAILABLE, and gets `SEAT_UNAVAILABLE`; it cannot hold another part of its requested set. The composite PK protects one inventory row per showtime seat, while unique `booking_items(showtime_id, seat_id)` protects one lifetime successful sale. A same-key retry of a committed command returns its prior outcome; a committed key reused with a different request hash conflicts. A rolled-back business conflict may be retried and re-evaluated.
 
-Operations on an existing reservation first lock that reservation/Saga row and then its seat rows in the same canonical seat order. Deadlock or serialization failures may retry the entire transaction a small bounded number of times with jitter; conflicts and invalid states are not retried.
+Checkout, user release, expiry workers, and payment-result consumers lock the existing reservation/booking aggregate **before** the same sorted seat rows. Checkout verifies the deadline with database time, freezes amount/currency, creates one pending booking and stable payment ID, moves seats to PAYMENT_PENDING, and writes `PaymentRequested` to the outbox. Expiry workers claim bounded expired aggregates with `FOR UPDATE SKIP LOCKED`, recheck ownership/deadline, release once, and emit events atomically. A late `PaymentSucceeded` cannot reclaim released seats; it creates one `RefundRequested`. Deadlock/serialization failures retry the whole local transaction a bounded number of times; business conflicts do not retry.
 
-## Expiration
+## Booking and payment lifecycle
 
-One or more workers claim bounded expired-reservation batches with `FOR UPDATE SKIP LOCKED`. For each claimed reservation they lock associated seats in canonical order, re-check the state and database-time deadline, move matching `HELD` or timed-out `PAYMENT_PENDING` rows to `AVAILABLE`, update the aggregate, and insert the expiration/release outbox records in one transaction. Repeated execution is a no-op after the first valid transition.
+`reservations` begin HELD and end CONFIRMED, RELEASED, or EXPIRED; checkout is PAYMENT_PENDING. `bookings` are created at checkout as PAYMENT_PENDING. A matching verified success while the hold is valid confirms seats, creates booking items, and changes the booking to CONFIRMED in one transaction. Definitive failure or expiry cancels the pending booking. A verified late success for a cancelled/expired booking moves its Saga view to REFUND_PENDING, then REFUNDED only after a verified refund result. No browser redirect can confirm either state. A future post-confirmation cancellation/refund policy is not assumed here.
 
-## Payment database core
+`payment-service` owns provider calls and local payment/refund state. `PaymentRequested` carries a stable booking-reserved `payment_id`, amount/currency, and request key. A unique payment ID, unique `booking_id`, unique `(user_id, request_key)`, request hash, and `processed_events` key prevent duplicate requests from creating a second payment. `payment_attempts` retains a stable provider/merchant reference across safe retries; ambiguous provider timeouts enter UNKNOWN/reconciliation rather than a new charge identity or false FAILED result.
 
-Payment persistence must represent:
+After raw-byte signature and merchant/amount/currency checks, a webhook transaction inserts unique `(provider, event_identity)`, locks the payment, validates the legal transition, and writes the payment state plus outbox event before acknowledging the provider. `event_identity` is the provider event ID or a provider-documented stable digest when no ID exists. Duplicate or contradictory callbacks cannot emit another success; contradictions remain visible for reconciliation. Refund requests are similarly deduplicated by `refund_request_id`, one-refund-per-payment uniqueness, and stable provider reference. Only provider-issued references are retained; raw card numbers, CVV, signing secrets, and raw sensitive webhook payloads are excluded. Stored payment references and recipient data require PCI/privacy review before implementation.
 
-- `payments`: stable payment ID, reservation/booking references, amount minor/currency, provider, state, idempotency key/request hash, timestamps.
-- `payment_attempts`: provider request identity, provider transaction ID, attempt state, safe diagnostic codes, timestamps.
-- `provider_events`: unique `(provider, provider_event_id)`, signature-verification result metadata, received/processed timestamps, safe payload digest.
-- `refunds`: payment, requested amount, provider refund ID, idempotency key, state, failure/reconciliation fields.
-- `outbox_events` and `processed_events`.
+## Rollout and unresolved choices
 
-Uniqueness must prevent the same provider event or transaction from creating multiple successful local effects. A provider transaction may be absent before provider creation, so uniqueness is partial/non-null as appropriate. Raw secrets and sensitive provider payloads are not stored by default.
+The V2 schemas use forward-only Flyway migrations; no cross-service DDL transaction exists. PostgreSQL/Testcontainers validated migration application, JPA mappings, seat locks, the unique sale guard, schedule overlap, and provider-event uniqueness. The 100-contender booking race, overlapping seat sets, expiry/payment races, outbox replay, and duplicate webhook processing require application services and remain future gates before activating booking or payment flows.
 
-## Outbox and inbox shape
-
-Every event-producing database uses an `outbox_events` table with an immutable event ID, type/version, aggregate ID, occurred time, trace ID, serialized payload, publication state/attempt metadata, and created time. Dispatchers claim bounded rows safely and mark published only after Kafka acknowledgement; a crash can cause a duplicate publish.
-
-Every state-changing consumer uses a `processed_events`/inbox table with a unique `(consumer_name, event_id)`. The inbox insert, local business effect, and any derived outbox rows commit together. Kafka offsets are acknowledged afterward.
-
-## Redis
-
-Redis may hold caches, rate-limit counters, ephemeral TTL hints, or transient notifications. It stores no irreplaceable reservation, booking, payment, or idempotency truth. Deleting all Redis data must not allow a double booking, lose a confirmed payment, or prevent PostgreSQL-based expiry recovery.
-
-## Required database tests in later phases
-
-- Flyway clean-start and previous-version upgrade tests
-- Constraint and repository tests against the supported PostgreSQL image
-- 100 concurrent transactions contending for one showtime seat: exactly one winner
-- Overlapping multi-seat sets, rollback, duplicate idempotency keys, expiration workers, late payment, duplicate events, and bounded deadlock retry
-- Outbox/inbox crash windows and duplicate publication/delivery
-
+1. Specify the auth token format and refresh rotation/replay policy before using `refresh_sessions`.
+2. Confirm the cinema pricing contract. This design uses one showtime price for every seat; differentiated seat pricing requires cinema-owned pricing data and a versioned publication contract.
+3. Define compensation for cancellation of a published showtime with confirmed bookings, and whether any sold seat may ever be resold. The implemented unique booking-item constraint deliberately forbids resale.
+4. Choose a real provider before finalizing provider event identity, safe retries, refund capabilities, and webhook response policy.
+5. Fix the hold duration and payment cutoff policy, including how to handle an in-flight provider payment when a hold expires.
+6. Reconcile idempotency semantics for a rolled-back seat conflict: this design follows ADR-003's full rollback, so repeating that key may re-evaluate availability. If the API must replay an identical `409`, decide how to persist that outcome without weakening the all-or-nothing seat rule.

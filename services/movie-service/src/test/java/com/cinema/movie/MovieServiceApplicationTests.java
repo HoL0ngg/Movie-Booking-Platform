@@ -30,10 +30,9 @@ class MovieServiceApplicationTests {
     private Flyway flyway;
 
     @Test
-    void contextLoadsAndAppliesOwnedFlywayBaseline() {
+    void contextLoadsAndAppliesOwnedDomainSchema() {
         assertThat(applicationContext.containsBean("securityFilterChain")).isTrue();
         assertThat(flyway.info().current()).isNotNull();
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("1");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("2");
     }
 }
-
