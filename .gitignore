@@ -12,6 +12,13 @@
 .m2/
 .mvn/timing.properties
 
+# Frontend
+**/node_modules/
+**/dist/
+**/playwright-report/
+**/test-results/
+*.tsbuildinfo
+
 # IDEs
 .idea/
 *.iml
