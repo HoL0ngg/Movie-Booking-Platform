@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { MovieCard } from '../../components/MovieCard'
-import { LoadingState } from '../../components/LoadingState'
+import { ErrorState, LoadingState } from '../../components/LoadingState'
 import { useMovies } from '../../hooks/useApi'
 
 export function HomePage() {
@@ -21,11 +21,11 @@ export function HomePage() {
     <div className="page-width home-content">
       <section className="movie-section">
         <div className="section-heading"><div><p className="eyebrow">Đang chiếu</p><h2>Trên màn ảnh</h2></div><Link to="/showtimes">Xem lịch chiếu →</Link></div>
-        {now.isLoading ? <LoadingState /> : <div className="movie-grid">{now.data?.map((movie, index) => <MovieCard key={movie.id} movie={movie} rank={index + 1} />)}</div>}
+        {now.isLoading ? <LoadingState /> : now.isError ? <><ErrorState message="Không thể tải danh sách phim." /><button onClick={() => void now.refetch()}>Thử lại</button></> : !now.data?.length ? <p role="status">Chưa có phim đang chiếu.</p> : <div className="movie-grid">{now.data.map((movie, index) => <MovieCard key={movie.id} movie={movie} rank={index + 1} />)}</div>}
       </section>
       <section className="movie-section coming-soon">
         <div className="section-heading"><div><p className="eyebrow">Sắp ra mắt</p><h2>Đón chờ</h2></div></div>
-        {soon.isLoading ? <LoadingState /> : <div className="movie-grid compact">{soon.data?.map(movie => <MovieCard key={movie.id} movie={movie} />)}</div>}
+        {soon.isLoading ? <LoadingState /> : soon.isError ? <><ErrorState message="Không thể tải phim sắp chiếu." /><button onClick={() => void soon.refetch()}>Thử lại</button></> : !soon.data?.length ? <p role="status">Chưa có phim sắp chiếu.</p> : <div className="movie-grid compact">{soon.data.map(movie => <MovieCard key={movie.id} movie={movie} />)}</div>}
       </section>
     </div>
   </>

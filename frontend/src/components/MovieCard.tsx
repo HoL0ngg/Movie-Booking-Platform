@@ -7,7 +7,7 @@ export function MovieCard({ movie, rank }: { movie: Movie; rank?: number }) {
       <div className="poster-wrap">
         {rank && <span className="rank">{String(rank).padStart(2, '0')}</span>}
         <img src={movie.posterUrl} alt={`Poster ${movie.title}`} loading="lazy" />
-        <span className="rating">★ {movie.rating}</span>
+        {movie.rating !== null && <span className="rating">★ {movie.rating}</span>}
       </div>
       <div className="movie-card-copy">
         <h3>{movie.title}</h3>

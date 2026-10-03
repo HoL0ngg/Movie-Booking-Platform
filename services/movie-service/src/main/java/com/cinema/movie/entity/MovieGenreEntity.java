@@ -8,7 +8,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 @Entity
-@Table(name = "movie_genres")
+@Table(name = "movie_genres", schema = "movie")
 @IdClass(MovieGenreEntity.Key.class)
 public class MovieGenreEntity {
     @Id

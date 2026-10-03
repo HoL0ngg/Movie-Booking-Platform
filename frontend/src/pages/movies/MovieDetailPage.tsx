@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { ErrorState, LoadingState } from '../../components/LoadingState'
 import { useMovie, useShowtimes } from '../../hooks/useApi'
+import { HttpApiError } from '../../api/client'
 
 const dateTime = (value: string) => new Intl.DateTimeFormat('vi-VN', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 
@@ -9,6 +10,7 @@ export function MovieDetailPage() {
   const movie = useMovie(movieId)
   const showtimes = useShowtimes(movieId)
   if (movie.isLoading) return <div className="page-width page-top"><LoadingState /></div>
+  if (movie.isError) return <div className="page-width page-top"><ErrorState message={movie.error instanceof HttpApiError && movie.error.status === 404 ? 'Không tìm thấy phim.' : 'Không thể tải thông tin phim.'} /><button onClick={() => void movie.refetch()}>Thử lại</button></div>
   if (!movie.data) return <div className="page-width page-top"><ErrorState message="Không tìm thấy phim." /></div>
   const item = movie.data
   return <>
@@ -16,7 +18,7 @@ export function MovieDetailPage() {
       <div className="hero-shade" />
       <div className="page-width detail-layout">
         <img className="detail-poster" src={item.posterUrl} alt={`Poster ${item.title}`} />
-        <div className="detail-copy"><p className="eyebrow">{item.status === 'NOW_SHOWING' ? 'Đang chiếu' : 'Sắp chiếu'}</p><h1>{item.title}</h1><p className="original-title">{item.originalTitle}</p><div className="meta"><span>★ {item.rating}</span><span>{item.durationMinutes} phút</span><span>{item.ageRating}</span></div><p className="synopsis">{item.synopsis}</p><dl><div><dt>Đạo diễn</dt><dd>{item.director}</dd></div><div><dt>Diễn viên</dt><dd>{item.cast.join(', ')}</dd></div><div><dt>Thể loại</dt><dd>{item.genres.join(', ')}</dd></div></dl>{item.status === 'NOW_SHOWING' && <Link className="primary-button" to={`/showtimes?movieId=${item.id}`}>Chọn suất chiếu →</Link>}</div>
+        <div className="detail-copy"><p className="eyebrow">{item.status === 'NOW_SHOWING' ? 'Đang chiếu' : 'Sắp chiếu'}</p><h1>{item.title}</h1><p className="original-title">{item.originalTitle}</p><div className="meta">{item.rating !== null && <span>★ {item.rating}</span>}<span>{item.durationMinutes} phút</span><span>{item.ageRating}</span></div><p className="synopsis">{item.synopsis}</p><dl><div><dt>Đạo diễn</dt><dd>{item.director || 'Chưa cập nhật'}</dd></div><div><dt>Diễn viên</dt><dd>{item.cast.join(', ') || 'Chưa cập nhật'}</dd></div><div><dt>Thể loại</dt><dd>{item.genres.join(', ') || 'Chưa cập nhật'}</dd></div></dl>{item.status === 'NOW_SHOWING' && <Link className="primary-button" to={`/showtimes?movieId=${item.id}`}>Chọn suất chiếu →</Link>}</div>
       </div>
     </section>
     <div className="page-width detail-body">

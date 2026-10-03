@@ -6,7 +6,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "movies")
+@Table(name = "movies", schema = "movie")
 public class MovieEntity {
     @Id
     @Column(name = "id", nullable = false)
@@ -34,4 +34,10 @@ public class MovieEntity {
     Instant updatedAt;
 
     public MovieEntity() {}
+
+    public UUID getId() { return id; }
+    public String getTitle() { return title; }
+    public String getSynopsis() { return synopsis; }
+    public Integer getDurationMinutes() { return durationMinutes; }
+    public LocalDate getReleaseDate() { return releaseDate; }
 }

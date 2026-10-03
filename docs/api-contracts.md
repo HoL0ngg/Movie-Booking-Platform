@@ -1,6 +1,6 @@
 # REST API Contract Baseline
 
-Status: Phase 1 contract baseline; operations remain unimplemented
+Status: Phase 1 contract baseline with implemented public movie catalog reads; other business operations remain unimplemented
 
 Static OpenAPI 3.1 contracts are published from each Spring Boot module at `/openapi/openapi.yaml` and listed by the gateway contract. They are contract artifacts, not evidence that an operation is implemented. This document remains the semantic authority until implementation-time DTO schemas and contract tests are added.
 
@@ -57,10 +57,12 @@ Token format and refresh storage are open security decisions for Phase 1.
 
 | Method/path | Purpose |
 |---|---|
-| `GET /api/v1/movies` | Browse/search released catalog with pagination/filtering |
+| `GET /api/v1/movies` | Public published catalog; optional `status=NOW_SHOWING` or `COMING_SOON` |
 | `GET /api/v1/movies/{movieId}` | Movie detail |
 
 Administrative catalog commands will be specified with role checks when requested; they are not needed for initial customer skeletons.
+
+Implemented movie reads return an array for list and one object for detail. Fields: `id` (UUID), `title`, nullable `synopsis`, `durationMinutes`, nullable `releaseDate` (ISO date), and `status` (`NOW_SHOWING`/`COMING_SOON`). Only database records with lifecycle status `PUBLISHED` are exposed; draft/archived details also return `404 MOVIE_NOT_FOUND`. Display status is derived from release date against the current UTC date: future is coming soon; current, past or absent is now showing. Invalid status or malformed UUID returns `400 VALIDATION_ERROR`. Search and cursor pagination are reserved future capabilities, not currently supported. Poster, credits, genre names and ratings are not yet part of this response.
 
 ## Cinema service
 

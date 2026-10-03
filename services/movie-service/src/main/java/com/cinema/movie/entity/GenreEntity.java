@@ -6,7 +6,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "genres")
+@Table(name = "genres", schema = "movie")
 public class GenreEntity {
     @Id
     @Column(name = "id", nullable = false)

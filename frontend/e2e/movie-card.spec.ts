@@ -1,7 +1,9 @@
 import { expect, test } from '@playwright/test'
 import { movies } from '../src/mocks/data'
+import { stubMovieApi } from './movie-api-fixture'
 
 test('movie card links to its details with an accessible label', async ({ page }) => {
+  await stubMovieApi(page)
   await page.goto('/')
   const movie = movies[0]
   const card = page.getByRole('link', { name: `Xem chi tiết ${movie.title}` })

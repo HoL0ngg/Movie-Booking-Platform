@@ -16,7 +16,7 @@ export interface Movie {
   durationMinutes: number
   ageRating: string
   releaseDate: string
-  rating: number
+  rating: number | null
   status: MovieStatus
   director: string
   cast: string[]

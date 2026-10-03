@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { authService, bookingService, cinemaService, movieService, paymentService, seatService, type PaymentMethod } from '../api/services'
 
-export const useMovies = (status?: 'NOW_SHOWING' | 'COMING_SOON') => useQuery({ queryKey: ['movies', status], queryFn: () => movieService.list(status) })
-export const useMovie = (id = '') => useQuery({ queryKey: ['movie', id], queryFn: () => movieService.get(id), enabled: Boolean(id) })
+export const useMovies = (status?: 'NOW_SHOWING' | 'COMING_SOON') => useQuery({ queryKey: ['movies', status], queryFn: ({ signal }) => movieService.list(status, signal) })
+export const useMovie = (id = '') => useQuery({ queryKey: ['movie', id], queryFn: ({ signal }) => movieService.get(id, signal), enabled: Boolean(id) })
 export const useCinemas = () => useQuery({ queryKey: ['cinemas'], queryFn: cinemaService.list })
 export const useShowtimes = (movieId = '') => useQuery({ queryKey: ['showtimes', movieId], queryFn: () => cinemaService.showtimes(movieId), enabled: Boolean(movieId) })
 export const useShowtime = (id = '') => useQuery({ queryKey: ['showtime', id], queryFn: () => cinemaService.showtime(id), enabled: Boolean(id) })

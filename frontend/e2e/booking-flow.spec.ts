@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test'
+import { stubMovieApi } from './movie-api-fixture'
 
 test('customer can complete the mock booking flow', async ({ page }) => {
+  await stubMovieApi(page)
   await page.goto('/')
   await page.getByRole('link', { name: /đặt vé ngay/i }).click()
   await page.getByRole('link', { name: /10:/ }).first().click()

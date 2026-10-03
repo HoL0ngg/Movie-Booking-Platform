@@ -2,6 +2,7 @@ package com.cinema.gateway.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -21,6 +22,8 @@ public class SecurityConfiguration {
                 .logout(ServerHttpSecurity.LogoutSpec::disable)
                 .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
                 .authorizeExchange(exchanges -> exchanges
+                        .pathMatchers(HttpMethod.GET, "/api/v1/movies", "/api/v1/movies/*")
+                        .permitAll()
                         .pathMatchers(
                                 "/actuator/health/**",
                                 "/actuator/info",
@@ -39,4 +42,3 @@ public class SecurityConfiguration {
         return username -> Mono.error(new UsernameNotFoundException("Authentication is not implemented in Phase 1"));
     }
 }
-
