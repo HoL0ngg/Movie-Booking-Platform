@@ -10,6 +10,7 @@ Phase 1 supplies a reproducible local platform and buildable application shells.
 |---|---|
 | Java target | 21 |
 | Spring Boot | 4.1.1 |
+| Spring AI (ai-service only) | 2.0.1 |
 | Spring Cloud | 2025.1.3 |
 | springdoc-openapi | 3.1.1 |
 | PostgreSQL | `postgres:18.6-alpine3.24` |
@@ -31,6 +32,7 @@ Versions are pinned for reproducible local development. Upgrades require compati
 | booking-service | `8084` | `cinema_booking` on `54324` |
 | payment-service | `8085` | `cinema_payment` on `54325` |
 | notification-service | `8086` | `cinema_notification` on `54326` |
+| ai-service | `8087` | none (stateless, optional) |
 | Kafka | `29092` | n/a |
 | Redis | `6379` | disposable cache only |
 | Prometheus (optional) | `9090` | local volume |
@@ -87,6 +89,10 @@ All business routes are fail-closed in Phase 1. A rejecting authentication provi
 The gateway accepts a safe `X-Trace-Id` or creates one, sends it downstream, and returns it to the caller. MVC services perform the same validation and place the value in structured log context. This is correlation infrastructure, not a replacement for future OpenTelemetry propagation.
 
 ## Build and test
+
+`ai-service` runs on the host like existing application modules; Docker Compose infrastructure is unchanged. Start it with `mvn -pl services/ai-service spring-boot:run`. Default configuration needs no AI runtime. Export `AI_CHAT_PROVIDER=ollama`, `AI_OLLAMA_BASE_URL`, and `AI_OLLAMA_MODEL` in the Maven process environment after provisioning the model separately. Spring Boot does not load `.env` automatically. This enables model beans only; no inference endpoint exists yet.
+
+Docker-independent checks: `mvn -pl gateway,services/ai-service -am test`. Stateful tests still require PostgreSQL Testcontainers. Frontend uses Playwright only: `npm test` from `frontend/`; if Chromium is missing, run `npx playwright install chromium`.
 
 From the repository root:
 

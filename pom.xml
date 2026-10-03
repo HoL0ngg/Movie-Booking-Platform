@@ -26,6 +26,7 @@
         <module>services/booking-service</module>
         <module>services/payment-service</module>
         <module>services/notification-service</module>
+        <module>services/ai-service</module>
     </modules>
 
     <properties>
@@ -33,12 +34,33 @@
         <maven.compiler.release>21</maven.compiler.release>
         <spring-cloud.version>2025.1.3</spring-cloud.version>
         <springdoc.version>3.1.1</springdoc.version>
+        <spring-ai.version>2.0.1</spring-ai.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Keep the existing Spring/JUnit/AssertJ tests; omit unused test helpers. -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-test</artifactId>
+                <version>4.1.1</version>
+                <exclusions>
+                    <exclusion><groupId>org.mockito</groupId><artifactId>mockito-core</artifactId></exclusion>
+                    <exclusion><groupId>org.mockito</groupId><artifactId>mockito-junit-jupiter</artifactId></exclusion>
+                    <exclusion><groupId>org.skyscreamer</groupId><artifactId>jsonassert</artifactId></exclusion>
+                    <exclusion><groupId>org.xmlunit</groupId><artifactId>xmlunit-core</artifactId></exclusion>
+                    <exclusion><groupId>org.awaitility</groupId><artifactId>awaitility</artifactId></exclusion>
+                </exclusions>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
@@ -59,4 +81,3 @@
         </dependencies>
     </dependencyManagement>
 </project>
-

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
-import { MovieCard } from '../components/MovieCard'
-import { LoadingState } from '../components/LoadingState'
-import { useMovies } from '../hooks/useApi'
+import { MovieCard } from '../../components/MovieCard'
+import { LoadingState } from '../../components/LoadingState'
+import { useMovies } from '../../hooks/useApi'
 
 export function HomePage() {
   const now = useMovies('NOW_SHOWING')

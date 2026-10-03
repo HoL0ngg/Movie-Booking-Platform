@@ -11,7 +11,7 @@ Use this skill for service-boundary changes, new cross-service workflows, API Ga
 
 ## Architectural rules
 
-- Keep the initial deployables: `api-gateway`, `auth-service`, `movie-service`, `cinema-service`, `booking-service`, `payment-service`, and `notification-service`. Add a service only for a durable bounded context with independent data, lifecycle, and operational needs; record the choice in an ADR.
+- Keep the initial deployables: `api-gateway`, `auth-service`, `movie-service`, `cinema-service`, `booking-service`, `payment-service`, and `notification-service`, plus the optional `ai-service` approved in ADR-011. AI starts stateless and is independent of booking/payment correctness. Add another service only for a durable bounded context with independent ownership, lifecycle, and operational needs; record the choice in an ADR.
 - Every service owns an isolated PostgreSQL database or equivalently isolated database/role. Other services have no SQL access, foreign keys, views, or joins into it.
 - Use REST for bounded synchronous queries/commands and Kafka domain events for asynchronous propagation. Avoid latency-amplifying synchronous call chains.
 - Keep business transactions local. Coordinate distributed booking/payment work with a Saga; never use XA or cross-service database transactions.
@@ -56,4 +56,3 @@ Use this skill for service-boundary changes, new cross-service workflows, API Ga
 - [ ] REST dependencies are bounded and do not create unjustified call chains.
 - [ ] The gateway contains no domain logic.
 - [ ] Tests cover failure, retry, duplicate, and authorization behavior.
-

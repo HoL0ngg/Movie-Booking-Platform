@@ -1,392 +1,244 @@
-// Implemented V2 physical design. Each namespace below represents one
-// SEPARATE service database, not a schema in a shared database.
-// All Ref declarations are local to one service database.
-Project cinema_booking_platform {
+// Simplified database design for a small Spring Boot + Kafka course project.
+// Each namespace represents a SEPARATE service database.
+// Cross-service IDs are logical references only; no cross-database foreign keys.
+Project cinema_booking_platform_simplified {
   database_type: 'PostgreSQL'
-  Note: 'Implemented by each service V2 Flyway migration. Cross-service IDs are logical references without foreign keys.'
+  Note: 'Focus: Spring Boot, Kafka, seat-booking concurrency, and simple payment flow.'
 }
 
-// cinema_auth
+// =========================
+// AUTH SERVICE - 1 table
+// =========================
 Table auth.users {
   id uuid [pk]
-  email text [not null]
-  email_normalized text [not null, unique]
+  email text [not null, unique]
   password_hash text [not null]
-  status varchar(16) [not null]
+  role varchar(20) [not null, note: 'Example: USER, ADMIN']
   created_at timestamptz [not null]
   updated_at timestamptz [not null]
 }
-Table auth.roles {
-  id uuid [pk]
-  code varchar(40) [not null, unique]
-  created_at timestamptz [not null]
-}
-Table auth.user_roles {
-  user_id uuid [not null]
-  role_id uuid [not null]
-  granted_at timestamptz [not null]
-  indexes {
-    (user_id, role_id) [pk]
-    role_id
-  }
-}
-Table auth.refresh_sessions {
-  id uuid [pk]
-  user_id uuid [not null]
-  token_hash bytea [not null, unique]
-  expires_at timestamptz [not null]
-  revoked_at timestamptz
-  created_at timestamptz [not null]
-  indexes { (user_id, expires_at) }
-}
-Ref: auth.user_roles.user_id > auth.users.id
-Ref: auth.user_roles.role_id > auth.roles.id
-Ref: auth.refresh_sessions.user_id > auth.users.id
 
-// cinema_movie
+// =========================
+// MOVIE SERVICE - 3 tables
+// =========================
 Table movie.movies {
   id uuid [pk]
   title text [not null]
   synopsis text
   duration_minutes int [not null]
   release_date date
-  status varchar(16) [not null]
+  poster_url text
+  status varchar(20) [not null, note: 'Example: COMING_SOON, SHOWING, ENDED']
   created_at timestamptz [not null]
   updated_at timestamptz [not null]
-  indexes { (status, release_date) }
+
+  indexes {
+    (status, release_date)
+  }
 }
+
+
 Table movie.genres {
   id uuid [pk]
-  name text [not null, unique]
+  name varchar(80) [not null, unique]
   created_at timestamptz [not null]
 }
+
 Table movie.movie_genres {
   movie_id uuid [not null]
   genre_id uuid [not null]
-  created_at timestamptz [not null]
+
   indexes {
     (movie_id, genre_id) [pk]
-    (genre_id, movie_id)
+    genre_id
   }
 }
+
 Ref: movie.movie_genres.movie_id > movie.movies.id
 Ref: movie.movie_genres.genre_id > movie.genres.id
 
-// cinema_cinema: physical layouts and schedules, never live availability
+// =========================
+// CINEMA / SHOWTIME SERVICE - 5 tables
+// Owns physical layout and showtime schedule, not live booking state.
+// =========================
 Table cinema.cinemas {
   id uuid [pk]
   name text [not null]
   address text [not null]
-  city text [not null]
-  timezone text [not null]
   created_at timestamptz [not null]
-  updated_at timestamptz [not null]
-  indexes { city }
 }
+
 Table cinema.auditoriums {
   id uuid [pk]
   cinema_id uuid [not null]
   name text [not null]
-  created_at timestamptz [not null]
-  updated_at timestamptz [not null]
-  indexes { (cinema_id, name) [unique] }
+
+  indexes {
+    (cinema_id, name) [unique]
+  }
 }
+
 Table cinema.seats {
   id uuid [pk]
   auditorium_id uuid [not null]
   row_label varchar(12) [not null]
   seat_number int [not null]
-  seat_type varchar(24) [not null]
+  seat_type varchar(20) [not null, note: 'Example: NORMAL, VIP']
   is_active boolean [not null]
-  created_at timestamptz [not null]
-  updated_at timestamptz [not null]
-  indexes { (auditorium_id, row_label, seat_number) [unique] }
+
+  indexes {
+    (auditorium_id, row_label, seat_number) [unique]
+  }
 }
+
 Table cinema.showtimes {
   id uuid [pk]
   auditorium_id uuid [not null]
-  movie_id uuid [not null, note: 'Logical movie DB reference']
+  movie_id uuid [not null, note: 'Logical Movie Service reference']
   starts_at timestamptz [not null]
-  ends_at timestamptz [not null]
-  sales_close_at timestamptz [not null]
   price_minor bigint [not null]
-  currency varchar(3) [not null]
-  status varchar(16) [not null]
-  snapshot_version bigint [not null]
+  status varchar(20) [not null, note: 'Example: OPEN, CLOSED, CANCELLED']
   created_at timestamptz [not null]
-  updated_at timestamptz [not null]
+
   indexes {
     (auditorium_id, starts_at)
     (movie_id, starts_at)
-    (status, starts_at)
   }
 }
+
+// Transactional Outbox for reliable Kafka publishing.
+// A simple polling publisher retries rows where published_at IS NULL.
 Table cinema.outbox_events {
   event_id uuid [pk]
   event_type varchar(80) [not null]
-  event_version int [not null]
   aggregate_id uuid [not null]
-  occurred_at timestamptz [not null]
-  trace_id varchar(128) [not null]
   payload jsonb [not null]
-  publish_attempts int [not null]
-  next_attempt_at timestamptz [not null]
-  published_at timestamptz
   created_at timestamptz [not null]
-  indexes { (next_attempt_at, created_at) }
+  published_at timestamptz
+
+  indexes {
+    (published_at, created_at)
+  }
 }
+
 Ref: cinema.auditoriums.cinema_id > cinema.cinemas.id
 Ref: cinema.seats.auditorium_id > cinema.auditoriums.id
 Ref: cinema.showtimes.auditorium_id > cinema.auditoriums.id
 
-// cinema_booking: sole seat-inventory and reservation authority
-Table booking.showtime_snapshots {
-  showtime_id uuid [pk, note: 'Logical cinema DB reference']
-  cinema_id uuid [not null, note: 'Logical cinema DB reference']
-  auditorium_id uuid [not null, note: 'Logical cinema DB reference']
-  movie_id uuid [not null, note: 'Logical movie DB reference']
-  starts_at timestamptz [not null]
-  sales_close_at timestamptz [not null]
-  currency varchar(3) [not null]
-  status varchar(16) [not null]
-  snapshot_version bigint [not null]
-  created_at timestamptz [not null]
-  updated_at timestamptz [not null]
-}
+// =========================
+// BOOKING SERVICE - 4 tables
+// Owns live seat availability for each showtime.
+// bookings also acts as the temporary reservation/hold object.
+// =========================
 Table booking.showtime_seats {
-  showtime_id uuid [not null]
-  seat_id uuid [not null, note: 'Logical cinema DB reference']
+  id uuid [pk]
+  showtime_id uuid [not null, note: 'Logical Cinema Service reference']
+  seat_id uuid [not null, note: 'Logical Cinema Service reference']
   seat_label varchar(32) [not null]
-  seat_type varchar(24) [not null]
   price_minor bigint [not null]
-  status varchar(20) [not null]
-  reservation_id uuid
+  status varchar(20) [not null, note: 'AVAILABLE, HELD, BOOKED']
   booking_id uuid
   hold_expires_at timestamptz
-  version bigint [not null]
-  created_at timestamptz [not null]
   updated_at timestamptz [not null]
+
   indexes {
-    (showtime_id, seat_id) [pk]
-    (hold_expires_at, showtime_id, seat_id)
-    reservation_id
+    (showtime_id, seat_id) [unique]
+    (showtime_id, status)
+    hold_expires_at
   }
 }
-Table booking.reservations {
-  id uuid [pk]
-  showtime_id uuid [not null]
-  user_id uuid [not null, note: 'Logical auth DB reference']
-  status varchar(20) [not null]
-  hold_expires_at timestamptz [not null]
-  created_at timestamptz [not null]
-  updated_at timestamptz [not null]
-  indexes {
-    (id, showtime_id) [unique]
-    (id, showtime_id, user_id) [unique]
-    (status, hold_expires_at)
-    (user_id, created_at)
-  }
-}
-Table booking.reservation_seats {
-  reservation_id uuid [not null]
-  showtime_id uuid [not null]
-  seat_id uuid [not null]
-  price_minor bigint [not null]
-  created_at timestamptz [not null]
-  indexes {
-    (reservation_id, seat_id) [pk]
-    (reservation_id, showtime_id)
-    (showtime_id, seat_id)
-  }
-}
+
 Table booking.bookings {
   id uuid [pk]
-  reservation_id uuid [not null, unique]
-  showtime_id uuid [not null]
-  user_id uuid [not null, note: 'Logical auth DB reference']
-  payment_id uuid [not null, unique, note: 'Logical payment DB reference']
-  amount_minor bigint [not null]
-  currency varchar(3) [not null]
-  status varchar(20) [not null]
-  confirmed_at timestamptz
+  user_id uuid [not null, note: 'Logical Auth Service reference']
+  showtime_id uuid [not null, note: 'Logical Cinema Service reference']
+  total_amount_minor bigint [not null]
+  status varchar(24) [not null, note: 'PENDING_PAYMENT, CONFIRMED, CANCELLED, EXPIRED']
+  expires_at timestamptz
   created_at timestamptz [not null]
   updated_at timestamptz [not null]
+
   indexes {
-    (id, showtime_id) [unique]
     (user_id, created_at)
+    (status, expires_at)
   }
 }
+
 Table booking.booking_items {
   id uuid [pk]
   booking_id uuid [not null]
-  showtime_id uuid [not null]
-  seat_id uuid [not null]
+  showtime_seat_id uuid [not null]
   price_minor bigint [not null]
   created_at timestamptz [not null]
+
   indexes {
-    (booking_id, seat_id) [unique]
-    (showtime_id, seat_id) [unique, note: 'One successful booking per showtime seat']
+    (booking_id, showtime_seat_id) [unique]
   }
 }
-Table booking.idempotency_keys {
-  actor_id uuid [not null, note: 'Logical auth DB reference']
-  operation varchar(32) [not null]
-  idempotency_key varchar(160) [not null]
-  request_hash bytea [not null]
-  response_status int
-  response_body jsonb
-  created_at timestamptz [not null]
-  expires_at timestamptz [not null]
-  indexes {
-    (actor_id, operation, idempotency_key) [pk]
-    expires_at
-  }
-}
+
+// Used for PaymentRequested, BookingConfirmed, BookingExpired, etc.
 Table booking.outbox_events {
   event_id uuid [pk]
   event_type varchar(80) [not null]
-  event_version int [not null]
   aggregate_id uuid [not null]
-  occurred_at timestamptz [not null]
-  trace_id varchar(128) [not null]
   payload jsonb [not null]
-  publish_attempts int [not null]
-  next_attempt_at timestamptz [not null]
-  published_at timestamptz
   created_at timestamptz [not null]
-  indexes { (next_attempt_at, created_at) }
-}
-Table booking.processed_events {
-  consumer_name varchar(80) [not null]
-  event_id uuid [not null]
-  processed_at timestamptz [not null]
+  published_at timestamptz
+
   indexes {
-    (consumer_name, event_id) [pk]
-    processed_at
+    (published_at, created_at)
   }
 }
-Ref: booking.showtime_seats.showtime_id > booking.showtime_snapshots.showtime_id
-Ref: booking.reservations.showtime_id > booking.showtime_snapshots.showtime_id
-Ref: booking.showtime_seats.(reservation_id, showtime_id) > booking.reservations.(id, showtime_id)
-Ref: booking.showtime_seats.(booking_id, showtime_id) > booking.bookings.(id, showtime_id)
-Ref: booking.reservation_seats.(reservation_id, showtime_id) > booking.reservations.(id, showtime_id)
-Ref: booking.reservation_seats.(showtime_id, seat_id) > booking.showtime_seats.(showtime_id, seat_id)
-Ref: booking.bookings.(reservation_id, showtime_id, user_id) > booking.reservations.(id, showtime_id, user_id)
-Ref: booking.booking_items.(booking_id, showtime_id) > booking.bookings.(id, showtime_id)
-Ref: booking.booking_items.(showtime_id, seat_id) > booking.showtime_seats.(showtime_id, seat_id)
 
-// cinema_payment: provider references only; never raw card data
+Ref: booking.showtime_seats.booking_id > booking.bookings.id
+Ref: booking.booking_items.booking_id > booking.bookings.id
+Ref: booking.booking_items.showtime_seat_id > booking.showtime_seats.id
+
+// =========================
+// PAYMENT SERVICE - 2 tables
+// Payment is intentionally simplified for the course project.
+// No payment attempts, provider webhook history, or refunds.
+// =========================
 Table payment.payments {
   id uuid [pk]
-  booking_id uuid [not null, unique, note: 'Logical booking DB reference']
-  reservation_id uuid [not null, note: 'Logical booking DB reference']
-  user_id uuid [not null, note: 'Logical auth DB reference']
+  booking_id uuid [not null, unique, note: 'Logical Booking Service reference; also makes PaymentRequested idempotent']
   amount_minor bigint [not null]
-  currency varchar(3) [not null]
-  request_key varchar(160) [not null]
-  request_hash bytea [not null]
-  status varchar(24) [not null]
+  payment_method varchar(30) [not null, note: 'Example: MOCK, VNPAY']
+  status varchar(20) [not null, note: 'PENDING, SUCCESS, FAILED']
+  transaction_ref varchar(160) [unique]
   created_at timestamptz [not null]
   updated_at timestamptz [not null]
-  indexes { (user_id, request_key) [unique] }
 }
-Table payment.payment_attempts {
-  id uuid [pk]
-  payment_id uuid [not null]
-  provider varchar(40) [not null]
-  merchant_reference varchar(160) [not null]
-  provider_transaction_id varchar(160)
-  checkout_url text
-  status varchar(24) [not null]
-  failure_code varchar(80)
-  created_at timestamptz [not null]
-  updated_at timestamptz [not null]
-  indexes {
-    (provider, merchant_reference) [unique]
-    (provider, provider_transaction_id) [unique]
-    (payment_id, created_at)
-  }
-}
-Table payment.provider_events {
-  id uuid [pk]
-  payment_id uuid [not null]
-  provider varchar(40) [not null]
-  event_identity varchar(160) [not null]
-  provider_event_id varchar(160)
-  payload_digest bytea
-  result_code varchar(80) [not null]
-  received_at timestamptz [not null]
-  indexes {
-    (provider, event_identity) [unique]
-    (payment_id, received_at)
-  }
-}
-Table payment.refunds {
-  id uuid [pk]
-  payment_id uuid [not null, unique]
-  refund_request_id uuid [not null, unique, note: 'Logical booking event reference']
-  amount_minor bigint [not null]
-  currency varchar(3) [not null]
-  request_key varchar(160) [not null]
-  request_hash bytea [not null]
-  provider varchar(40) [not null]
-  merchant_reference varchar(160) [not null]
-  provider_refund_id varchar(160)
-  status varchar(24) [not null]
-  failure_code varchar(80)
-  created_at timestamptz [not null]
-  updated_at timestamptz [not null]
-  indexes {
-    (provider, merchant_reference) [unique]
-    (provider, provider_refund_id) [unique]
-    (provider, request_key) [unique]
-  }
-}
+
+// Used to reliably publish PaymentSucceeded / PaymentFailed to Kafka.
 Table payment.outbox_events {
   event_id uuid [pk]
   event_type varchar(80) [not null]
-  event_version int [not null]
   aggregate_id uuid [not null]
-  occurred_at timestamptz [not null]
-  trace_id varchar(128) [not null]
   payload jsonb [not null]
-  publish_attempts int [not null]
-  next_attempt_at timestamptz [not null]
-  published_at timestamptz
   created_at timestamptz [not null]
-  indexes { (next_attempt_at, created_at) }
-}
-Table payment.processed_events {
-  consumer_name varchar(80) [not null]
-  event_id uuid [not null]
-  processed_at timestamptz [not null]
+  published_at timestamptz
+
   indexes {
-    (consumer_name, event_id) [pk]
-    processed_at
+    (published_at, created_at)
   }
 }
-Ref: payment.payment_attempts.payment_id > payment.payments.id
-Ref: payment.provider_events.payment_id > payment.payments.id
-Ref: payment.refunds.payment_id > payment.payments.id
 
-// cinema_notification: event deduplication and delivery in one table
+// =========================
+// NOTIFICATION SERVICE - 1 table
+// =========================
 Table notification.notifications {
   id uuid [pk]
   source_event_id uuid [not null, note: 'Logical Kafka event reference']
-  event_type varchar(80) [not null]
-  user_id uuid [not null, note: 'Logical auth DB reference']
-  channel varchar(16) [not null]
+  user_id uuid [not null, note: 'Logical Auth Service reference']
+  channel varchar(16) [not null, note: 'Example: EMAIL']
   recipient_address text [not null]
-  status varchar(16) [not null]
-  attempt_count int [not null]
-  next_attempt_at timestamptz [not null]
-  provider_message_id varchar(160)
-  last_error_code varchar(80)
+  message text [not null]
+  status varchar(16) [not null, note: 'PENDING, SENT, FAILED']
   created_at timestamptz [not null]
-  updated_at timestamptz [not null]
   sent_at timestamptz
+
   indexes {
     (source_event_id, channel) [unique]
-    (status, next_attempt_at)
   }
 }

@@ -15,6 +15,10 @@ spring:
       server:
         webflux:
           routes:
+            - id: ai-service
+              uri: ${AI_SERVICE_URL:http://localhost:8087}
+              predicates:
+                - Path=/api/v1/ai/**
             - id: auth-service
               uri: ${AUTH_SERVICE_URL:http://localhost:8081}
               predicates:

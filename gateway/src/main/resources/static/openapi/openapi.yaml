@@ -9,10 +9,10 @@ servers:
   - url: http://localhost:8080
 paths: {}
 x-downstream-contracts:
+  ai-service: http://localhost:8087/openapi/openapi.yaml
   auth-service: http://localhost:8081/openapi/openapi.yaml
   movie-service: http://localhost:8082/openapi/openapi.yaml
   cinema-service: http://localhost:8083/openapi/openapi.yaml
   booking-service: http://localhost:8084/openapi/openapi.yaml
   payment-service: http://localhost:8085/openapi/openapi.yaml
   notification-service: http://localhost:8086/openapi/openapi.yaml
-

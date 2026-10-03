@@ -1,0 +1,48 @@
+server:
+  port: ${AI_SERVICE_PORT:8087}
+
+spring:
+  application:
+    name: ai-service
+  ai:
+    chat:
+      client:
+        # No inference endpoint yet; create a client only when that API is implemented.
+        enabled: false
+    model:
+      chat: ${AI_CHAT_PROVIDER:none}
+      embedding: none
+    ollama:
+      base-url: ${AI_OLLAMA_BASE_URL:http://localhost:11434}
+      init:
+        pull-model-strategy: never
+      chat:
+        model: ${AI_OLLAMA_MODEL:llama3.2}
+        num-predict: 512
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    url: /openapi/openapi.yaml
+
+logging:
+  structured:
+    format:
+      console: ecs
+
+info:
+  app:
+    name: ${spring.application.name}
+    stage: skeleton

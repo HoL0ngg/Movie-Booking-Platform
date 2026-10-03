@@ -1,17 +1,27 @@
 import { Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
-import { AuthPage } from './pages/AuthPage'
-import { CheckoutPage } from './pages/CheckoutPage'
-import { HistoryPage } from './pages/HistoryPage'
-import { HomePage } from './pages/HomePage'
-import { MovieDetailPage } from './pages/MovieDetailPage'
+import { AuthPage } from './pages/auth/AuthPage'
+import { CheckoutPage } from './pages/payment/CheckoutPage'
+import { HistoryPage } from './pages/profile/HistoryPage'
+import { HomePage } from './pages/home/HomePage'
+import { MovieDetailPage } from './pages/movies/MovieDetailPage'
 import { NotFoundPage } from './pages/NotFoundPage'
-import { SeatPage } from './pages/SeatPage'
-import { ShowtimesPage } from './pages/ShowtimesPage'
-import { SuccessPage } from './pages/SuccessPage'
+import { SeatPage } from './pages/cinemas/SeatPage'
+import { ShowtimesPage } from './pages/booking/ShowtimesPage'
+import { SuccessPage } from './pages/payment/SuccessPage'
+import { AdminLayout } from './features/admin/AdminLayout'
+import { AdminOverview, AdminRecords } from './features/admin/AdminPages'
 
 export default function App() {
   return <Routes>
+    <Route path="admin" element={<AdminLayout />}>
+      <Route index element={<AdminOverview />} />
+      <Route path="movies" element={<AdminRecords key="movies" section="movies" />} />
+      <Route path="cinemas" element={<AdminRecords key="cinemas" section="cinemas" />} />
+      <Route path="showtimes" element={<AdminRecords key="showtimes" section="showtimes" />} />
+      <Route path="bookings" element={<AdminRecords key="bookings" section="bookings" />} />
+      <Route path="payments" element={<AdminRecords key="payments" section="payments" />} />
+    </Route>
     <Route element={<AppShell />}>
       <Route index element={<HomePage />} />
       <Route path="movies/:movieId" element={<MovieDetailPage />} />

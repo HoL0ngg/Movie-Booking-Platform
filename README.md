@@ -12,7 +12,8 @@ cinema-booking/
 |-- docs/
 |   `-- ADR/
 |-- frontend/
-|   `-- web/
+|   |-- src/
+|   `-- e2e/
 |-- gateway/
 |-- services/
 |   |-- auth-service/
@@ -20,7 +21,8 @@ cinema-booking/
 |   |-- cinema-service/
 |   |-- booking-service/
 |   |-- payment-service/
-|   `-- notification-service/
+|   |-- notification-service/
+|   `-- ai-service/
 |-- infrastructure/
 |   |-- kafka/
 |   |-- postgres/
@@ -30,7 +32,7 @@ cinema-booking/
 `-- skills/
 ```
 
-The seven deployables are independent Maven modules under `gateway/` and `services/`. Each stateful service has a dedicated PostgreSQL container and migration location. Kafka, disposable Redis, and an optional Prometheus/Grafana profile are defined in `docker-compose.yml`.
+The eight backend deployables are independent Maven modules under `gateway/` and `services/`. Each stateful service has a dedicated PostgreSQL container and migration location. The stateless `ai-service` adds optional Spring AI/Ollama integration (ADR-011), with no business endpoints yet. Kafka, disposable Redis, and an optional Prometheus/Grafana profile are defined in `docker-compose.yml`.
 
 ## Non-negotiable foundations
 
@@ -75,7 +77,7 @@ mvn -pl gateway spring-boot:run
 mvn -pl services/booking-service spring-boot:run
 ```
 
-The gateway listens on `8080`; service ports are `8081` through `8086`. See [local infrastructure](docs/infrastructure.md) for the complete port and ownership map. API routes remain denied until later phases implement authentication and authorization.
+The gateway listens on `8080`; service ports are `8081` through `8087`. Start the AI skeleton with `mvn -pl services/ai-service spring-boot:run`; no model runtime is required by default. See [local infrastructure](docs/infrastructure.md) for configuration. API routes remain denied until authentication and authorization are implemented.
 
 ## Development workflow
 

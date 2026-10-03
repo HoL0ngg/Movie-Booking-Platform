@@ -1,11 +1,11 @@
 # System Architecture
 
 Status: Phase 0 baseline  
-Last updated: 2026-09-24
+Last updated: 2026-10-03 (AI extension in ADR-011)
 
 ## Goals
 
-The platform favors booking correctness, payment correctness, local transactional consistency, idempotency, explicit ownership, security, and operability over throughput or visual effects. The initial boundary set is sufficient; no additional microservice is justified in Phase 0.
+The platform favors booking correctness, payment correctness, local transactional consistency, idempotency, explicit ownership, security, and operability over throughput or visual effects. ADR-011 extends the initial boundary set with optional AI assistance independent of booking/payment correctness.
 
 ## Overall system architecture
 
@@ -19,6 +19,8 @@ flowchart LR
     Gateway --> Cinema[cinema-service]
     Gateway --> Booking[booking-service]
     Gateway --> Payment[payment-service]
+    Gateway --> AI[ai-service: optional assistance]
+    AI -. optional model integration .-> Ollama[Ollama]
 
     Auth --> AuthDB[(auth PostgreSQL)]
     Movie --> MovieDB[(movie PostgreSQL)]
@@ -44,7 +46,7 @@ Every database arrow terminates at its owning service. Sharing a PostgreSQL clus
 
 ## Deployable responsibilities
 
-- **frontend/web** renders the customer journey. It never decides authoritative seat or payment state.
+- **frontend/** renders the customer journey. It never decides authoritative seat or payment state.
 - **api-gateway** is the public edge for routing, authentication enforcement, rate limiting, request sizing, and correlation IDs. It has no domain database and coordinates no Saga.
 - **auth-service** owns identity, credentials, tokens/sessions, roles, and account security.
 - **movie-service** owns movie catalog metadata.
@@ -54,6 +56,8 @@ Every database arrow terminates at its owning service. Sharing a PostgreSQL clus
 - **notification-service** owns notification preferences, templates, delivery attempts, and delivery results. It reacts to events; notification failure never rolls back a booking.
 
 Detailed ownership is in [service-boundaries.md](service-boundaries.md).
+
+`ai-service` owns optional assistance and model integration. Initially it is a fail-closed Spring AI skeleton with no business API, database, or events. Model output cannot establish booking/payment state; core flows work with AI disabled or unavailable. See [ADR-011](ADR/ADR-011-optional-ai-service.md).
 
 ## Communication rules
 
@@ -90,4 +94,3 @@ Redis is never on this correctness path. See [booking-flow.md](booking-flow.md),
 - Production infrastructure sizing
 - Final topic partition counts, hold duration, retention, or SLO values
 - Cross-region consistency or multi-cluster disaster-recovery design
-

@@ -7,6 +7,7 @@ Status: Phase 0 baseline
 | Deployable | Responsibilities | Exclusively owned persistent data | Synchronous surface | Event role |
 |---|---|---|---|---|
 | `api-gateway` | Routing, edge authentication enforcement, rate limits, correlation IDs, request limits | No domain data | Public route facade | None initially |
+| `ai-service` | Optional assistance, recommendations, prompts, model integration | None initially | Reserved `/api/v1/ai/**`; no business API yet | None initially |
 | `auth-service` | Registration, authentication, token/session lifecycle, roles, account security | Users, credentials, roles, refresh tokens/sessions, audit/security records | Auth/account commands and identity lookup | May later publish account lifecycle events |
 | `movie-service` | Movie catalog, genres, media metadata, content lifecycle | Movies, genres, cast/content metadata | Movie catalog queries/admin commands | Publishes catalog changes when needed |
 | `cinema-service` | Cinemas, auditoriums, physical seats, showtime scheduling and cancellation | Cinemas, auditoriums, seat definitions, showtimes, schedule rules | Cinema/showtime queries/admin commands | Publishes `ShowtimePublished` and `ShowtimeCancelled` |
@@ -15,6 +16,8 @@ Status: Phase 0 baseline
 | `notification-service` | Notification preferences, templates, rendering, send attempts and delivery results | Preferences, templates, notification jobs, provider message IDs/delivery status, inbox | Internal/admin status only initially | Consumes confirmed/cancelled/payment events; delivery is non-transactional to booking |
 
 ## Boundary rules
+
+`ai-service` owns optional assistance, prompts, recommendations, and model integration. Initially it has no persistent data, business API, or event role. Gateway reserves `/api/v1/ai/**` with requests denied until authorization and contracts exist. Catalog/showtime data remains with its owners; model output cannot establish availability or payment state. See [ADR-011](ADR/ADR-011-optional-ai-service.md).
 
 1. The owning service is the only writer and the only SQL reader of its database.
 2. A service identifier carried elsewhere is an opaque reference, not a cross-service foreign key.
@@ -41,7 +44,6 @@ Status: Phase 0 baseline
 - `auth-service` owns identity records. Other databases store the stable user ID plus any strictly necessary historical snapshot, not credential/profile tables.
 - `notification-service` may render copied display data carried in an event, but it does not query booking/payment databases.
 
-## Why there are no more services
+## Why other capabilities remain within existing services
 
 Ticket entitlement belongs with the booking lifecycle; seat inventory belongs with booking correctness; refund processing belongs with payments; hold-expiration workers operate within `booking-service`; outbox relays are infrastructure components embedded per owner. None currently provides a strong independent bounded-context reason for another microservice.
-

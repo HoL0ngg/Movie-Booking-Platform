@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useApi'
+import { useAuth } from '../../hooks/useApi'
 
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const registerMode = mode === 'register'

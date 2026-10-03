@@ -25,9 +25,9 @@ Correctness must never be sacrificed for performance or implementation convenien
 
 **Frontend:** React, TypeScript, Vite, React Router, TanStack Query, Zustand (only for genuine global client state), Framer Motion, Three.js / React Three Fiber.
 
-**Backend:** Java, Spring Boot, Spring Web, Spring Security, Spring Data JPA, Spring Validation, PostgreSQL, Redis, Kafka, Flyway, OpenAPI / Swagger.
+**Backend:** Java 21, Spring Boot 4.1.1, Spring Web, Spring Security, Spring Data JPA, Spring Validation, PostgreSQL, Redis, Kafka, Flyway, OpenAPI / Swagger. `ai-service` uses Spring AI 2.0.1 with an optional Ollama chat provider.
 
-**Testing:** JUnit 5, Mockito, Spring Boot Test, Testcontainers, Playwright.
+**Testing:** JUnit Jupiter, AssertJ, Spring Boot Test, Testcontainers PostgreSQL, Playwright. Install specialized test helpers only when concrete tests need them.
 
 **Infrastructure:** Docker, Docker Compose, PostgreSQL, Redis, Kafka.
 
@@ -43,25 +43,29 @@ docker compose up -d
 docker compose down
 ```
 
-**Backend (per service, from the service directory)**
+**Backend (installed Maven; no Maven wrapper exists)**
 ```bash
-./mvnw spring-boot:run
-./mvnw test
-./mvnw test -Dtest=ClassName#methodName
+# From the repository root
+mvn test
+mvn -pl services/ai-service spring-boot:run
+# From the relevant service directory
+mvn spring-boot:run
+mvn test
+mvn test -Dtest=ClassName#methodName
 ```
 
 **Database migrations**
 
-Use the migration mechanism actually configured by the service. `./mvnw flyway:migrate` may be used only when the Flyway Maven plugin is configured; otherwise use the repository's configured Flyway startup/migration workflow. Check `pom.xml` first.
+Stateful services run Flyway during Spring Boot startup and use Hibernate schema validation. No Flyway Maven plugin is configured. `ai-service` is stateless and has no migrations.
 
-**Frontend**
+**Frontend (from `frontend/`)**
 ```bash
 npm install
 npm run dev
 npm run build
 npm run lint
 npm run test
-npx playwright test
+npm run test:e2e
 ```
 
 Do not invent or guess a command that is not defined here or in the service's own `pom.xml` / `package.json` scripts.
@@ -70,7 +74,7 @@ Do not invent or guess a command that is not defined here or in the service's ow
 
 ## 4. System Architecture
 
-Initial services: `frontend/web`, `api-gateway`, `auth-service`, `movie-service`, `cinema-service`, `booking-service`, `payment-service`, `notification-service`.
+Deployables: `frontend/`, `api-gateway` (module `gateway/`), `auth-service`, `movie-service`, `cinema-service`, `booking-service`, `payment-service`, `notification-service`, `ai-service`. The AI extension is recorded in `docs/ADR/ADR-011-optional-ai-service.md`.
 
 Communication:
 - REST for synchronous request/response
@@ -78,7 +82,7 @@ Communication:
 
 Distributed workflows use the **Saga** and **Transactional Outbox** patterns.
 
-Do not introduce additional microservices unless there is a clear business capability and bounded-context reason. See Section 16 for relevant implementation guidance..
+Do not introduce additional microservices unless there is a clear business capability and bounded-context reason. See Section 16 for relevant implementation guidance.
 
 ### Current Status
 
@@ -89,6 +93,8 @@ Treat existing working infrastructure as established repository state.
 Inspect it before proposing replacement or regeneration.
 
 Future phases build incrementally on the current repository.
+
+Phase 2 includes service-owned schemas and a frontend prototype under `frontend/`. `ai-service` is a stateless Spring AI skeleton on port 8087 with health/metrics, trace IDs, and fail-closed security. No chat/recommendation endpoint is implemented yet. Set `AI_CHAT_PROVIDER=ollama` to configure a pre-provisioned local model; default `none` requires no AI runtime. Core booking/payment flows remain independent of AI availability.
 
 ---
 
@@ -117,6 +123,8 @@ Cross-service communication happens only through APIs or domain events.
 **payment-service** — Owns payment attempts, provider transaction references, payment state, refund state, webhook processing. Payment provider integrations are isolated inside this service; `booking-service` must never integrate directly with an external payment provider.
 
 **notification-service** — Handles booking confirmation, email notifications, payment notifications, optional ticket/QR delivery. Processing is asynchronous; notification failure must never roll back a successful booking.
+
+**ai-service** — Owns optional cinema assistance, recommendation behavior, prompts, and model-provider integration. Initially stateless: no database, Kafka, vector store, or persisted conversations. Suggestions are non-authoritative; it cannot reserve seats, confirm bookings, process payments, or access another service's database. Future catalog integration uses owner APIs or events. Never send credentials, payment data, or unnecessary personal data to a model.
 
 *(See Section 16 for which skill to read before working on each area.)*
 
@@ -199,7 +207,7 @@ Avoid command-like event names such as `UpdateBookingStatus` or `SetSeatAvailabl
 Preferred structure:
 
 ```text
-frontend/web/src/
+frontend/src/
 ├── api/
 ├── assets/
 ├── components/
@@ -255,9 +263,12 @@ The architecture should remain compatible with OpenTelemetry, Prometheus, and Gr
 
 Tests must verify business invariants, not only HTTP status codes.
 
-- Backend: unit tests, integration tests, Testcontainers, concurrency tests.
-- Frontend: critical workflows tested with Playwright.
+Keep verification proportional to the change. Prefer a build/lint and the smallest relevant checks; do not add test frameworks, download browser/model runtimes, or repeatedly run broad suites for routine scaffolding/dependency cleanup. Preserve existing critical booking/payment/database tests and run them when their behavior changes. Report checks not run and the reason.
+
+- Backend: Spring Boot Test, JUnit Jupiter, AssertJ; Testcontainers PostgreSQL in stateful services. Parent test-starter exclusions remove currently unused Mockito, JSONAssert, XMLUnit, and Awaitility. Gateway WebFlux/security test starters are omitted because existing tests do not use them. Restore a helper when a concrete test needs it.
+- Frontend: Playwright is the single runner (`npm test` and `npm run test:e2e`). MovieCard accessible-link coverage lives in `frontend/e2e/movie-card.spec.ts`; Vitest, jsdom, and Testing Library are not installed. Add another runner only when meaningful coverage needs it.
 - Concurrency-sensitive booking tests must use real PostgreSQL behavior, not H2.
+- AI tests must not call live providers or download models. Verify disabled-provider startup, enabled Spring AI configuration, and service-level denial of business requests until authorization exists.
 
 ---
 

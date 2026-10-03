@@ -1,0 +1,11 @@
+openapi: 3.1.0
+info:
+  title: Cinema AI Service
+  version: 0.1.0
+  description: >-
+    Optional cinema assistance and Spring AI model integration skeleton.
+    No business operations are implemented. Business requests are denied until
+    service authorization and an explicit assistance contract are implemented.
+servers:
+  - url: http://localhost:8087
+paths: {}

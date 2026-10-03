@@ -17,6 +17,6 @@ export function AppShell() {
       </div>
     </header>
     <main><Outlet /></main>
-    <footer><div className="brand muted"><span>ciné</span>mat</div><p>Điện ảnh. Theo cách của bạn.</p><p>Prototype sử dụng dữ liệu mô phỏng.</p></footer>
+    <footer><div className="brand muted"><span>ciné</span>mat</div><p>Điện ảnh. Theo cách của bạn.</p><p>Prototype sử dụng dữ liệu mô phỏng. · <NavLink to="/admin">Quản trị demo</NavLink></p></footer>
   </div>
 }

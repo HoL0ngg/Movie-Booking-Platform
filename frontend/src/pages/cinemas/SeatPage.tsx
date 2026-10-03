@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ErrorState, LoadingState } from '../components/LoadingState'
-import { useBookingDraft } from '../features/booking/BookingContext'
-import { useCinemas, useMovie, useSeats, useShowtime } from '../hooks/useApi'
-import type { Seat } from '../types/contracts'
+import { ErrorState, LoadingState } from '../../components/LoadingState'
+import { useBookingDraft } from '../../features/booking/BookingContext'
+import { useCinemas, useMovie, useSeats, useShowtime } from '../../hooks/useApi'
+import type { Seat } from '../../types/contracts'
 
 const money = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)
 

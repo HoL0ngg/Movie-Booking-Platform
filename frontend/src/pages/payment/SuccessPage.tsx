@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
-import { LoadingState } from '../components/LoadingState'
-import { useBooking } from '../hooks/useApi'
+import { LoadingState } from '../../components/LoadingState'
+import { useBooking } from '../../hooks/useApi'
 
 export function SuccessPage() {
   const { bookingId = '' } = useParams()
