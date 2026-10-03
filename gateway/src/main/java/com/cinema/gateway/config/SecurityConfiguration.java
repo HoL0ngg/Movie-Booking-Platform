@@ -24,7 +24,6 @@ public class SecurityConfiguration {
                         .pathMatchers(
                                 "/actuator/health/**",
                                 "/actuator/info",
-                                "/actuator/prometheus",
                                 "/openapi/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",

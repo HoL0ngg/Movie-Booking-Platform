@@ -23,7 +23,6 @@ Kafka events and Redis data are derived from or supportive of this state. They c
 ## Guardrails
 
 - No booking state is stored only in Redis, memory, Kafka, or the browser.
-- Schema changes use Flyway and production configuration validates rather than updates the schema automatically.
+- Schema changes are managed manually with service-owned reference DDL (amended by [ADR-013](ADR-013-manual-database-schema-management.md)); production configuration validates rather than updates the schema automatically.
 - PostgreSQL-specific behavior is tested with Testcontainers, never inferred from H2.
 - Performance changes may reduce contention but must preserve the same database-enforced invariant.
-

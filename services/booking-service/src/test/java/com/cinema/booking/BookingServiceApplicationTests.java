@@ -10,7 +10,6 @@ import java.sql.Statement;
 import java.util.UUID;
 import javax.sql.DataSource;
 
-import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -31,22 +30,18 @@ class BookingServiceApplicationTests {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18.6-alpine3.24")
-            .withDatabaseName("cinema_booking_test");
+            .withDatabaseName("cinema_booking_test")
+            .withInitScript("db/schema.sql");
 
     @Autowired
     private ApplicationContext applicationContext;
 
     @Autowired
-    private Flyway flyway;
-
-    @Autowired
     private DataSource dataSource;
 
     @Test
-    void contextLoadsAndAppliesOwnedDomainSchema() {
+    void contextLoadsWithOwnedDomainSchema() {
         assertThat(applicationContext.containsBean("securityFilterChain")).isTrue();
-        assertThat(flyway.info().current()).isNotNull();
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("2");
     }
 
     @Test

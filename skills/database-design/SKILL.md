@@ -1,13 +1,13 @@
 ---
 name: database-design
-description: Design or review PostgreSQL schemas, Flyway migrations, constraints, indexes, transactions, outbox/inbox tables, and service data ownership for the Cinema Booking Platform.
+description: Design or review PostgreSQL schemas, manual schema changes, constraints, indexes, transactions, outbox/inbox tables, and service data ownership for the Cinema Booking Platform.
 ---
 
 # Database Design
 
 ## When to use
 
-Use this skill for schemas, entities, repositories, SQL, indexes, constraints, Flyway migrations, transaction boundaries, or persistence reviews. Also use it when an event projection or idempotency record changes database state. Read `AGENTS.md` and `docs/database-design.md` first.
+Use this skill for schemas, entities, repositories, SQL, indexes, constraints, manual schema changes, transaction boundaries, or persistence reviews. Also use it when an event projection or idempotency record changes database state. Read `AGENTS.md` and `docs/database-design.md` first.
 
 ## Architectural rules
 
@@ -19,7 +19,7 @@ Use this skill for schemas, entities, repositories, SQL, indexes, constraints, F
 
 ## Implementation rules
 
-- Manage every schema change with ordered Flyway migrations. Persistent configurations use Hibernate schema validation, never automatic update.
+- Apply schema changes manually to the owning managed database and update its `src/main/resources/db/schema.sql` snapshot (ADR-013). Application SQL initialization is disabled. Persistent configurations use Hibernate schema validation, never automatic update. Do not replay full snapshots on an existing database.
 - Make identifiers, timestamps, money, and enums explicit: prefer UUID/ULID-compatible IDs, `timestamptz` in UTC, integer minor currency units plus ISO currency, and constrained state values.
 - Define nullability, defaults, checks, unique keys, foreign keys, and query-driven indexes deliberately. Index foreign keys and hot predicates after validating query shape.
 - Keep transactions short; perform no remote HTTP or Kafka calls while holding database locks.
@@ -40,7 +40,7 @@ Use this skill for schemas, entities, repositories, SQL, indexes, constraints, F
 
 ## Testing requirements
 
-- Run migration and repository integration tests against the supported PostgreSQL version with Testcontainers.
+- When backend testing is restored, initialize disposable PostgreSQL Testcontainers with the owning service's `db/schema.sql` and run repository integration tests.
 - Verify all important constraints with both accepted and rejected rows.
 - Test migrations from the previously released schema, not only clean database creation.
 - For booking tables, run contention, expiration, idempotency, rollback, and deadlock/retry tests against real PostgreSQL.
@@ -56,4 +56,3 @@ Use this skill for schemas, entities, repositories, SQL, indexes, constraints, F
 - [ ] Migration ordering and backward compatibility are safe.
 - [ ] Idempotency is enforced atomically in PostgreSQL.
 - [ ] Real PostgreSQL tests cover database-specific behavior.
-

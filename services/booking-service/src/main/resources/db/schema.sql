@@ -1,3 +1,6 @@
+-- Reference schema for an empty, service-owned database. Never executed at application startup.
+-- Update this snapshot when changing the managed database; do not replay on an existing database.
+
 -- Booking schema, local to cinema_booking.
 -- All cross-service UUIDs are logical references, never foreign keys.
 

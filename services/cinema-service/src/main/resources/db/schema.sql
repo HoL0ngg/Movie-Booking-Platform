@@ -1,3 +1,6 @@
+-- Reference schema for an empty, service-owned database. Never executed at application startup.
+-- Update this snapshot when changing the managed database; do not replay on an existing database.
+
 -- Cinema schema, local to cinema_cinema.
 -- All cross-service UUIDs are logical references, never foreign keys.
 
@@ -90,3 +93,15 @@ ALTER TABLE showtimes ADD CONSTRAINT ex_showtimes_auditorium_overlap
   WHERE (status = 'PUBLISHED');
 
 ALTER TABLE outbox_events ADD CONSTRAINT ck_outbox_events_attempts CHECK (publish_attempts >= 0 AND event_version > 0);
+
+-- Cinema-scoped manager assignments. Auth user IDs are logical references only.
+CREATE TABLE cinema_managers (
+    cinema_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    assigned_at timestamptz NOT NULL,
+    CONSTRAINT pk_cinema_managers PRIMARY KEY (cinema_id, user_id),
+    CONSTRAINT fk_cinema_managers_cinema_id FOREIGN KEY (cinema_id)
+        REFERENCES cinemas (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_cinema_managers_user_id ON cinema_managers (user_id);

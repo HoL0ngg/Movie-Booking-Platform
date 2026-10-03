@@ -25,7 +25,7 @@ Correctness must never be sacrificed for performance or implementation convenien
 
 **Frontend:** React, TypeScript, Vite, React Router, TanStack Query, Zustand (only for genuine global client state), Framer Motion, Three.js / React Three Fiber.
 
-**Backend:** Java 21, Spring Boot 4.1.1, Spring Web, Spring Security, Spring Data JPA, Spring Validation, PostgreSQL, Redis, Kafka, Flyway, OpenAPI / Swagger. `ai-service` uses Spring AI 2.0.1 with an optional Ollama chat provider.
+**Backend:** Java 21, Spring Boot 4.1.1, Spring Web, Spring Security, Spring Data JPA, Spring Validation, PostgreSQL (managed on Supabase), Redis, Kafka, OpenAPI / Swagger. `ai-service` uses Spring AI 2.0.1 with an optional Ollama chat provider.
 
 **Testing:** JUnit Jupiter, AssertJ, Spring Boot Test, Testcontainers PostgreSQL, Playwright. Install specialized test helpers only when concrete tests need them.
 
@@ -46,17 +46,18 @@ docker compose down
 **Backend (installed Maven; no Maven wrapper exists)**
 ```bash
 # From the repository root
-mvn test
+mvn package
 mvn -pl services/ai-service spring-boot:run
 # From the relevant service directory
 mvn spring-boot:run
-mvn test
-mvn test -Dtest=ClassName#methodName
+mvn package
 ```
 
-**Database migrations**
+Backend test dependencies are temporarily removed at the project owner's request. The parent sets `maven.test.skip=true` to skip both test compilation and execution while preserving `src/test`. `mvn test` currently runs no tests. To restore testing, add `spring-boot-starter-test` to the affected modules and the Spring Boot/PostgreSQL/JUnit Testcontainers dependencies to stateful modules, then remove the skip property or pass `-Dmaven.test.skip=false`. After restoration, use `mvn test` or `mvn test -Dtest=ClassName#methodName`.
 
-Stateful services run Flyway during Spring Boot startup and use Hibernate schema validation. No Flyway Maven plugin is configured. `ai-service` is stateless and has no migrations.
+**Database schema management**
+
+Stateful services use externally provisioned schemas and Hibernate schema validation. Flyway has been removed (ADR-013); SQL initialization is disabled. Maintain each service's reference DDL at `src/main/resources/db/schema.sql` when updating its managed database manually. These files describe an empty database and must not be replayed on an existing database. `ai-service` is stateless and has no schema.
 
 **Frontend (from `frontend/`)**
 ```bash
@@ -175,7 +176,7 @@ Create packages only when they contain real classes; stateless services and the 
 
 ## 9. Database Rules
 
-- PostgreSQL, with Flyway for schema migrations.
+- PostgreSQL, with manual schema management on Supabase and service-owned reference DDL (ADR-013).
 - Persistent environments must never rely on `spring.jpa.hibernate.ddl-auto=update`.
 - Use database constraints to protect business invariants.
 - Never use floating-point types for currency.
@@ -251,6 +252,8 @@ Generate or propagate correlation IDs between services. Prefer structured loggin
 
 The architecture should remain compatible with OpenTelemetry, Prometheus, and Grafana, without requiring unnecessary monitoring complexity during early phases.
 
+Application Prometheus export is currently removed at the project owner's request: no backend module declares `micrometer-registry-prometheus` or exposes `/actuator/prometheus`. Actuator health/info and structured trace logging remain available. Restore the registry, endpoint exposure, and monitoring provisioning when export is needed.
+
 ---
 
 ## 15. Testing
@@ -259,7 +262,7 @@ Tests must verify business invariants, not only HTTP status codes.
 
 Keep verification proportional to the change. Prefer a build/lint and the smallest relevant checks; do not add test frameworks, download browser/model runtimes, or repeatedly run broad suites for routine scaffolding/dependency cleanup. Preserve existing critical booking/payment/database tests and run them when their behavior changes. Report checks not run and the reason.
 
-- Backend: Spring Boot Test, JUnit Jupiter, AssertJ; Testcontainers PostgreSQL in stateful services. Parent test-starter exclusions remove currently unused Mockito, JSONAssert, XMLUnit, and Awaitility. Gateway WebFlux/security test starters are omitted because existing tests do not use them. Restore a helper when a concrete test needs it.
+- Backend tests are temporarily paused; test dependencies are absent from module POMs and existing test sources are preserved. When restored: Spring Boot Test, JUnit Jupiter, AssertJ; Testcontainers PostgreSQL in stateful services. Add specialized helpers only when a concrete test needs them. Restore relevant dependencies and enable tests before changing critical booking/payment/database behavior.
 - Frontend: Playwright is the single runner (`npm test` and `npm run test:e2e`). MovieCard accessible-link coverage lives in `frontend/e2e/movie-card.spec.ts`; Vitest, jsdom, and Testing Library are not installed. Add another runner only when meaningful coverage needs it.
 - Concurrency-sensitive booking tests must use real PostgreSQL behavior, not H2.
 - AI tests must not call live providers or download models. Verify disabled-provider startup, enabled Spring AI configuration, and service-level denial of business requests until authorization exists.

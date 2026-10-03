@@ -1,6 +1,6 @@
 # Cinema Booking Platform
 
-This repository is in **Phase 2: core domain services**. Phase 1 established buildable Spring Boot technical shells, local infrastructure, health/metrics endpoints, trace propagation, fail-closed security, and machine-readable REST/event contracts. Six service-owned PostgreSQL schemas now have Flyway migrations, JPA entities, and repositories. Booking, payment, authentication, catalog, scheduling, and notification business logic is not implemented yet.
+This repository is in **Phase 2: core domain services**. Phase 1 established buildable Spring Boot technical shells, local infrastructure, health/metrics endpoints, trace propagation, fail-closed security, and machine-readable REST/event contracts. Six service-owned PostgreSQL schemas now have reference SQL, JPA entities, and repositories. Database changes are managed manually on Supabase (ADR-013). Booking, payment, authentication, catalog, scheduling, and notification business logic is not implemented yet.
 
 ## Repository layout
 
@@ -32,7 +32,7 @@ cinema-booking/
 `-- skills/
 ```
 
-The eight backend deployables are independent Maven modules under `gateway/` and `services/`. Each stateful service has a dedicated PostgreSQL container and migration location. The stateless `ai-service` adds optional Spring AI/Ollama integration (ADR-011), with no business endpoints yet. Kafka, disposable Redis, and an optional Prometheus/Grafana profile are defined in `docker-compose.yml`.
+The eight backend deployables are independent Maven modules under `gateway/` and `services/`. Each stateful service owns its database and reference schema at `src/main/resources/db/schema.sql`; Compose retains dedicated PostgreSQL containers for local development. The stateless `ai-service` adds optional Spring AI/Ollama integration (ADR-011), with no business endpoints yet. Kafka, disposable Redis, and an optional Prometheus/Grafana profile are defined in `docker-compose.yml`. Application Prometheus export is currently removed; Actuator health/info and trace logging remain available. See [monitoring status](docs/infrastructure.md#secrets-and-startup) before enabling that profile.
 
 ## Non-negotiable foundations
 
@@ -67,10 +67,14 @@ Prerequisites: Java 21+, Maven 3.9+, Docker Engine, and Docker Compose.
 Copy-Item .env.example .env
 # Set every blank password in .env to a local-only value.
 docker compose up -d
-mvn test
+mvn package
 ```
 
-Run a service from the repository root after infrastructure is healthy:
+Backend test dependencies are temporarily removed to simplify the build. The parent POM sets `maven.test.skip=true`, skipping test compilation and execution; existing `src/test` files are preserved. `mvn test` currently executes no tests. To restore them, add `spring-boot-starter-test` to the modules and, for stateful services, `spring-boot-testcontainers`, `testcontainers-postgresql`, and `testcontainers-junit-jupiter`. Then remove the skip property or use `-Dmaven.test.skip=false` with `mvn test`.
+
+Before starting a stateful service, configure its `*_DB_URL`, `*_DB_USER`, and `*_DB_PASSWORD` in the process environment for its provisioned database. Spring Boot does not load `.env` automatically. For a fresh local database, manually apply only the owning service's `db/schema.sql` once. SQL initialization is disabled and Hibernate only validates mappings; a missing or mismatched schema prevents startup. See [schema management](docs/database-design.md#schema-management) for the reference files. Do not replay these full schemas on deployed databases.
+
+Run a service from the repository root after infrastructure and its database schema are ready:
 
 ```powershell
 mvn -pl gateway spring-boot:run

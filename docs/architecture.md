@@ -1,7 +1,7 @@
 # System Architecture
 
 Status: Phase 0 baseline  
-Last updated: 2026-10-03 (AI extension in ADR-011; simple Java packages in ADR-012)
+Last updated: 2026-10-03 (AI extension in ADR-011; simple Java packages in ADR-012; manual schema management in ADR-013)
 
 ## Goals
 
@@ -42,7 +42,7 @@ flowchart LR
     Booking -. disposable cache / TTL hint .-> Redis
 ```
 
-Every database arrow terminates at its owning service. Sharing a PostgreSQL cluster during local development does not permit shared schemas, credentials, queries, or cross-database joins.
+Every database arrow terminates at its owning service. Sharing a PostgreSQL cluster during local development does not permit shared schemas, credentials, queries, or cross-database joins. Managed database updates are applied manually, with reference SQL in each service; startup validates mappings without executing DDL. See [ADR-013](ADR/ADR-013-manual-database-schema-management.md).
 
 ## Deployable responsibilities
 

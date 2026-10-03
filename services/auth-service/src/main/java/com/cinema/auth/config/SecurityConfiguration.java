@@ -23,7 +23,7 @@ public class SecurityConfiguration {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(requests -> requests
                         .requestMatchers(
-                                "/actuator/health/**", "/actuator/info", "/actuator/prometheus",
+                                "/actuator/health/**", "/actuator/info",
                                 "/openapi/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
                         .permitAll()
                         .anyRequest()

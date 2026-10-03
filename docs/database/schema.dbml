@@ -3,7 +3,7 @@
 // All Ref declarations are local to one service database.
 Project cinema_booking_platform {
   database_type: 'PostgreSQL'
-  Note: 'Implemented by each service V2 Flyway migration. Cross-service IDs are logical references without foreign keys.'
+  Note: 'Reference DDL lives in each service db/schema.sql. Cross-service IDs are logical references without foreign keys.'
 }
 
 // cinema_auth

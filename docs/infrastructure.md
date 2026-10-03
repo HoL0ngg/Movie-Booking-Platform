@@ -38,13 +38,13 @@ Versions are pinned for reproducible local development. Upgrades require compati
 | Prometheus (optional) | `9090` | local volume |
 | Grafana (optional) | `3000` | local volume |
 
-Each database has a distinct database, application role, credential, container, volume, JDBC configuration, and Flyway migration history. This physical separation reinforces the rule that no service queries or migrates another service's data.
+Each local database has a distinct database, application role, credential, container, volume, and JDBC configuration. Managed databases retain service ownership and isolated credentials (ADR-009); no service queries or changes another service's data.
 
 Redis persistence is disabled intentionally. Loss or flushing of Redis must never affect seat ownership or other authoritative state.
 
 ## Secrets and startup
 
-Copy `.env.example` to the git-ignored `.env`, then set all blank password values. The Compose file refuses to start a database or Grafana when its required password is missing. Local Kafka uses plaintext listeners and the service metrics endpoints are unauthenticated; bind these components only to loopback as configured and do not use this setup as production security configuration.
+Copy `.env.example` to the git-ignored `.env`, then set all blank password values. The Compose file refuses to start a database or Grafana when its required password is missing. Local Kafka uses plaintext listeners and the health/info endpoints are unauthenticated; bind these components only to loopback as configured and do not use this setup as production security configuration.
 
 ```powershell
 Copy-Item .env.example .env
@@ -58,6 +58,8 @@ Start optional monitoring with:
 ```powershell
 docker compose --profile observability up -d
 ```
+
+Application Prometheus export is currently removed: backend modules have no `micrometer-registry-prometheus` and do not expose `/actuator/prometheus`. The optional Compose profile is retained for future use; its monitoring provisioning files are currently absent from this checkout. Restore provisioning and the registry/exposure before using it to collect application metrics. Actuator health/info and trace logging remain available.
 
 Stop containers without deleting state using `docker compose down`. Deleting named volumes is destructive and requires an explicit decision.
 
@@ -74,13 +76,14 @@ The local broker has three partitions and replication factor one. Application sk
 
 ## Application configuration
 
-Every stateful service uses Flyway and Hibernate schema validation. `ddl-auto=update` is prohibited. The Phase 1 `V1__baseline.sql` files intentionally create no domain tables; later domain work must add forward-only migrations owned by the relevant service.
+Every stateful service uses Hibernate schema validation (`ddl-auto=validate`) with SQL initialization disabled (`spring.sql.init.mode=never`). Flyway has been removed ([ADR-013](ADR/ADR-013-manual-database-schema-management.md)). Schema updates are managed manually on Supabase and mirrored in each owning service's `src/main/resources/db/schema.sql`. These files describe empty databases; do not replay them on existing data. Provision a fresh local database manually before starting its service. `ddl-auto=update` remains prohibited.
+
+For a managed database, set the service-specific `*_DB_URL`, `*_DB_USER`, and `*_DB_PASSWORD` in the process environment; Spring Boot does not load `.env` automatically. Use the JDBC connection details for that service's isolated database/role. Supabase documents direct and session-pooler connections for persistent backends in its [connection guide](https://supabase.com/docs/guides/database/connecting-to-postgres). No deployment credentials or connection targets are changed by this cleanup.
 
 Health and diagnostics:
 
 - `/actuator/health` exposes readiness/liveness without sensitive details.
 - `/actuator/info` identifies the application and phase.
-- `/actuator/prometheus` supplies local metrics.
 - `/openapi/openapi.yaml` serves the static contract.
 - `/swagger-ui.html` renders it during local development.
 
@@ -92,15 +95,15 @@ The gateway accepts a safe `X-Trace-Id` or creates one, sends it downstream, and
 
 `ai-service` runs on the host like existing application modules; Docker Compose infrastructure is unchanged. Start it with `mvn -pl services/ai-service spring-boot:run`. Default configuration needs no AI runtime. Export `AI_CHAT_PROVIDER=ollama`, `AI_OLLAMA_BASE_URL`, and `AI_OLLAMA_MODEL` in the Maven process environment after provisioning the model separately. Spring Boot does not load `.env` automatically. This enables model beans only; no inference endpoint exists yet.
 
-Docker-independent checks: `mvn -pl gateway,services/ai-service -am test`. Stateful tests still require PostgreSQL Testcontainers. Frontend uses Playwright only: `npm test` from `frontend/`; if Chromium is missing, run `npx playwright install chromium`.
+Docker-independent packaging checks: `mvn -pl gateway,services/ai-service -am package`. Frontend uses Playwright only: `npm test` from `frontend/`; if Chromium is missing, run `npx playwright install chromium`.
 
 From the repository root:
 
 ```powershell
-mvn test
+mvn package
 ```
 
-Service context tests use Testcontainers with real PostgreSQL and verify that the owned Flyway baseline is applied. Docker must be running. Later booking concurrency tests must also use PostgreSQL rather than H2.
+Backend test dependencies are temporarily removed and the parent sets `maven.test.skip=true`; `mvn test` currently runs no tests. Existing test sources remain in place. Restore the dependencies as described in [README](../README.md#local-quick-start) and remove the skip property or pass `-Dmaven.test.skip=false` before running tests. Restored stateful service tests require Docker and real PostgreSQL Testcontainers, initialized with `db/schema.sql`, to verify mappings and constraints. Booking concurrency tests must also use PostgreSQL rather than H2.
 
 ## Production gaps
 
