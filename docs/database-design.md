@@ -1,6 +1,6 @@
 # Physical database design
 
-Status: **implemented schema, application workflows pending**. Phase 2 is active. Each service has a V2 Flyway migration, JPA entities, and repositories for the tables in [schema.dbml](database/schema.dbml); [ER diagrams](database/database-er-diagram.md) show the same schema. The V1 migrations remain comment-only baselines. This document's reservation, Saga, and provider workflows describe requirements for later service logic.
+Status: **implemented schema, application workflows pending**. Phase 2 is active. Each stateful service has a V2 Flyway domain migration, JPA entities, and repositories; cinema-service additionally has V3 for cinema-manager assignments. The V1 migrations remain comment-only baselines. The editable [schema.dbml](database/schema.dbml) is a simplified proposal and currently differs from the implemented migrations; use the ownership table below and Flyway SQL for the implemented schema. This document's reservation, Saga, and provider workflows describe requirements for later service logic.
 
 ## Ownership and ID strategy
 
@@ -8,7 +8,7 @@ Status: **implemented schema, application workflows pending**. Phase 2 is active
 |---|---|---|
 | `cinema_auth` | auth-service | `users`, `roles`, `user_roles`, `refresh_sessions` |
 | `cinema_movie` | movie-service | `movies`, `genres`, `movie_genres` |
-| `cinema_cinema` | cinema-service | `cinemas`, `auditoriums`, `seats`, `showtimes`, `outbox_events` |
+| `cinema_cinema` | cinema-service | `cinemas`, `auditoriums`, `seats`, `showtimes`, `cinema_managers`, `outbox_events` |
 | `cinema_booking` | booking-service | `showtime_snapshots`, `showtime_seats`, `reservations`, `reservation_seats`, `bookings`, `booking_items`, `idempotency_keys`, `outbox_events`, `processed_events` |
 | `cinema_payment` | payment-service | `payments`, `payment_attempts`, `provider_events`, `refunds`, `outbox_events`, `processed_events` |
 | `cinema_notification` | notification-service | `notifications` |
@@ -19,7 +19,7 @@ Use UUID primary identifiers for domain rows and events. A service generates an 
 
 ## Physical and logical relationships
 
-Within a database, the DBML `Ref` lines represent implemented physical FKs. The important local chains are `users → refresh_sessions/user_roles ← roles`, `movies → movie_genres ← genres`, `cinemas → auditoriums → seats/showtimes`, `showtime_snapshots → showtime_seats/reservations → bookings → booking_items`, and `payments → payment_attempts/provider_events/refunds`. `reservation_seats` records the immutable selected set and locked-in unit prices; `booking_items` records confirmed ticket entitlements. Neither requires another service's database.
+Within each database, Flyway SQL defines the implemented physical FKs. The important local chains are `users → refresh_sessions/user_roles ← roles`, `movies → movie_genres ← genres`, `cinemas → auditoriums/seats/showtimes/cinema_managers` (seats and showtimes reference auditoriums), `showtime_snapshots → showtime_seats/reservations → bookings → booking_items`, and `payments → payment_attempts/provider_events/refunds`. `reservation_seats` records the immutable selected set and locked-in unit prices; `booking_items` records confirmed ticket entitlements. Neither requires another service's database.
 
 The following are **logical IDs only**, with no physical FK or cross-database join:
 
@@ -36,6 +36,8 @@ The references do not grant read/write access to remote tables. Local composite 
 
 ## Cinema schedule and inventory ownership
 
+`cinema_managers` assigns an auth user to one or more cinemas, with primary key `(cinema_id, user_id)`, assignment timestamp, a local cinema FK with `ON DELETE RESTRICT`, and a user lookup index. `user_id` is a logical auth reference, never a cross-service FK. Assignment data alone grants no access: future management APIs must enforce both the authenticated `CINEMA_MANAGER` role and the local cinema assignment; privileged assignment/revocation APIs and auth identity validation are not implemented by this schema addition. V3 is additive and leaves all existing tables and rows unchanged. Roll out the migration before using the new repository; to roll back application use, retain the unused table rather than deleting assignments.
+
 `cinema.seats` is the physical auditorium layout. It has no live availability field. `cinema.showtimes` owns the schedule and starts with one uniform `price_minor` per seat; `ShowtimePublished` copies each active seat's ID, label, type, and that price into an immutable bookable snapshot. If seat-specific pricing becomes a requirement, add an explicit cinema-owned pricing model before changing this contract.
 
 `booking.showtime_snapshots` is a local, versioned projection of published showtimes. `booking.showtime_seats` is the authoritative live inventory. Booking consumes `ShowtimePublished` idempotently, creates one row per seat, and never overwrites held/sold ownership with a replay or later schedule message. Showtime cancellation closes new sales; handling already paid tickets requires a separate explicit policy. There is **no `showtime_seats` table in the cinema database**, because booking could not atomically lock it without crossing a service boundary.
@@ -44,7 +46,7 @@ The cinema publication/cancellation transaction writes `showtimes` and `outbox_e
 
 ## Constraints and important indexes
 
-The DBML lists PKs, local FKs, unique keys, ordinary indexes, types, and nullable columns. The V2 Flyway migrations implement these PostgreSQL-specific rules; DBML is documentation, not executable DDL:
+The Flyway migrations define the implemented PKs, local FKs, unique keys, indexes, types, and nullable columns. The V2 domain migrations implement the following PostgreSQL-specific rules; DBML is documentation, not executable DDL:
 
 | Table(s) | Required checks / specialized indexes |
 |---|---|

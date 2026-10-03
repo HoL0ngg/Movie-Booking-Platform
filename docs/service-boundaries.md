@@ -17,6 +17,8 @@ Status: Phase 0 baseline
 
 ## Boundary rules
 
+Cinema-manager assignments belong to `cinema-service` (`cinema_managers`), while role membership remains owned by `auth-service`. Management authorization must check both role and assigned cinema scope; the assignment table is persistence groundwork, not an implemented authorization API. User IDs remain logical references with no access to the auth database.
+
 `ai-service` owns optional assistance, prompts, recommendations, and model integration. Initially it has no persistent data, business API, or event role. Gateway reserves `/api/v1/ai/**` with requests denied until authorization and contracts exist. Catalog/showtime data remains with its owners; model output cannot establish availability or payment state. See [ADR-011](ADR/ADR-011-optional-ai-service.md).
 
 1. The owning service is the only writer and the only SQL reader of its database.

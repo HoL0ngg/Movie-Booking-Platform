@@ -1,7 +1,7 @@
 # System Architecture
 
 Status: Phase 0 baseline  
-Last updated: 2026-10-03 (AI extension in ADR-011)
+Last updated: 2026-10-03 (AI extension in ADR-011; simple Java packages in ADR-012)
 
 ## Goals
 
@@ -45,6 +45,8 @@ flowchart LR
 Every database arrow terminates at its owning service. Sharing a PostgreSQL cluster during local development does not permit shared schemas, credentials, queries, or cross-database joins.
 
 ## Deployable responsibilities
+
+Java code within each deployable uses concrete responsibility packages such as `entity`, `repository`, `dto`, `exception`, `config`, and `filter`; future endpoint/business classes belong in `controller` and `service`. Packages are created only when populated. See [ADR-012](ADR/ADR-012-simple-service-package-structure.md). This internal organization does not change service data ownership or distributed workflows.
 
 - **frontend/** renders the customer journey. It never decides authoritative seat or payment state.
 - **api-gateway** is the public edge for routing, authentication enforcement, rate limiting, request sizing, and correlation IDs. It has no domain database and coordinates no Saga.

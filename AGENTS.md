@@ -153,29 +153,23 @@ These rules are the **canonical source of truth for correctness**. Other section
 
 ## 8. Backend Architecture
 
-Preferred package structure inside each Spring Boot service:
+Use a simple package structure inside each Spring Boot service (ADR-012):
 
 ```text
 com.cinema.<service>
-├── application/
-│   ├── command/
-│   ├── query/
-│   └── service/
-├── domain/
-│   ├── model/
-│   ├── event/
-│   ├── repository/
-│   └── exception/
-├── infrastructure/
-│   ├── persistence/
-│   ├── messaging/
-│   ├── config/
-│   └── client/
-└── interfaces/
-    └── rest/
+├── controller/   # HTTP endpoints
+├── service/      # Business logic and local transaction boundaries
+├── entity/       # Service-owned JPA entities
+├── repository/   # Spring Data repositories
+├── dto/          # API request/response objects
+├── exception/    # Exceptions and REST exception handlers
+├── config/       # Spring configuration
+├── filter/       # Request/trace filters
+├── messaging/    # Kafka adapters and outbox relay
+└── client/       # External/service API adapters
 ```
 
-Use this structure pragmatically — do not create abstractions without a real architectural reason. Controllers stay thin: validate HTTP input, call application services, map responses. No business, transaction, or locking logic in controllers.
+Create packages only when they contain real classes; stateless services and the gateway do not need entity/repository packages. Do not create abstractions without a real architectural reason. Controllers stay thin: validate HTTP input, call services, map responses. No business, transaction, or locking logic in controllers. Entities and repositories remain private to their owning service.
 
 ---
 

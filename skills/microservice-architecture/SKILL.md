@@ -22,7 +22,7 @@ Use this skill for service-boundary changes, new cross-service workflows, API Ga
 
 ## Implementation rules
 
-- Put domain transitions in application/domain services, not controllers, Kafka listeners, or gateway filters.
+- Put domain transitions in service classes (ADR-012), not controllers, Kafka listeners, or gateway filters.
 - Define explicit API/event contracts, timeouts, retry limits, error semantics, ownership, and compatibility rules before adding a dependency.
 - Propagate `traceId`; use stable aggregate IDs and idempotency keys across retries.
 - Store remote identifiers or deliberate local projections, not remote database entities. No cross-service foreign key is enforceable.
