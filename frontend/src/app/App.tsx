@@ -13,6 +13,7 @@ import { AdminLayout } from '../features/admin/AdminLayout'
 import { AdminOverview, AdminRecords } from '../features/admin/AdminPages'
 import { AdminLoginPage } from '../features/auth/AdminLoginPage'
 import { RequireAdmin } from '../features/auth/AdminAuthContext'
+import { RequireAuth } from '../features/auth/RequireAuth'
 
 export default function App() {
   return <Routes>
@@ -32,9 +33,11 @@ export default function App() {
       <Route path="movies/:movieId" element={<MovieDetailPage />} />
       <Route path="showtimes" element={<ShowtimesPage />} />
       <Route path="showtimes/:showtimeId/seats" element={<SeatPage />} />
-      <Route path="checkout" element={<CheckoutPage />} />
-      <Route path="booking-success/:bookingId" element={<SuccessPage />} />
-      <Route path="bookings" element={<HistoryPage />} />
+      <Route element={<RequireAuth />}>
+        <Route path="checkout" element={<CheckoutPage />} />
+        <Route path="booking-success/:bookingId" element={<SuccessPage />} />
+        <Route path="bookings" element={<HistoryPage />} />
+      </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Route>
     <Route path="login" element={<AuthPage mode="login" />} />
