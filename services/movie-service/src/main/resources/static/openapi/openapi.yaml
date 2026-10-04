@@ -41,11 +41,12 @@ components:
   schemas:
     Movie:
       type: object
-      required: [id, title, synopsis, durationMinutes, releaseDate, status]
+      required: [id, title, synopsis, posterUrl, durationMinutes, releaseDate, status]
       properties:
         id: {type: string, format: uuid}
         title: {type: string}
         synopsis: {type: [string, "null"]}
+        posterUrl: {type: [string, "null"], format: uri, description: Public movie poster URL; null when unavailable}
         durationMinutes: {type: integer, minimum: 1}
         releaseDate: {type: [string, "null"], format: date}
         status: {type: string, enum: [NOW_SHOWING, COMING_SOON]}

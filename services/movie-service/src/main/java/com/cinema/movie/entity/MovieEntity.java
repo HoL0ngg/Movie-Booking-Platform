@@ -18,6 +18,9 @@ public class MovieEntity {
     @Column(name = "synopsis", columnDefinition = "text")
     String synopsis;
 
+    @Column(name = "poster_url", columnDefinition = "text")
+    String posterUrl;
+
     @Column(name = "duration_minutes", nullable = false)
     Integer durationMinutes;
 
@@ -38,6 +41,7 @@ public class MovieEntity {
     public UUID getId() { return id; }
     public String getTitle() { return title; }
     public String getSynopsis() { return synopsis; }
+    public String getPosterUrl() { return posterUrl; }
     public Integer getDurationMinutes() { return durationMinutes; }
     public LocalDate getReleaseDate() { return releaseDate; }
 }

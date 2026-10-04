@@ -6,15 +6,16 @@ interface MovieResponse {
   id: string
   title: string
   synopsis: string | null
+  posterUrl: string | null
   durationMinutes: number
   releaseDate: string | null
   status: MovieStatus
 }
 
-// The current catalog schema does not contain artwork, credits or ratings.
+// Credits and ratings remain unavailable in the catalog response.
 const toMovie = (movie: MovieResponse): Movie => ({
   ...movie, synopsis: movie.synopsis ?? '', releaseDate: movie.releaseDate ?? '',
-  originalTitle: '', posterUrl: '/movie-placeholder.svg', backdropUrl: '',
+  originalTitle: '', posterUrl: movie.posterUrl?.trim() || '/movie-placeholder.svg', backdropUrl: '',
   genres: [], ageRating: '', rating: null, director: '', cast: [],
 })
 

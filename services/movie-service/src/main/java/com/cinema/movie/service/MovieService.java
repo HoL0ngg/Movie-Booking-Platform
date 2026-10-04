@@ -43,7 +43,7 @@ public class MovieService {
     private MovieResponse toResponse(MovieEntity movie, LocalDate today) {
         String status = movie.getReleaseDate() != null && movie.getReleaseDate().isAfter(today)
                 ? "COMING_SOON" : "NOW_SHOWING";
-        return new MovieResponse(movie.getId(), movie.getTitle(), movie.getSynopsis(),
+        return new MovieResponse(movie.getId(), movie.getTitle(), movie.getSynopsis(), movie.getPosterUrl(),
                 movie.getDurationMinutes(), movie.getReleaseDate(), status);
     }
 }

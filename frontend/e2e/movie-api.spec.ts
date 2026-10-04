@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 const movie = {
   id: '0e55f5aa-f7c0-48cb-bcd9-6a36fbeae8e2', title: 'Phim từ API',
-  synopsis: null, durationMinutes: 101, releaseDate: null, status: 'NOW_SHOWING',
+  synopsis: null, posterUrl: null, durationMinutes: 101, releaseDate: null, status: 'NOW_SHOWING',
 }
 
 test('catalog and detail read HTTP data with missing optional metadata', async ({ page }) => {
@@ -20,6 +20,19 @@ test('catalog and detail read HTTP data with missing optional metadata', async (
   expect(requests).toContain('/api/v1/movies?status=NOW_SHOWING')
   expect(requests).toContain('/api/v1/movies?status=COMING_SOON')
   expect(requests).toContain(`/api/v1/movies/${movie.id}`)
+})
+
+test('catalog and detail use the poster URL from the API', async ({ page }) => {
+  const posterUrl = '/movie-placeholder.svg?api-poster'
+  const withPoster = { ...movie, posterUrl }
+  await page.route('**/api/v1/movies**', route => route.fulfill({
+    json: new URL(route.request().url()).pathname.endsWith(movie.id) ? withPoster : [withPoster],
+  }))
+  await page.goto('/')
+  const card = page.getByRole('link', { name: `Xem chi tiết ${movie.title}` }).first()
+  await expect(card.getByRole('img')).toHaveAttribute('src', posterUrl)
+  await card.click()
+  await expect(page.getByAltText(`Poster ${movie.title}`)).toHaveAttribute('src', posterUrl)
 })
 
 test('catalog shows a request failure and supports retry without mock fallback', async ({ page }) => {

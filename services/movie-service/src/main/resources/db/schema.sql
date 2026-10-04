@@ -8,6 +8,7 @@ CREATE TABLE movies (
   id uuid NOT NULL,
   title text NOT NULL,
   synopsis text,
+  poster_url text,
   duration_minutes integer NOT NULL,
   release_date date,
   status varchar(16) NOT NULL,
