@@ -1,7 +1,5 @@
 package com.cinema.auth.exception;
 
-import com.cinema.auth.dto.ApiError;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.cinema.auth.dto.ApiError;
 import com.cinema.auth.filter.TraceIdFilter;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,6 +33,13 @@ public class ApiExceptionHandler {
                 .map(error -> Map.of("field", error.getPropertyPath().toString(), "message", error.getMessage()))
                 .toList();
         return badRequest(request, Map.of("violations", violations));
+    }
+
+    @ExceptionHandler(AuthException.class) // 13.12 Bắt AuthException từ mọi controller
+    ResponseEntity<ApiError> handleAuth(AuthException exception, HttpServletRequest request) { // 13.13
+        ApiError error = new ApiError(exception.getCode(), exception.getMessage(), // 13.14 Body lỗi chuẩn
+                traceId(request), Instant.now(), Map.of()); // 13.15 traceId() là method private có sẵn
+        return ResponseEntity.status(exception.getStatus()).body(error); // 13.16 Trả đúng HTTP status
     }
 
     private ResponseEntity<ApiError> badRequest(HttpServletRequest request, Map<String, Object> details) {

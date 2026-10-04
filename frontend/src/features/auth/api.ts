@@ -1,5 +1,6 @@
-import { mockApi } from '../../shared/mocks/api'
-import { HttpApiError } from '../../shared/apiClient'
+import { HttpApiError, request as authedRequest } from '../../shared/apiClient'
+import type { User } from '../../shared/contracts'
+import { tokenStorage } from './tokenStorage'
 
 export interface AdminToken { accessToken: string; tokenType: 'Bearer'; expiresIn: number }
 export interface AdminProfile { id: string; email: string; roles: string[] }
@@ -51,4 +52,30 @@ export function adminAuthError(error: Error): string {
   return 'Không thể kết nối dịch vụ đăng nhập. Vui lòng thử lại sau.'
 }
 
-export const authService = mockApi.auth
+type TokenRes = { accessToken: string; refreshToken: string }
+type MeRes = { id: string; email: string; roles: string[] }
+const save = (d: TokenRes) => tokenStorage.set({ accessToken: d.accessToken, refreshToken: d.refreshToken })
+
+export const authService = {
+  login: async (email: string, password: string) =>
+    save(await authedRequest<TokenRes>('/auth/login', { method: 'POST', body: JSON.stringify({ email: email.trim(), password }) })),
+  register: async (email: string, password: string) =>
+    save(await authedRequest<TokenRes>('/auth/register', { method: 'POST', body: JSON.stringify({ email: email.trim(), password }) })),
+  me: async (): Promise<User | null> => {
+    if (!tokenStorage.get()) return null
+    const m = await authedRequest<MeRes>('/me')
+    return { id: m.id, email: m.email, name: m.email.split('@')[0] }
+  },
+  logout: async () => {
+    const t = tokenStorage.get()
+    tokenStorage.clear()
+    if (!t) return
+    try {
+      await authedRequest('/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${t.accessToken}` },
+        body: JSON.stringify({ refreshToken: t.refreshToken }),
+      }, false)
+    } catch { /* token hết hạn/đã thu hồi vẫn coi là đã đăng xuất */ }
+  },
+}

@@ -2,6 +2,8 @@ server:
   port: ${AUTH_SERVICE_PORT:8081}
 
 spring:
+  config:
+    import: "optional:file:../../.env[.properties],optional:file:./.env[.properties]"
   application:
     name: auth-service
   datasource:
@@ -53,3 +55,12 @@ info:
   app:
     name: ${spring.application.name}
     phase: 1
+
+auth:
+  jwt:
+    secret: ${AUTH_JWT_SECRET:}
+    issuer: cinema-auth-service
+    access-ttl: 15m
+    refresh-ttl: 7d
+  internal:
+    token: ${INTERNAL_API_TOKEN:}
