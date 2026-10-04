@@ -1,6 +1,6 @@
-import { MockApiError, apiClient } from '../api/client'
+import { MockApiError, apiClient } from '../apiClient'
 import { cinemas, movies, seatsFor, seededBooking, showtimes } from './data'
-import type { Booking, Payment, Reservation, Seat, User } from '../types/contracts'
+import type { Booking, Payment, Reservation, Seat, User } from '../contracts'
 
 const STORAGE = { bookings: 'cinemat.bookings', user: 'cinemat.user', users: 'cinemat.users' }
 const seatCache = new Map<string, Seat[]>()

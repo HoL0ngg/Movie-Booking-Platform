@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import type { Cinema, Movie, Showtime } from '../../types/contracts'
+import type { Cinema, Movie, Showtime } from '../../shared/contracts'
 import { adminService, type AdminData, type CatalogKind, type CatalogRecord } from './adminService'
 import { Modal } from './AdminUI'
 

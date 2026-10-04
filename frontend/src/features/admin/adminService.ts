@@ -1,6 +1,6 @@
-import { apiClient, MockApiError } from '../../api/client'
-import { auditoriums, cinemas, movies, seededBooking, showtimes } from '../../mocks/data'
-import type { Auditorium, Booking, Cinema, Movie, Payment, Showtime } from '../../types/contracts'
+import { apiClient, MockApiError } from '../../shared/apiClient'
+import { auditoriums, cinemas, movies, seededBooking, showtimes } from '../../shared/mocks/data'
+import type { Auditorium, Booking, Cinema, Movie, Payment, Showtime } from '../../shared/contracts'
 
 export type AdminPayment = Payment & { createdAt: string; reference: string }
 export interface AdminData {

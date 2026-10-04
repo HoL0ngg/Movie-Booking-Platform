@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import type { Movie } from '../types/contracts'
+import type { Movie } from '../../shared/contracts'
 
 export function MovieCard({ movie, rank }: { movie: Movie; rank?: number }) {
   return <article className="movie-card">

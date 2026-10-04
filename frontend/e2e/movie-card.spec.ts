@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { movies } from '../src/mocks/data'
+import { movies } from '../src/shared/mocks/data'
 import { stubMovieApi } from './movie-api-fixture'
 
 test('movie card links to its details with an accessible label', async ({ page }) => {

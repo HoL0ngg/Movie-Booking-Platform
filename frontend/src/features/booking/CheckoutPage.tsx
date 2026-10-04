@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { useBookingDraft } from '../../features/booking/BookingContext'
-import { useCheckout, useCinemas, useMovie, useSeats, useShowtime } from '../../hooks/useApi'
-import type { PaymentMethod } from '../../api/services'
+import { useBookingDraft } from './BookingContext'
+import { useCheckout, useCinemas, useSeats, useShowtime } from './hooks'
+import { useMovie } from '../movies/hooks'
+import type { PaymentMethod } from './api'
 
 const money = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)
 

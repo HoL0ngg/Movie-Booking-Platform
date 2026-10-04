@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
-import type { Booking } from '../../types/contracts'
+import type { Booking } from '../../shared/contracts'
 import type { AdminData, AdminPayment, CatalogKind, CatalogRecord } from './adminService'
 import { CatalogEditor } from './CatalogEditor'
 import { dateTime, Empty, Icon, Modal, money, PageHeading, Status } from './AdminUI'

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useBookingDraft } from '../../features/booking/BookingContext'
-import { useCinemas, useMovies, useShowtimes } from '../../hooks/useApi'
+import { useBookingDraft } from './BookingContext'
+import { useCinemas, useShowtimes } from './hooks'
+import { useMovies } from '../movies/hooks'
 
 const dayKey = (date: Date) => date.toISOString().slice(0, 10)
 const days = Array.from({ length: 3 }, (_, index) => { const date = new Date(); date.setDate(date.getDate() + index); return date })

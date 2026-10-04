@@ -1,4 +1,4 @@
-import type { ApiError } from '../types/contracts'
+import type { ApiError } from './contracts'
 
 export class HttpApiError extends Error implements ApiError {
   constructor(public code: string, message: string, public traceId: string, public status: number) {

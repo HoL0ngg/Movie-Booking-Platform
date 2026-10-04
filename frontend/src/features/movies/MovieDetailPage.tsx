@@ -1,7 +1,8 @@
 import { Link, useParams } from 'react-router-dom'
-import { ErrorState, LoadingState } from '../../components/LoadingState'
-import { useMovie, useShowtimes } from '../../hooks/useApi'
-import { HttpApiError } from '../../api/client'
+import { ErrorState, LoadingState } from '../../shared/LoadingState'
+import { useMovie } from './hooks'
+import { useShowtimes } from '../booking/hooks'
+import { HttpApiError } from '../../shared/apiClient'
 
 const dateTime = (value: string) => new Intl.DateTimeFormat('vi-VN', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 

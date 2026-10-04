@@ -1,6 +1,5 @@
-import { mockApi } from '../mocks/api'
-import type { Movie, MovieStatus, Payment } from '../types/contracts'
-import { getJson } from './client'
+import type { Movie, MovieStatus } from '../../shared/contracts'
+import { getJson } from '../../shared/apiClient'
 
 interface MovieResponse {
   id: string
@@ -28,14 +27,3 @@ export const movieService = {
     return toMovie(await getJson<MovieResponse>(`/movies/${encodeURIComponent(id)}`, signal))
   },
 }
-export const cinemaService = mockApi.cinemas
-export const seatService = { getByShowtime: mockApi.booking.seats }
-export const bookingService = {
-  reserve: mockApi.booking.reserve,
-  checkout: mockApi.booking.checkout,
-  history: mockApi.booking.history,
-  get: mockApi.booking.get,
-}
-export const paymentService = { confirmMock: mockApi.booking.confirmMockPayment }
-export const authService = mockApi.auth
-export type PaymentMethod = Payment['method']

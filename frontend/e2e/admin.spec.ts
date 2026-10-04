@@ -1,7 +1,10 @@
 import { expect, test } from '@playwright/test'
+import { mockAdminAuth, signInAdmin } from './admin-auth-fixture'
 
 test('admin demo saves a cinema and keeps payment details read-only', async ({ page }) => {
+  await mockAdminAuth(page)
   await page.goto('/admin/cinemas')
+  await signInAdmin(page)
   await expect(page.getByRole('heading', { name: 'Rạp chiếu phim', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Thêm rạp' }).click()
   const dialog = page.getByRole('dialog')
@@ -11,10 +14,12 @@ test('admin demo saves a cinema and keeps payment details read-only', async ({ p
   await dialog.getByRole('button', { name: 'Lưu thay đổi' }).click()
   await expect(dialog).not.toBeVisible()
   await page.reload()
+  await signInAdmin(page)
   await page.getByRole('searchbox', { name: 'Tìm kiếm danh sách' }).fill('Test Central')
   await expect(page.getByRole('heading', { name: 'Cinémat Test Central' })).toBeVisible()
   await expect(page.getByText('Phòng 01', { exact: true })).toBeVisible()
-  await page.goto('/admin/payments?status=FAILED')
+  await page.getByRole('navigation', { name: 'Điều hướng quản trị' }).getByRole('link', { name: 'Thanh toán', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Lọc danh sách' }).selectOption('FAILED')
   await expect(page.getByRole('combobox', { name: 'Lọc danh sách' })).toHaveValue('FAILED')
   await page.getByRole('button', { name: /Chi tiết giao dịch/ }).first().click()
   await expect(page.getByRole('dialog').getByText('Thất bại', { exact: true })).toBeVisible()

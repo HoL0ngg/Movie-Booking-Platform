@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
-import { LoadingState } from '../../components/LoadingState'
-import { useBookingHistory } from '../../hooks/useApi'
+import { LoadingState } from '../../shared/LoadingState'
+import { useBookingHistory } from './hooks'
 
 export function HistoryPage() {
   const bookings = useBookingHistory()

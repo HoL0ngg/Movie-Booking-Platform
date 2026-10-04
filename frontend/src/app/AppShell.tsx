@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { useAuth, useCurrentUser } from '../hooks/useApi'
+import { useAuth, useCurrentUser } from '../features/auth/hooks'
 
 export function AppShell() {
   const { data: user } = useCurrentUser()

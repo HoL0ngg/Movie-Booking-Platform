@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { movies } from '../src/mocks/data'
+import { movies } from '../src/shared/mocks/data'
 
 // Keep the existing prototype journey deterministic at the HTTP boundary.
 export async function stubMovieApi(page: Page) {

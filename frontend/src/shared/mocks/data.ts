@@ -1,4 +1,4 @@
-import type { Auditorium, Booking, Cinema, Movie, Seat, Showtime } from '../types/contracts'
+import type { Auditorium, Booking, Cinema, Movie, Seat, Showtime } from '../contracts'
 
 const image = (id: string, width = 900) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${width}&q=85`
 
