@@ -51,7 +51,7 @@ return ( <div className="app-shell"> <header className="site-header"> <NavLink
     <p>Điện ảnh. Theo cách của bạn.</p>
 
     <p>
-      Prototype sử dụng dữ liệu mô phỏng. ·{' '}
+      {/*Prototype sử dụng dữ liệu mô phỏng. ·{' '}*/}
       <NavLink to="/admin">Quản trị demo</NavLink>
     </p>
   </footer>

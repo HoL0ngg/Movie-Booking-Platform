@@ -24,18 +24,16 @@ export function AdminLayout() {
   return <div className="admin-shell">
     <a className="admin-skip" href="#admin-content">Chuyển đến nội dung</a>
     <aside className={`admin-sidebar ${menuOpen ? 'is-open' : ''}`}>
-      <NavLink to="/admin" className="admin-logo"><span className="admin-logo-mark"><Icon name="movies" /></span><span>cinémat<span className="admin-logo-sub">ADMIN WORKSPACE</span></span></NavLink>
-      <div className="admin-workspace"><span className="admin-workspace-avatar">C</span><div><strong>Cinémat Cinema</strong><small>Không gian quản trị demo</small></div><span className="admin-workspace-dot" /></div>
+      <NavLink to="/admin" className="admin-logo"><span className="admin-logo-mark"><Icon name="movies" /></span><span>cinémat<span className="admin-logo-sub">QUẢN TRỊ</span></span></NavLink>
       <span className="admin-nav-label">QUẢN LÝ VẬN HÀNH</span>
       <nav aria-label="Điều hướng quản trị">{adminNavigation.map(item => <NavLink key={item.path} end to={`/admin${item.path ? `/${item.path}` : ''}`} onClick={() => setMenuOpen(false)}><Icon name={item.icon} /><span>{item.label}</span></NavLink>)}</nav>
-      <div className="admin-sidebar-bottom"><div className="admin-help"><span className="admin-overline">MỌI THỨ TRONG TẦM TAY</span><p>Một nơi để theo dõi và quản lý hoạt động rạp.</p><NavLink to="/">Mở trang khách hàng <Icon name="arrow" /></NavLink></div><div className="admin-identity"><span className="admin-avatar">AD</span><div><strong>{profile?.email}</strong><small>Quản trị viên · Dữ liệu mock</small></div></div></div>
+      <div className="admin-sidebar-bottom"><NavLink className="admin-customer-link" to="/">Mở trang khách hàng <Icon name="arrow" /></NavLink><div className="admin-identity"><span className="admin-avatar">AD</span><div><strong>{profile?.email}</strong><small>Quản trị viên</small></div></div></div>
     </aside>
     <div className="admin-main">
-      <header className="admin-topbar"><div className="admin-breadcrumb"><button className="admin-icon-button admin-menu-button" aria-label="Mở menu quản trị" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}><Icon name="menu" /></button><span>Workspace</span><span>/</span><strong>{section}</strong></div><div className="admin-topbar-right"><span className="admin-today">{new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' })}</span><button className="admin-button" onClick={logout}>Đăng xuất</button><span className="admin-demo-pill">Mock</span><span className="admin-avatar small">AD</span></div></header>
+      <header className="admin-topbar"><div className="admin-breadcrumb"><button className="admin-icon-button admin-menu-button" aria-label="Mở menu quản trị" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}><Icon name="menu" /></button><strong>{section}</strong></div><div className="admin-topbar-right"><span className="admin-today">{new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' })}</span><button className="admin-button" onClick={logout}>Đăng xuất</button></div></header>
       <main id="admin-content" className="admin-content" tabIndex={-1}>
-        <div className="admin-demo-notice"><span className="admin-notice-dot" /><span>Dữ liệu mô phỏng. Thay đổi được lưu trên trình duyệt và không ảnh hưởng đặt vé hay thanh toán thật.</span></div>
         {query.isPending ? <div className="admin-empty" role="status">Đang tải không gian quản trị…</div> : query.isError ? <div className="admin-empty" role="alert"><h2>Không thể tải dữ liệu</h2><p>{query.error.message}</p><button className="admin-button" onClick={() => void query.refetch()}>Thử lại</button></div> : <Outlet context={query.data satisfies AdminData} />}
-        <div className="admin-page-footer"><span>© {new Date().getFullYear()} Cinémat</span><span>Admin workspace · Phiên bản demo</span></div>
+        <div className="admin-page-footer"><span>© {new Date().getFullYear()} Cinémat</span><span></span></div>
       </main>
     </div>
   </div>
