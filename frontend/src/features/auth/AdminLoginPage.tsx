@@ -5,6 +5,7 @@ import { HttpApiError } from '../../shared/apiClient'
 import { Icon } from '../admin/AdminUI'
 import { useAdminAuth } from './AdminAuthContext'
 import { adminAuthApi, adminAuthError } from './api'
+import { showToast } from '../../shared/toast'
 import '../admin/admin.css'
 import './admin-login.css'
 
@@ -30,8 +31,10 @@ export function AdminLoginPage() {
     onSuccess: ({ token, profile, expiresAt }) => {
       setPassword('')
       establish(token, profile, expiresAt)
+      showToast('Đăng nhập quản trị thành công.', 'success')
       navigate(destination, { replace: true })
     },
+    onError: (error: Error) => showToast(adminAuthError(error), 'error'),
   })
   const submit = (event: FormEvent) => { event.preventDefault(); if (!login.isPending) login.mutate() }
   return <main className="admin-shell admin-login">

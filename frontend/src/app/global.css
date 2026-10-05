@@ -316,6 +316,16 @@ input::placeholder { color: var(--muted); opacity: 1; }
 .admin-shell, .admin-dialog { color-scheme: light; }
 .screen { border-color: var(--muted); }
 .ticket { box-shadow: var(--shadow); }
+.app-toast { width: 420px; font-family: 'DM Sans', system-ui, sans-serif; font-size: .875rem; line-height: 1.55; }
+.toast-icon { display: grid; place-items: center; flex: 0 0 36px; height: 36px; margin-right: 12px; border-radius: 10px; background: var(--soft); }
+.toast-icon-success { background: color-mix(in srgb, var(--success) 12%, var(--surface)); }
+.toast-icon-error { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.toast-info-icon { display: grid; place-items: center; width: 20px; height: 20px; border: 2px solid var(--focus); border-radius: 50%; color: var(--focus); font-size: .75rem; font-weight: 700; }
+.toast-copy { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.toast-copy > strong { display: block; margin-bottom: 3px; font-size: .875rem; color: var(--paper); }
+.toast-copy > div[role] { display: block; margin: 0; color: var(--muted); }
+.toast-close { display: grid; place-items: center; flex: 0 0 32px; height: 32px; margin-left: 8px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.toast-close:hover { background: var(--soft); color: var(--paper); }
 @media (max-width: 650px) {
   :root { --hero-overlay: linear-gradient(90deg, rgba(247,248,252,.95), rgba(247,248,252,.85)), linear-gradient(0deg, #f7f8fc, transparent); }
   :root[data-theme='dark'] { --hero-overlay: linear-gradient(90deg, rgba(22,25,34,.95), rgba(22,25,34,.8)), linear-gradient(0deg, #161922, transparent); }

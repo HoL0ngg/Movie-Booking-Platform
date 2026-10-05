@@ -6,7 +6,7 @@ import App from './app/App'
 import { BookingDraftProvider } from './features/booking/BookingContext'
 import './app/global.css'
 import { AdminAuthProvider } from './features/auth/AdminAuthContext'
-import { Toaster } from 'react-hot-toast'
+import { AppToaster } from './shared/AppToaster'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,7 +22,7 @@ createRoot(document.getElementById('root')!).render(
         <BookingDraftProvider>
           <AdminAuthProvider>
             <App />
-            <Toaster position="top-right" />
+            <AppToaster />
           </AdminAuthProvider>
         </BookingDraftProvider>
       </BrowserRouter>
