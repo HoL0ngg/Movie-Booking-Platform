@@ -217,6 +217,9 @@ select, input { width: 100%; min-height: 48px; border: 1px solid var(--line); bo
 .auth-panel form h1 { margin-bottom: 14px; font-size: 3rem; }
 .auth-panel label { margin: 20px 0; }
 .auth-panel .wide { margin-top: 5px; }
+.otp-boxes { display: flex; gap: 10px; margin: 24px 0; }
+.otp-box { width: 100%; min-width: 0; aspect-ratio: 1 / 1.15; max-width: 56px; padding: 0; text-align: center; font-size: 1.6rem; font-weight: 700; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: inherit; caret-color: var(--accent); transition: border-color .15s, box-shadow .15s; }
+.otp-box:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 .switch-auth { text-align: center; font-size: .82rem; }
 .switch-auth a { color: var(--accent); font-weight: 700; }
 
@@ -334,3 +337,7 @@ input::placeholder { color: var(--muted); opacity: 1; }
   .theme-toggle span { display: none; }
   .auth-panel { padding: 80px 24px 40px; }
 }
+.password-field { position: relative; }
+.password-field input { padding-right: 48px; }
+.password-toggle { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; display: grid; place-items: center; border: 0; background: transparent; color: var(--muted); cursor: pointer; border-radius: 8px; }
+.password-toggle:hover { color: var(--paper); }

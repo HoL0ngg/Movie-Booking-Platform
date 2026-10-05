@@ -56,7 +56,13 @@ type TokenRes = { accessToken: string; refreshToken: string }
 type MeRes = { id: string; email: string; roles: string[] }
 const save = (d: TokenRes) => tokenStorage.set({ accessToken: d.accessToken, refreshToken: d.refreshToken })
 
+export type OtpChallenge = { expiresIn: number; resendAfter: number }
+
 export const authService = {
+  requestOtp: (email: string, password: string) =>
+    authedRequest<OtpChallenge>('/auth/register/otp', { method: 'POST', body: JSON.stringify({ email: email.trim(), password }) }),
+  verifyOtp: async (email: string, otp: string) =>
+    save(await authedRequest<TokenRes>('/auth/register/otp/verify', { method: 'POST', body: JSON.stringify({ email: email.trim(), otp }) })),
   login: async (email: string, password: string) =>
     save(await authedRequest<TokenRes>('/auth/login', { method: 'POST', body: JSON.stringify({ email: email.trim(), password }) })),
   register: async (email: string, password: string) =>

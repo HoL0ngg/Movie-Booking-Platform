@@ -49,4 +49,5 @@ public class UserEntity { // 12.7
     public String getEmail() { return email; } // 12.33
     public String getPasswordHash() { return passwordHash; } // 12.34
     public String getStatus() { return status; } // 12.35
+    public String getEmailNormalized() { return emailNormalized; }
 }

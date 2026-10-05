@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.ResponseStatus; // 4.9
 import org.springframework.web.bind.annotation.RestController; // 4.10 Lấy principal hiện tại
 
 import com.cinema.auth.dto.LoginRequest; // 4.11 Token đã verify
+import com.cinema.auth.dto.OtpChallengeResponse;
+import com.cinema.auth.dto.OtpVerifyRequest;
 import com.cinema.auth.dto.RefreshRequest; // 4.12
 import com.cinema.auth.dto.RegisterRequest; // 4.13
 import com.cinema.auth.dto.TokenResponse; // 4.14
@@ -29,10 +31,16 @@ public class AuthController { // 4.19
         this.authService = authService; // 4.22
     }
 
-    @PostMapping("/register") // 4.23 POST /api/v1/auth/register
-    @ResponseStatus(HttpStatus.CREATED) // 4.24 Trả 201
-    public TokenResponse register(@Valid @RequestBody RegisterRequest request) { // 4.25 JSON → DTO + validate
-        return authService.register(request); // 4.26
+    @PostMapping("/register/otp")
+    @ResponseStatus(HttpStatus.ACCEPTED) // 202: đã nhận, chờ xác minh
+    public OtpChallengeResponse registerOtp(@Valid @RequestBody RegisterRequest request) {
+        return authService.registerRequestOtp(request);
+    }
+
+    @PostMapping("/register/otp/verify")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TokenResponse registerVerify(@Valid @RequestBody OtpVerifyRequest request) {
+        return authService.registerVerifyOtp(request);
     }
 
     @PostMapping("/login") // 4.27

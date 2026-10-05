@@ -2,6 +2,17 @@ server:
   port: ${AUTH_SERVICE_PORT:8081}
 
 spring:
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.connectiontimeout: 2000
+      mail.smtp.timeout: 2500
+      mail.smtp.writetimeout: 2500
   config:
     import: "optional:file:../../.env[.properties],optional:file:./.env[.properties]"
   application:
@@ -64,3 +75,10 @@ auth:
     refresh-ttl: 7d
   internal:
     token: ${INTERNAL_API_TOKEN:}
+  otp:
+    ttl: 5m
+    resend-cooldown: 60s
+    max-attempts: 5
+    mail-wait: 3500ms
+    mail-enabled: ${OTP_MAIL_ENABLED:true} # false = chỉ in OTP ra log (dev)
+    mail-from: ${MAIL_USERNAME:no-reply@cinemat.local}

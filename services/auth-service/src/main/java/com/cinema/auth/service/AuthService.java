@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional; // 8.10
 import com.cinema.auth.config.JwtProperties; // 8.11
 import com.cinema.auth.dto.LoginRequest; // 8.12
 import com.cinema.auth.dto.MeResponse; // 8.13
+import com.cinema.auth.dto.OtpChallengeResponse;
+import com.cinema.auth.dto.OtpVerifyRequest;
 import com.cinema.auth.dto.RefreshRequest; // 8.14
 import com.cinema.auth.dto.RegisterRequest; // 8.15
 import com.cinema.auth.dto.TokenResponse; // 8.16
@@ -41,11 +43,12 @@ public class AuthService { // 8.27
     private final JwtService jwtService; // 8.35
     private final TokenHasher tokenHasher; // 8.36
     private final JwtProperties jwtProperties; // 8.37
+    private final OtpService otpService;
 
     public AuthService(UserRepository userRepository, RoleRepository roleRepository, // 8.38 Constructor injection
                        UserRoleRepository userRoleRepository, RefreshSessionRepository refreshSessionRepository, // 8.39
                        PasswordEncoder passwordEncoder, JwtService jwtService, // 8.40
-                       TokenHasher tokenHasher, JwtProperties jwtProperties) { // 8.41
+                       TokenHasher tokenHasher, JwtProperties jwtProperties, OtpService otpService) { // 8.41
         this.userRepository = userRepository; // 8.42
         this.roleRepository = roleRepository; // 8.43
         this.userRoleRepository = userRoleRepository; // 8.44
@@ -54,36 +57,57 @@ public class AuthService { // 8.27
         this.jwtService = jwtService; // 8.47
         this.tokenHasher = tokenHasher; // 8.48
         this.jwtProperties = jwtProperties; // 8.49
+        this.otpService = otpService;
     }
 
-    @Transactional // 8.50 Tạo user + gán role + tạo session trong 1 transaction
-    public TokenResponse register(RegisterRequest request) { // 8.51
-        String email = request.email().trim(); // 8.52 Khớp CHECK email_normalized = lower(btrim(email))
-        String normalized = email.toLowerCase(Locale.ROOT); // 8.53
-        if (userRepository.existsByEmailNormalized(normalized)) { // 8.54 Kiểm tra trùng email
-            throw emailTaken(); // 8.55
+    // ===== REGISTER + OTP =====
+
+    public OtpChallengeResponse registerRequestOtp(RegisterRequest request) { // B1
+        String normalized = request.email().trim().toLowerCase(Locale.ROOT);
+        if (userRepository.existsByEmailNormalized(normalized)) { // báo trùng sớm, khỏi gửi mail vô ích
+            throw emailTaken();
         }
-        RoleEntity role = roleRepository.findByCode(DEFAULT_ROLE) // 8.56
-                .orElseThrow(() -> new IllegalStateException("Role CUSTOMER chưa được seed")); // 8.57 Chưa chạy seed-roles.sql → 500
-        Instant now = Instant.now(); // 8.58
-        UserEntity user = new UserEntity(UUID.randomUUID(), email, normalized, // 8.59 id tự sinh ở app
-                passwordEncoder.encode(request.password()), ACTIVE, now); // 8.60 Lưu hash, không lưu mật khẩu thô
-        try { // 8.61
-            userRepository.saveAndFlush(user); // 8.62 Flush ngay để lỗi unique nổ tại đây
-        } catch (DataIntegrityViolationException ex) { // 8.63 Hai request đăng ký cùng email song song
-            throw emailTaken(); // 8.64
-        }
-        userRoleRepository.save(new UserRoleEntity(user.getId(), role.getId(), now)); // 8.65 Gán role CUSTOMER
-        return issueTokens(user, List.of(DEFAULT_ROLE), now); // 8.66
+        String passwordHash = passwordEncoder.encode(request.password()); // hash ngay, Redis không giữ mật khẩu thô
+        return otpService.issue(OtpService.Purpose.REGISTER, normalized, passwordHash);
     }
 
-    @Transactional // 8.67 Có ghi refresh_sessions
-    public TokenResponse login(LoginRequest request) { // 8.68
-        UserEntity user = userRepository.findByEmailNormalized(request.email().trim().toLowerCase(Locale.ROOT)) // 8.69
-                .filter(found -> ACTIVE.equals(found.getStatus())) // 8.70 Tài khoản DISABLED không đăng nhập được
-                .filter(found -> passwordEncoder.matches(request.password(), found.getPasswordHash())) // 8.71 So mật khẩu với hash
-                .orElseThrow(() -> new AuthException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Email or password is incorrect.")); // 8.72 Một lỗi chung, không lộ email có tồn tại hay không
-        return issueTokens(user, roleRepository.findCodesByUserId(user.getId()), Instant.now()); // 8.73
+    @Transactional
+    public TokenResponse registerVerifyOtp(OtpVerifyRequest request) { // B2
+        String normalized = request.email().trim().toLowerCase(Locale.ROOT);
+        String passwordHash = otpService.verify(OtpService.Purpose.REGISTER, normalized, request.otp());
+        if (passwordHash == null) { // có code nhưng mất payload → coi như hết hạn
+            throw new AuthException(HttpStatus.BAD_REQUEST, "OTP_EXPIRED", "Code expired. Please request a new one.");
+        }
+        return createCustomer(normalized, passwordHash);
+    }
+
+    private TokenResponse createCustomer(String normalized, String passwordHash) { // đây chính là thân register() cũ
+        if (userRepository.existsByEmailNormalized(normalized)) throw emailTaken();
+        RoleEntity role = roleRepository.findByCode(DEFAULT_ROLE)
+                .orElseThrow(() -> new IllegalStateException("Role CUSTOMER chưa được seed"));
+        Instant now = Instant.now();
+        UserEntity user = new UserEntity(UUID.randomUUID(), normalized, normalized, passwordHash, ACTIVE, now);
+        try {
+            userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException ex) {
+            throw emailTaken();
+        }
+        userRoleRepository.save(new UserRoleEntity(user.getId(), role.getId(), now));
+        return issueTokens(user, List.of(DEFAULT_ROLE), now);
+    }
+
+        private UserEntity authenticate(LoginRequest request) { // email + mật khẩu (code cũ của login)
+        return userRepository.findByEmailNormalized(request.email().trim().toLowerCase(Locale.ROOT))
+                .filter(found -> ACTIVE.equals(found.getStatus()))
+                .filter(found -> passwordEncoder.matches(request.password(), found.getPasswordHash()))
+                .orElseThrow(() -> new AuthException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS",
+                        "Email or password is incorrect."));
+    }
+
+    @Transactional // đăng nhập thường: không cần OTP
+    public TokenResponse login(LoginRequest request) {
+        UserEntity user = authenticate(request);
+        return issueTokens(user, roleRepository.findCodesByUserId(user.getId()), Instant.now());
     }
 
     @Transactional(noRollbackFor = AuthException.class) // 8.74 Giữ việc thu hồi session dù ném AuthException
