@@ -266,3 +266,7 @@ select, input { width: 100%; min-height: 48px; border: 1px solid var(--line); bo
   footer p:last-child { margin-left: 0; width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+.movie-filter { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px auto 0; }
+.movie-filter input[type="search"] { flex: 1 1 260px; min-width: 0; padding: 11px 14px; }
+.movie-filter select { flex: 0 1 220px; padding: 11px 14px; }

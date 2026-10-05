@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Cinema Movie Service API
   version: 0.1.0
-  description: Public read-only published movie catalog. Search and pagination are not yet implemented.
+    description: Public read-only published movie catalog with title search and genre filter. Pagination is not yet implemented.
 servers:
   - url: /api/v1
 paths:
@@ -11,6 +11,8 @@ paths:
       operationId: listMovies
       parameters:
         - {name: status, in: query, schema: {type: string, enum: [NOW_SHOWING, COMING_SOON]}}
+        - {name: query, in: query, schema: {type: string, maxLength: 200}, description: Case-insensitive title substring}
+        - {name: genre, in: query, schema: {type: string, maxLength: 100}, description: Exact genre name, case-insensitive}
       responses:
         "200":
           description: Published movie catalog filtered by derived release status
@@ -41,7 +43,7 @@ components:
   schemas:
     Movie:
       type: object
-      required: [id, title, synopsis, posterUrl, durationMinutes, releaseDate, status]
+      required: [id, title, synopsis, posterUrl, durationMinutes, releaseDate, status, genres]
       properties:
         id: {type: string, format: uuid}
         title: {type: string}
@@ -50,6 +52,7 @@ components:
         durationMinutes: {type: integer, minimum: 1}
         releaseDate: {type: [string, "null"], format: date}
         status: {type: string, enum: [NOW_SHOWING, COMING_SOON]}
+        genres: {type: array, items: {type: string}, description: Genre names; empty when none assigned}
     Error:
       type: object
       required: [code, message, traceId, timestamp]

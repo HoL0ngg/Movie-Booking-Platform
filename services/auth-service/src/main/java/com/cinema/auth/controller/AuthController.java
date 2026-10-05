@@ -1,20 +1,23 @@
 package com.cinema.auth.controller; // 4.1
 
-import com.cinema.auth.dto.LoginRequest; // 4.2
-import com.cinema.auth.dto.RefreshRequest; // 4.3
-import com.cinema.auth.dto.RegisterRequest; // 4.4
-import com.cinema.auth.dto.TokenResponse; // 4.5
-import com.cinema.auth.service.AuthService; // 4.6
-import jakarta.validation.Valid; // 4.7 Kích hoạt validation DTO
-import java.util.UUID; // 4.8
-import org.springframework.http.HttpStatus; // 4.9
-import org.springframework.security.core.annotation.AuthenticationPrincipal; // 4.10 Lấy principal hiện tại
-import org.springframework.security.oauth2.jwt.Jwt; // 4.11 Token đã verify
-import org.springframework.web.bind.annotation.PostMapping; // 4.12
-import org.springframework.web.bind.annotation.RequestBody; // 4.13
-import org.springframework.web.bind.annotation.RequestMapping; // 4.14
-import org.springframework.web.bind.annotation.ResponseStatus; // 4.15
-import org.springframework.web.bind.annotation.RestController; // 4.16
+import java.util.UUID; // 4.2
+
+import org.springframework.http.HttpStatus; // 4.3
+import org.springframework.security.core.annotation.AuthenticationPrincipal; // 4.4
+import org.springframework.security.oauth2.jwt.Jwt; // 4.5
+import org.springframework.web.bind.annotation.PostMapping; // 4.6
+import org.springframework.web.bind.annotation.RequestBody; // 4.7 Kích hoạt validation DTO
+import org.springframework.web.bind.annotation.RequestMapping; // 4.8
+import org.springframework.web.bind.annotation.ResponseStatus; // 4.9
+import org.springframework.web.bind.annotation.RestController; // 4.10 Lấy principal hiện tại
+
+import com.cinema.auth.dto.LoginRequest; // 4.11 Token đã verify
+import com.cinema.auth.dto.RefreshRequest; // 4.12
+import com.cinema.auth.dto.RegisterRequest; // 4.13
+import com.cinema.auth.dto.TokenResponse; // 4.14
+import com.cinema.auth.service.AuthService; // 4.15
+
+import jakarta.validation.Valid; // 4.16
 
 @RestController // 4.17 Controller trả JSON
 @RequestMapping("/api/v1/auth") // 4.18 Prefix chung

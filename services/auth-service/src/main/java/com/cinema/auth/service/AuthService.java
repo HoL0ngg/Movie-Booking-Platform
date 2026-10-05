@@ -1,29 +1,31 @@
 package com.cinema.auth.service; // 8.1
 
-import com.cinema.auth.config.JwtProperties; // 8.2
-import com.cinema.auth.dto.LoginRequest; // 8.3
-import com.cinema.auth.dto.MeResponse; // 8.4
-import com.cinema.auth.dto.RefreshRequest; // 8.5
-import com.cinema.auth.dto.RegisterRequest; // 8.6
-import com.cinema.auth.dto.TokenResponse; // 8.7
-import com.cinema.auth.entity.RefreshSessionEntity; // 8.8
-import com.cinema.auth.entity.RoleEntity; // 8.9
-import com.cinema.auth.entity.UserEntity; // 8.10
-import com.cinema.auth.entity.UserRoleEntity; // 8.11
-import com.cinema.auth.exception.AuthException; // 8.12
-import com.cinema.auth.repository.RefreshSessionRepository; // 8.13
-import com.cinema.auth.repository.RoleRepository; // 8.14
-import com.cinema.auth.repository.UserRepository; // 8.15
-import com.cinema.auth.repository.UserRoleRepository; // 8.16
-import java.time.Instant; // 8.17
-import java.util.List; // 8.18
-import java.util.Locale; // 8.19
-import java.util.UUID; // 8.20
-import org.springframework.dao.DataIntegrityViolationException; // 8.21 Vi phạm unique/FK ở DB
-import org.springframework.http.HttpStatus; // 8.22
-import org.springframework.security.crypto.password.PasswordEncoder; // 8.23
-import org.springframework.stereotype.Service; // 8.24
-import org.springframework.transaction.annotation.Transactional; // 8.25
+import java.time.Instant; // 8.2
+import java.util.List; // 8.3
+import java.util.Locale; // 8.4
+import java.util.UUID; // 8.5
+
+import org.springframework.dao.DataIntegrityViolationException; // 8.6
+import org.springframework.http.HttpStatus; // 8.7
+import org.springframework.security.crypto.password.PasswordEncoder; // 8.8
+import org.springframework.stereotype.Service; // 8.9
+import org.springframework.transaction.annotation.Transactional; // 8.10
+
+import com.cinema.auth.config.JwtProperties; // 8.11
+import com.cinema.auth.dto.LoginRequest; // 8.12
+import com.cinema.auth.dto.MeResponse; // 8.13
+import com.cinema.auth.dto.RefreshRequest; // 8.14
+import com.cinema.auth.dto.RegisterRequest; // 8.15
+import com.cinema.auth.dto.TokenResponse; // 8.16
+import com.cinema.auth.entity.RefreshSessionEntity; // 8.17
+import com.cinema.auth.entity.RoleEntity; // 8.18
+import com.cinema.auth.entity.UserEntity; // 8.19
+import com.cinema.auth.entity.UserRoleEntity; // 8.20
+import com.cinema.auth.exception.AuthException; // 8.21 Vi phạm unique/FK ở DB
+import com.cinema.auth.repository.RefreshSessionRepository; // 8.22
+import com.cinema.auth.repository.RoleRepository; // 8.23
+import com.cinema.auth.repository.UserRepository; // 8.24
+import com.cinema.auth.repository.UserRoleRepository; // 8.25
 
 @Service // 8.26 Bean chứa logic nghiệp vụ
 public class AuthService { // 8.27
