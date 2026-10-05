@@ -1,32 +1,37 @@
-package com.cinema.movie.controller;
+package com.cinema.movie.controller; // 1.1
 
-import com.cinema.movie.dto.MovieResponse;
-import com.cinema.movie.service.MovieService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import java.util.List; // 1.2
+import java.util.UUID; // 1.3
 
-import java.util.List;
-import java.util.UUID;
+import org.springframework.web.bind.annotation.GetMapping; // 1.4
+import org.springframework.web.bind.annotation.PathVariable; // 1.5
+import org.springframework.web.bind.annotation.RequestMapping; // 1.6
+import org.springframework.web.bind.annotation.RequestParam; // 1.7
+import org.springframework.web.bind.annotation.RestController; // 1.8
 
-@RestController
-@RequestMapping("/api/v1/movies")
-public class MovieController {
-    private final MovieService movieService;
+import com.cinema.movie.dto.MovieResponse; // 1.9
+import com.cinema.movie.service.MovieService; // 1.10
 
-    public MovieController(MovieService movieService) {
-        this.movieService = movieService;
+@RestController // 1.11 Controller trả JSON
+@RequestMapping("/api/v1/movies") // 1.12 Prefix chung
+public class MovieController { // 1.13
+
+    private final MovieService movieService; // 1.14 Logic ở service, controller mỏng
+
+    public MovieController(MovieService movieService) { // 1.15 Constructor injection
+        this.movieService = movieService; // 1.16
     }
 
-    @GetMapping
-    public List<MovieResponse> getMovies(@RequestParam(required = false) String status) {
-        return movieService.getMovies(status);
+    @GetMapping // 1.17 GET /api/v1/movies
+    public List<MovieResponse> getMovies( // 1.18
+            @RequestParam(required = false) String status, // 1.19 NOW_SHOWING | COMING_SOON (đã có)
+            @RequestParam(required = false) String query, // 1.20 MỚI: tìm theo tiêu đề
+            @RequestParam(required = false) String genre) { // 1.21 MỚI: lọc theo tên thể loại
+        return movieService.getMovies(status, query, genre); // 1.22
     }
 
-    @GetMapping("/{movieId}")
-    public MovieResponse getMovie(@PathVariable UUID movieId) {
-        return movieService.getMovie(movieId);
+    @GetMapping("/{movieId}") // 1.23 GET /api/v1/movies/{movieId}
+    public MovieResponse getMovie(@PathVariable UUID movieId) { // 1.24 Sai định dạng UUID → 400 (handler có sẵn)
+        return movieService.getMovie(movieId); // 1.25
     }
 }

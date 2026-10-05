@@ -9,18 +9,33 @@ interface MovieResponse {
   durationMinutes: number
   releaseDate: string | null
   status: MovieStatus
+  genres: string[]
 }
 
-// Credits and ratings remain unavailable in the catalog response.
-const toMovie = (movie: MovieResponse): Movie => ({
-  ...movie, synopsis: movie.synopsis ?? '', releaseDate: movie.releaseDate ?? '',
-  originalTitle: '', posterUrl: movie.posterUrl?.trim() || '/movie-placeholder.svg', backdropUrl: '',
-  genres: [], ageRating: '', rating: null, director: '', cast: [],
-})
+export interface MovieFilters { status?: MovieStatus; query?: string; genre?: string }
+
+// Chưa có từ backend: originalTitle, ageRating, rating, director, cast
+const toMovie = (m: MovieResponse): Movie => {
+  const poster = m.posterUrl?.trim() || '/movie-placeholder.svg'
+  return {
+    ...m,
+    synopsis: m.synopsis ?? '',
+    releaseDate: m.releaseDate ?? '',
+    posterUrl: poster,
+    backdropUrl: poster,            // tạm dùng poster làm nền hero
+    genres: m.genres ?? [],
+    originalTitle: '', ageRating: '', rating: null, director: '', cast: [],
+  }
+}
 
 export const movieService = {
-  async list(status?: MovieStatus, signal?: AbortSignal) {
-    const movies = await getJson<MovieResponse[]>(`/movies${status ? `?status=${encodeURIComponent(status)}` : ''}`, signal)
+  async list(filters: MovieFilters = {}, signal?: AbortSignal) {
+    const qs = new URLSearchParams()
+    if (filters.status) qs.set('status', filters.status)
+    if (filters.query?.trim()) qs.set('query', filters.query.trim())
+    if (filters.genre) qs.set('genre', filters.genre)
+    const s = qs.toString()
+    const movies = await getJson<MovieResponse[]>(`/movies${s ? `?${s}` : ''}`, signal)
     return movies.map(toMovie)
   },
   async get(id: string, signal?: AbortSignal) {

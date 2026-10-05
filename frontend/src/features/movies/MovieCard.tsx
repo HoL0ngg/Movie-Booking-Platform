@@ -12,7 +12,7 @@ export function MovieCard({ movie, rank }: { movie: Movie; rank?: number }) {
       <div className="movie-card-copy">
         <h3>{movie.title}</h3>
         <p>{movie.genres.join(' · ')}</p>
-        <span>{movie.durationMinutes} phút · {movie.ageRating}</span>
+        <span>{[`${movie.durationMinutes} phút`, movie.ageRating].filter(Boolean).join(' · ')}</span>
       </div>
     </Link>
   </article>
