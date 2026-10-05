@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth, useCurrentUser } from '../features/auth/hooks'
+import { ThemeToggle } from './ThemeToggle'
 
 export function AppShell() {
 const { data: user } = useCurrentUser()
@@ -19,6 +20,7 @@ return ( <div className="app-shell"> <header className="site-header"> <NavLink
     </nav>
 
     <div className="header-actions">
+      <ThemeToggle />
       {user ? (
         <>
           <span className="welcome">

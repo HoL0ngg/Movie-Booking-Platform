@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from './hooks'
 import { showToast } from '../../shared/toast'
+import { ThemeToggle } from '../../app/ThemeToggle'
 
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
 const registerMode = mode === 'register'
@@ -19,15 +20,15 @@ if (!password) return showToast('Vui lòng nhập mật khẩu', 'error')
 if (registerMode && password.length < 8) return showToast('Mật khẩu tối thiểu 8 ký tự', 'error')
 
 const options = { onSuccess: () => navigate('/bookings') }
-registerMode
-  ? register.mutate({ email, password }, options)
-  : login.mutate({ email, password }, options)
+if (registerMode) register.mutate({ email, password }, options)
+else login.mutate({ email, password }, options)
 
 }
 
 return ( <div className="auth-page"> <div className="auth-visual"> <div> <p className="eyebrow">Một vé. Vạn cảm xúc.</p> <h1>Câu chuyện tiếp theo đang chờ bạn.</h1> </div> </div>
 
   <div className="auth-panel">
+    <div className="auth-theme"><ThemeToggle /></div>
     <Link className="brand" to="/">
       <span>ciné</span>mat<i />
     </Link>
