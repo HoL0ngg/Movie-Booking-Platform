@@ -37,9 +37,12 @@ public class SecurityConfiguration { // 3.23
                 .requestCache(AbstractHttpConfigurer::disable) // 3.31
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 3.32 Không tạo HttpSession
                 .authorizeHttpRequests(requests -> requests // 3.33 Luật truy cập
-                        .requestMatchers("/actuator/health/**", "/actuator/info",
-                                "/openapi/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll() // 3.34 Endpoint kỹ thuật
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll() // 3.35 Chưa có token vẫn gọi được
+                        .requestMatchers("/error", "/actuator/health/**", "/actuator/info",
+                                "/openapi/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/v1/auth/register/otp", "/api/v1/auth/register/otp/verify",
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/v1/users/*/email").permitAll() // 3.36 Mở ở Security; token nội bộ kiểm trong controller (gateway không route /internal)
                         .requestMatchers("/api/v1/auth/logout", "/api/v1/me").authenticated() // 3.37 Bắt buộc Bearer hợp lệ
                         .anyRequest().denyAll()) // 3.38 Còn lại từ chối

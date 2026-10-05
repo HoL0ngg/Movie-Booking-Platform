@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { authService } from './api'
 import { showToast } from '../../shared/toast'
 import { authErrorMessage } from './authErrors'
+import { authService } from './api'
+
 
 export const useCurrentUser = () => useQuery({
   queryKey: ['current-user'],
@@ -18,8 +19,13 @@ export const useAuth = () => {
       onSuccess: async () => { await loadUser(); showToast('Đăng nhập thành công', 'success') },
       onError: (e: Error) => showToast(authErrorMessage(e), 'error'),
     }),
-    register: useMutation({
-      mutationFn: ({ email, password }: { email: string; password: string }) => authService.register(email, password),
+    requestOtp: useMutation({
+      mutationFn: ({ email, password }: { email: string; password: string }) => authService.requestOtp(email, password),
+      onSuccess: () => showToast('Đã gửi mã OTP tới email của bạn', 'success'),
+      onError: (e: Error) => showToast(authErrorMessage(e), 'error'),
+    }),
+    verifyOtp: useMutation({
+      mutationFn: ({ email, otp }: { email: string; otp: string }) => authService.verifyOtp(email, otp),
       onSuccess: async () => { await loadUser(); showToast('Tạo tài khoản thành công', 'success') },
       onError: (e: Error) => showToast(authErrorMessage(e), 'error'),
     }),

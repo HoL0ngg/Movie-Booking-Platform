@@ -4,8 +4,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -18,6 +21,8 @@ import jakarta.validation.ConstraintViolationException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> handleInvalidBody(MethodArgumentNotValidException exception, HttpServletRequest request) {
@@ -42,6 +47,20 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(exception.getStatus()).body(error); // 13.16 Trả đúng HTTP status
     }
 
+    @ExceptionHandler(Exception.class) // lỗi không lường trước → 500 JSON thật, không bị forward sang /error rồi hóa 401
+    ResponseEntity<ApiError> handleUnexpected(Exception exception, HttpServletRequest request) {
+        if (exception instanceof ErrorResponse spring) { // 400/404/405/415... của chính Spring MVC: giữ nguyên status
+            HttpStatus status = HttpStatus.resolve(spring.getStatusCode().value());
+            ApiError error = new ApiError("REQUEST_ERROR", "The request could not be processed.",
+                    traceId(request), Instant.now(), Map.of());
+            return ResponseEntity.status(status != null ? status : HttpStatus.BAD_REQUEST).body(error);
+        }
+        log.error("Unhandled error on {} {}", request.getMethod(), request.getRequestURI(), exception);
+        ApiError error = new ApiError("INTERNAL_ERROR", "Something went wrong. Please try again.",
+                traceId(request), Instant.now(), Map.of());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
+
     private ResponseEntity<ApiError> badRequest(HttpServletRequest request, Map<String, Object> details) {
         ApiError error = new ApiError(
                 "VALIDATION_ERROR",
@@ -62,4 +81,3 @@ public class ApiExceptionHandler {
     }
 
 }
-
