@@ -2,6 +2,8 @@ server:
   port: ${CINEMA_SERVICE_PORT:8083}
 
 spring:
+  config: # 0.3 Nạp file .env như movie-service
+    import: "optional:file:../../.env[.properties],optional:file:./.env[.properties]" # 0.4 Thử ../../.env rồi ./.env
   application:
     name: cinema-service
   datasource:
@@ -65,3 +67,8 @@ info:
   app:
     name: ${spring.application.name}
     phase: 1
+
+auth: # 0.5 Cùng secret/issuer với auth-service để verify token
+  jwt:
+    secret: ${AUTH_JWT_SECRET:} # 0.6 Lấy từ .env hoặc biến môi trường
+    issuer: cinema-auth-service # 0.7 Phải trùng giá trị auth đã c

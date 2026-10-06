@@ -102,7 +102,11 @@ services:
     volumes:
       - notification-postgres-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cinema_notification_app -d cinema_notification"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U cinema_notification_app -d cinema_notification",
+        ]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -132,7 +136,11 @@ services:
     volumes:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1",
+        ]
       interval: 10s
       timeout: 10s
       retries: 12
@@ -229,4 +237,3 @@ volumes:
   kafka-data:
   prometheus-data:
   grafana-data:
-

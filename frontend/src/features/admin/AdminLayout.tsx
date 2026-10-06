@@ -11,6 +11,7 @@ export const adminNavigation: { path: string; label: string; icon: IconName }[] 
   { path: 'movies', label: 'Phim', icon: 'movies' },
   { path: 'cinemas', label: 'Rạp chiếu phim', icon: 'cinemas' },
   { path: 'showtimes', label: 'Lịch chiếu', icon: 'showtimes' },
+  { path: 'publishing', label: 'Phát hành suất', icon: 'showtimes' },
   { path: 'bookings', label: 'Đặt vé', icon: 'bookings' },
   { path: 'payments', label: 'Thanh toán', icon: 'payments' },
 ]
