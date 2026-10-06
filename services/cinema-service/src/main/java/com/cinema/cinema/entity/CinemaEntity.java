@@ -1,9 +1,12 @@
 package com.cinema.cinema.entity;
 
-import jakarta.persistence.*;
-import java.util.UUID;
 import java.time.Instant;
-import java.time.LocalDate;
+import java.util.UUID;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "cinemas")
@@ -31,4 +34,10 @@ public class CinemaEntity {
     Instant updatedAt;
 
     public CinemaEntity() {}
+    
+    public UUID getId() { return id; } // 15.1 Getter (field package-private nên service ở package khác không đọc trực tiếp được)
+    public String getName() { return name; } // 15.2
+    public String getAddress() { return address; } // 15.3
+    public String getCity() { return city; } // 15.4
+    public String getTimezone() { return timezone; } // 15.5
 }

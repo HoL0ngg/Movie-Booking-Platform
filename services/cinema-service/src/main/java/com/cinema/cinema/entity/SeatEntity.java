@@ -1,9 +1,12 @@
 package com.cinema.cinema.entity;
 
-import jakarta.persistence.*;
-import java.util.UUID;
 import java.time.Instant;
-import java.time.LocalDate;
+import java.util.UUID;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "seats")
@@ -34,4 +37,9 @@ public class SeatEntity {
     Instant updatedAt;
 
     public SeatEntity() {}
+
+    public UUID getId() { return id; } // 15.9
+    public String getRowLabel() { return rowLabel; } // 15.10
+    public Integer getSeatNumber() { return seatNumber; } // 15.11
+    public String getSeatType() { return seatType; } // 15.12
 }

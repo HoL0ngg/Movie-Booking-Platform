@@ -14,6 +14,7 @@ import { AdminOverview, AdminRecords } from '../features/admin/AdminPages'
 import { AdminLoginPage } from '../features/auth/AdminLoginPage'
 import { RequireAdmin } from '../features/auth/AdminAuthContext'
 import { RequireAuth } from '../features/auth/RequireAuth'
+import { ShowtimePublishing } from '../features/admin/ShowtimePublishing'
 
 export default function App() {
   return <Routes>
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="showtimes" element={<AdminRecords key="showtimes" section="showtimes" />} />
         <Route path="bookings" element={<AdminRecords key="bookings" section="bookings" />} />
         <Route path="payments" element={<AdminRecords key="payments" section="payments" />} />
+        <Route path="publishing" element={<ShowtimePublishing />} />
       </Route>
     </Route>
     <Route element={<AppShell />}>

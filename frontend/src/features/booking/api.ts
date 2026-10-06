@@ -1,7 +1,7 @@
 import { mockApi } from '../../shared/mocks/api'
 import type { Payment } from '../../shared/contracts'
 
-export const cinemaService = mockApi.cinemas
+export { cinemaService } from './cinemaApi'
 export const seatService = { getByShowtime: mockApi.booking.seats }
 export const bookingService = {
   reserve: mockApi.booking.reserve,
