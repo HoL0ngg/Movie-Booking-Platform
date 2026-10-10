@@ -16,7 +16,7 @@ export function CatalogEditor({ kind, record, data, onClose, onSaved }: { kind: 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const fields = new FormData(event.currentTarget)
-    const text = (name: string) => String(fields.get(name) ?? '').trim()
+  const text = (name: string) => String(fields.get(name) ?? '').trim()
     const id = record?.id ?? crypto.randomUUID()
     let updated: CatalogRecord
     if (kind === 'movies') {
