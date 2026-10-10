@@ -2,6 +2,19 @@ server:
   port: ${NOTIFICATION_SERVICE_PORT:8086}
 
 spring:
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.connectiontimeout: 2000
+      mail.smtp.timeout: 2500
+      mail.smtp.writetimeout: 2500
+  config: # 0.2 Nạp file .env như movie-service
+    import: "optional:file:../../.env[.properties],optional:file:./.env[.properties]" # 0.3 Thử ../../.env rồi ./.env
   application:
     name: notification-service
   datasource:
@@ -67,3 +80,15 @@ info:
   app:
     name: ${spring.application.name}
     phase: 1
+
+notification: # 0.4 Cấu hình riêng của notification-service
+  auth:
+    base-url: ${AUTH_SERVICE_URL:http://localhost:8081} # 0.5 Địa chỉ auth-service
+    internal-token: ${INTERNAL_API_TOKEN:} # 0.6 PHẢI trùng với auth-service
+  mail:
+    mode: ${MAIL_MODE:log} # 0.7 log = chỉ ghi log; smtp = gửi thật
+    from: ${MAIL_FROM:no-reply@cinema.local} # 0.8 Người gửi
+  dispatch:
+    delay-ms: 2000 # 0.9 Dispatcher chạy lại sau mỗi 2 giây
+    batch-size: 20 # 0.10 Mỗi lượt gửi tối đa 20 thông báo
+    max-attempts: 5 # 0.11 Thử gửi tối đa 5 lần
