@@ -32,7 +32,7 @@ public class AuthController { // 4.19
     }
 
     @PostMapping("/register/otp")
-    @ResponseStatus(HttpStatus.ACCEPTED) // 202: đã nhận, chờ xác minh
+//    @ResponseStatus(HttpStatus.ACCEPTED) // 202: đã nhận, chờ xác minh
     public OtpChallengeResponse registerOtp(@Valid @RequestBody RegisterRequest request) {
         return authService.registerRequestOtp(request);
     }

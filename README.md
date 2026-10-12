@@ -32,7 +32,7 @@ cinema-booking/
 `-- skills/
 ```
 
-The eight backend deployables are independent Maven modules under `gateway/` and `services/`. Each stateful service owns its database and reference schema at `src/main/resources/db/schema.sql`; Compose retains dedicated PostgreSQL containers for local development. The stateless `ai-service` adds optional Spring AI/Ollama integration (ADR-011), with no business endpoints yet. Kafka, disposable Redis, and an optional Prometheus/Grafana profile are defined in `docker-compose.yml`. Application Prometheus export is currently removed; Actuator health/info and trace logging remain available. See [monitoring status](docs/infrastructure.md#secrets-and-startup) before enabling that profile.
+The eight backend deployables are independent Maven modules under `gateway/` and `services/`. Each stateful service owns its database and reference schema at `src/main/resources/db/schema.sql`; Compose retains dedicated PostgreSQL containers for local development. The stateless `ai-service` adds optional Spring AI/Ollama integration (ADR-011), with no business endpoints yet. Kafka, disposable Redis, and an optional Prometheus profile are defined in `docker-compose.yml`. Application Prometheus export is currently removed; Actuator health/info and trace logging remain available. See [monitoring status](docs/infrastructure.md#secrets-and-startup) before enabling that profile.
 
 ## Non-negotiable foundations
 

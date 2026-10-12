@@ -17,7 +17,6 @@ Phase 1 supplies a reproducible local platform and buildable application shells.
 | Kafka | `apache/kafka:4.3.1` |
 | Redis | `redis:8.10.2-alpine3.23` |
 | Prometheus | `prom/prometheus:v3.14.0` |
-| Grafana | `grafana/grafana:13.2.2` |
 
 Versions are pinned for reproducible local development. Upgrades require compatibility verification, tests, and an explicit pull request; architecture-changing upgrades require an ADR.
 
@@ -36,7 +35,6 @@ Versions are pinned for reproducible local development. Upgrades require compati
 | Kafka | `29092` | n/a |
 | Redis | `6379` | disposable cache only |
 | Prometheus (optional) | `9090` | local volume |
-| Grafana (optional) | `3000` | local volume |
 
 Each local database has a distinct database, application role, credential, container, volume, and JDBC configuration. Managed databases retain service ownership and isolated credentials (ADR-009); no service queries or changes another service's data.
 
@@ -44,7 +42,7 @@ Redis persistence is disabled intentionally. Loss or flushing of Redis must neve
 
 ## Secrets and startup
 
-Copy `.env.example` to the git-ignored `.env`, then set all blank password values. The Compose file refuses to start a database or Grafana when its required password is missing. Local Kafka uses plaintext listeners and the health/info endpoints are unauthenticated; bind these components only to loopback as configured and do not use this setup as production security configuration.
+Copy `.env.example` to the git-ignored `.env`, then set all blank password values. The Compose file refuses to start a database when its required password is missing. Local Kafka uses plaintext listeners and the health/info endpoints are unauthenticated; bind these components only to loopback as configured and do not use this setup as production security configuration.
 
 ```powershell
 Copy-Item .env.example .env
@@ -59,7 +57,7 @@ Start optional monitoring with:
 docker compose --profile observability up -d
 ```
 
-Application Prometheus export is currently removed: backend modules have no `micrometer-registry-prometheus` and do not expose `/actuator/prometheus`. The optional Compose profile is retained for future use; its monitoring provisioning files are currently absent from this checkout. Restore provisioning and the registry/exposure before using it to collect application metrics. Actuator health/info and trace logging remain available.
+Application Prometheus export is currently removed: backend modules have no `micrometer-registry-prometheus` and do not expose `/actuator/prometheus`. The optional Compose profile contains only Prometheus and is retained for future use; its configuration file is currently absent from this checkout. Restore the configuration and the registry/exposure before using it to collect application metrics. Actuator health/info and trace logging remain available.
 
 Stop containers without deleting state using `docker compose down`. Deleting named volumes is destructive and requires an explicit decision.
 

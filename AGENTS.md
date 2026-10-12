@@ -250,7 +250,7 @@ Authorization is enforced on the backend only; never rely on frontend role check
 
 Generate or propagate correlation IDs between services. Prefer structured logging, including identifiers such as `traceId`, `reservationId`, `bookingId`, `paymentId`, `showtimeId` where relevant. Never log sensitive credentials or payment secrets.
 
-The architecture should remain compatible with OpenTelemetry, Prometheus, and Grafana, without requiring unnecessary monitoring complexity during early phases.
+The architecture should remain compatible with OpenTelemetry and Prometheus, without requiring unnecessary monitoring complexity during early phases.
 
 Application Prometheus export is currently removed at the project owner's request: no backend module declares `micrometer-registry-prometheus` or exposes `/actuator/prometheus`. Actuator health/info and structured trace logging remain available. Restore the registry, endpoint exposure, and monitoring provisioning when export is needed.
 

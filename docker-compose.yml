@@ -1,118 +1,6 @@
 name: cinema-booking
 
 services:
-  auth-postgres:
-    image: postgres:18.6-alpine3.24
-    environment:
-      POSTGRES_DB: cinema_auth
-      POSTGRES_USER: cinema_auth_app
-      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD in .env}
-    ports:
-      - "127.0.0.1:${AUTH_DB_PORT:-54321}:5432"
-    volumes:
-      - auth-postgres-data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cinema_auth_app -d cinema_auth"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-    networks: [cinema-platform]
-
-  movie-postgres:
-    image: postgres:18.6-alpine3.24
-    environment:
-      POSTGRES_DB: cinema_movie
-      POSTGRES_USER: cinema_movie_app
-      POSTGRES_PASSWORD: ${MOVIE_DB_PASSWORD:?Set MOVIE_DB_PASSWORD in .env}
-    ports:
-      - "127.0.0.1:${MOVIE_DB_PORT:-54322}:5432"
-    volumes:
-      - movie-postgres-data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cinema_movie_app -d cinema_movie"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-    networks: [cinema-platform]
-
-  cinema-postgres:
-    image: postgres:18.6-alpine3.24
-    environment:
-      POSTGRES_DB: cinema_cinema
-      POSTGRES_USER: cinema_cinema_app
-      POSTGRES_PASSWORD: ${CINEMA_DB_PASSWORD:?Set CINEMA_DB_PASSWORD in .env}
-    ports:
-      - "127.0.0.1:${CINEMA_DB_PORT:-54323}:5432"
-    volumes:
-      - cinema-postgres-data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cinema_cinema_app -d cinema_cinema"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-    networks: [cinema-platform]
-
-  booking-postgres:
-    image: postgres:18.6-alpine3.24
-    environment:
-      POSTGRES_DB: cinema_booking
-      POSTGRES_USER: cinema_booking_app
-      POSTGRES_PASSWORD: ${BOOKING_DB_PASSWORD:?Set BOOKING_DB_PASSWORD in .env}
-    ports:
-      - "127.0.0.1:${BOOKING_DB_PORT:-54324}:5432"
-    volumes:
-      - booking-postgres-data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cinema_booking_app -d cinema_booking"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-    networks: [cinema-platform]
-
-  payment-postgres:
-    image: postgres:18.6-alpine3.24
-    environment:
-      POSTGRES_DB: cinema_payment
-      POSTGRES_USER: cinema_payment_app
-      POSTGRES_PASSWORD: ${PAYMENT_DB_PASSWORD:?Set PAYMENT_DB_PASSWORD in .env}
-    ports:
-      - "127.0.0.1:${PAYMENT_DB_PORT:-54325}:5432"
-    volumes:
-      - payment-postgres-data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cinema_payment_app -d cinema_payment"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-    networks: [cinema-platform]
-
-  notification-postgres:
-    image: postgres:18.6-alpine3.24
-    environment:
-      POSTGRES_DB: cinema_notification
-      POSTGRES_USER: cinema_notification_app
-      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?Set NOTIFICATION_DB_PASSWORD in .env}
-    ports:
-      - "127.0.0.1:${NOTIFICATION_DB_PORT:-54326}:5432"
-    volumes:
-      - notification-postgres-data:/var/lib/postgresql
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U cinema_notification_app -d cinema_notification",
-        ]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-    networks: [cinema-platform]
-
   kafka:
     image: apache/kafka:4.3.1
     environment:
@@ -198,31 +86,6 @@ services:
     restart: unless-stopped
     networks: [cinema-platform]
 
-  grafana:
-    image: grafana/grafana:13.2.2
-    profiles: [observability]
-    depends_on:
-      prometheus:
-        condition: service_healthy
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
-      GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_AUTH_ANONYMOUS_ENABLED: "false"
-    ports:
-      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
-    volumes:
-      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - grafana-data:/var/lib/grafana
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 20s
-    restart: unless-stopped
-    networks: [cinema-platform]
-
 networks:
   cinema-platform:
     name: cinema-booking-network
@@ -236,4 +99,3 @@ volumes:
   notification-postgres-data:
   kafka-data:
   prometheus-data:
-  grafana-data:
