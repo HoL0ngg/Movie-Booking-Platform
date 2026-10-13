@@ -10,9 +10,9 @@ The project owner requests an independent AI Service using Spring AI. Cinema ass
 
 ## Decision
 
-Add `services/ai-service` as an independently runnable Maven module on port 8087. Use Spring AI 2.0.1, compatible with Spring Boot 4.1.1, and its Ollama model starter. Default `AI_CHAT_PROVIDER=none` permits startup without a provider. `ollama` configures a local pre-provisioned model. Startup never downloads models or performs inference.
+Add `services/ai-service` as an independently runnable Maven module on port 8087. Use Spring AI 2.0.1, compatible with Spring Boot 4.1.1, with Google GenAI and Ollama model starters. Default `AI_CHAT_PROVIDER=none` permits startup without a provider. `google-genai` configures Gemini through the Gemini Developer API, while `ollama` configures a local pre-provisioned model. Startup never downloads models or performs inference.
 
-The initial deliverable is a technical skeleton matching existing services: health/metrics, static OpenAPI, trace IDs, and fail-closed security. Gateway reserves `/api/v1/ai/**`; no business endpoint exists or is authorized yet. Define the assistance contract, service authorization, request limits, inference timeouts, and errors before exposing inference. Provider integrations remain inside this service.
+The initial deliverable is a technical skeleton matching existing services: health/metrics, static OpenAPI, trace IDs, and fail-closed security. A temporary stateless `POST /api/v1/ai/chat` conversation endpoint is now available only when `AI_CHAT_PROVIDER=google-genai`, using the Gemini Developer API through Spring AI. The prototype accepts a bounded client-supplied history and does not persist data, query service databases, or invoke booking/payment operations. The endpoint is temporarily permitted without authentication for frontend integration; production authorization, request limits, inference timeouts, and standardized provider errors remain required before launch. Provider integrations remain inside this service.
 
 Initially the service owns no persistent data and uses no PostgreSQL, Flyway, Kafka, Redis, vector store, or chat memory. Future persistence requires a service-owned schema and migration decision. Catalog context comes from owner APIs or deliberate event projections, never cross-service SQL.
 

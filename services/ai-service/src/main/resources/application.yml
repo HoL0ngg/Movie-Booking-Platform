@@ -7,11 +7,17 @@ spring:
   ai:
     chat:
       client:
-        # No inference endpoint yet; create a client only when that API is implemented.
-        enabled: false
+        enabled: ${AI_CHAT_CLIENT_ENABLED:true}
     model:
       chat: ${AI_CHAT_PROVIDER:none}
       embedding: none
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY:}
+        chat:
+          options:
+            model: ${AI_GEMINI_MODEL:gemini-2.5-flash}
+            temperature: ${AI_GEMINI_TEMPERATURE:0.7}
     ollama:
       base-url: ${AI_OLLAMA_BASE_URL:http://localhost:11434}
       init:
@@ -45,4 +51,4 @@ logging:
 info:
   app:
     name: ${spring.application.name}
-    stage: skeleton
+    stage: conversation

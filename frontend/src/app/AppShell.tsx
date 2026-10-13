@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth, useCurrentUser } from '../features/auth/hooks'
 import { ThemeToggle } from './ThemeToggle'
+import { CinemateChat } from './CinemateChat'
 
 export function AppShell() {
 const { data: user } = useCurrentUser()
@@ -42,6 +43,8 @@ return ( <div className="app-shell"> <header className="site-header"> <NavLink
   <main>
     <Outlet />
   </main>
+
+  <CinemateChat />
 
   <footer>
     <div className="brand muted">

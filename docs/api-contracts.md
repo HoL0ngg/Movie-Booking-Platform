@@ -6,7 +6,7 @@ Static OpenAPI 3.1 contracts are published from each Spring Boot module at `/ope
 
 ## Conventions
 
-`ai-service` publishes an empty static contract at `http://localhost:8087/openapi/openapi.yaml`. Gateway reserves `/api/v1/ai/**`. No chat/recommendation operation is implemented; business requests are denied at service and gateway. ADR-011 requires service authorization, request limits, bounded inference timeouts, and errors before adding operations. Provider calls are never part of booking/payment transactions or Sagas.
+`ai-service` exposes the temporary `POST /api/v1/ai/chat` conversation operation when `AI_CHAT_PROVIDER=google-genai`. It accepts the current message and a bounded history from the client; it does not persist conversation state or query another service's database. The current prototype is unauthenticated and must not be treated as production authorization. Provider calls are never part of booking/payment transactions or Sagas.
 
 - Public APIs are rooted at `/api/v1` and routed by the API Gateway to the owning service.
 - JSON uses UTC ISO-8601 timestamps and opaque string IDs. Money is `{ "amountMinor": 125000, "currency": "VND" }`.

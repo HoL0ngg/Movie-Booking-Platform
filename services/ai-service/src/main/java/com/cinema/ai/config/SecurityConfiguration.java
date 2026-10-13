@@ -24,7 +24,8 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(requests -> requests
                         .requestMatchers(
                                 "/actuator/health/**", "/actuator/info",
-                                "/openapi/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
+                                "/openapi/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
+                                "/api/v1/ai/chat")
                         .permitAll()
                         .anyRequest()
                         .denyAll())
@@ -38,4 +39,3 @@ public class SecurityConfiguration {
         };
     }
 }
-

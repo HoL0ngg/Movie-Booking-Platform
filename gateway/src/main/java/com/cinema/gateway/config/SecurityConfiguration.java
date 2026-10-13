@@ -36,6 +36,7 @@ public class SecurityConfiguration {
                             "/api/v1/auth/logout").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/me").permitAll()
                         .pathMatchers("/api/v1/cinemas", "/api/v1/cinemas/**", "/api/v1/showtimes", "/api/v1/showtimes/**").permitAll()
+                        .pathMatchers(HttpMethod.POST, "/api/v1/ai/chat").permitAll()
                         .pathMatchers(
                                 "/actuator/health/**", "/actuator/info",
                                 "/openapi/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
