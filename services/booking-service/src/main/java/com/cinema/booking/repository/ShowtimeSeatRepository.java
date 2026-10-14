@@ -7,6 +7,9 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
+
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,4 +18,8 @@ public interface ShowtimeSeatRepository extends JpaRepository<ShowtimeSeatEntity
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from ShowtimeSeatEntity s where s.showtimeId = :showtimeId and s.seatId = :seatId")
     Optional<ShowtimeSeatEntity> lockSeat(@Param("showtimeId") UUID showtimeId, @Param("seatId") UUID seatId);
+
+    List<ShowtimeSeatEntity> findAllByShowtimeId(UUID showtimeId);
+
+    List<ShowtimeSeatEntity> findAllByShowtimeIdAndSeatIdIn(UUID showtimeId, Collection<UUID> seatIds);
 }

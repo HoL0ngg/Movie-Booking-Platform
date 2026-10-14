@@ -1,12 +1,17 @@
 package com.cinema.booking.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.UUID;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.io.Serializable;
 import java.util.Objects;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "reservation_seats")
 @IdClass(ReservationSeatEntity.Key.class)
@@ -28,17 +33,28 @@ public class ReservationSeatEntity {
     @Column(name = "created_at", nullable = false, columnDefinition = "timestamptz")
     Instant createdAt;
 
-    public ReservationSeatEntity() {}
+    public ReservationSeatEntity() {
+    }
 
     public static class Key implements Serializable {
         public UUID reservationId;
         public UUID seatId;
-        public Key() {}
-        @Override public boolean equals(Object other) {
-            if (this == other) return true;
-            if (!(other instanceof Key key)) return false;
+
+        public Key() {
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other)
+                return true;
+            if (!(other instanceof Key key))
+                return false;
             return Objects.equals(reservationId, key.reservationId) && Objects.equals(seatId, key.seatId);
         }
-        @Override public int hashCode() { return Objects.hash(reservationId, seatId); }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(reservationId, seatId);
+        }
     }
 }
