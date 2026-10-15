@@ -6,7 +6,7 @@ Static OpenAPI 3.1 contracts are published from each Spring Boot module at `/ope
 
 ## Conventions
 
-`ai-service` exposes the temporary `POST /api/v1/ai/chat` conversation operation when `AI_CHAT_PROVIDER=google-genai`. It uses the Gemini Developer API with server-side `GEMINI_API_KEY` and model `gemini-3.8-flash`. It accepts the current message and a bounded history from the client; it does not persist conversation state or query another service's database. The current prototype is unauthenticated and must not be treated as production authorization. Provider calls are never part of booking/payment transactions or Sagas.
+`ai-service` exposes the temporary `POST /api/v1/ai/chat` conversation operation when `AI_CHAT_PROVIDER=openai`. It uses the OpenRouter OpenAI-compatible API with server-side `OPENROUTER_API_KEY` and model `openrouter/free`. It accepts the current message and a bounded history from the client; it does not persist conversation state or query another service's database. The current prototype is unauthenticated and must not be treated as production authorization. Provider calls are never part of booking/payment transactions or Sagas.
 
 - Public APIs are rooted at `/api/v1` and routed by the API Gateway to the owning service.
 - JSON uses UTC ISO-8601 timestamps and opaque string IDs. Money is `{ "amountMinor": 125000, "currency": "VND" }`.
@@ -140,4 +140,4 @@ There is no public customer command API in the initial boundary. Notification se
 
 Phase 1 skeletons must publish machine-readable OpenAPI/event schemas. Later implementations add provider/consumer contract tests, standard error-shape tests, authorization tests, idempotency tests, and compatibility checks for rolling versions.
 
-AI chat provider failures return HTTP `503` with `code=AI_PROVIDER_UNAVAILABLE`, a safe message, canonical `traceId`, and timestamp. Gemini calls have a 45-second deadline and one SDK attempt; the gateway AI route waits up to 60 seconds. Other routes retain the global 5-second response timeout.
+AI chat provider failures return HTTP `503` with `code=AI_PROVIDER_UNAVAILABLE`, a safe message, canonical `traceId`, and timestamp. OpenRouter calls have a 45-second deadline and no SDK retries; the gateway AI route waits up to 60 seconds. Other routes retain the global 5-second response timeout.

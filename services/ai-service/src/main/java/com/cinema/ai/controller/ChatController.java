@@ -15,7 +15,7 @@ import com.cinema.ai.service.ChatService;
 
 @RestController
 @RequestMapping("/api/v1/ai")
-@ConditionalOnProperty(name = "spring.ai.model.chat", havingValue = "google-genai")
+@ConditionalOnProperty(name = "spring.ai.model.chat", havingValue = "openai")
 public class ChatController {
 
     private final ChatService chatService;

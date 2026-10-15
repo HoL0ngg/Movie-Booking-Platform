@@ -66,11 +66,11 @@ export function CinemateChat() {
         <section id={`${titleId}-panel`} className="cinemate-panel" role="dialog" aria-modal="false" aria-labelledby={titleId}>
           <header className="cinemate-panel-header">
             <div className="cinemate-avatar" aria-hidden="true">
-              C
+              ☺
             </div>
             <div>
-              <h2 id={titleId}>Cinemate</h2>
-              <p>Trợ lý điện ảnh của bạn</p>
+              <h2 id={titleId}>Cine<em className="cinemate-mate">mate</em></h2>
+              <p>Người bạn AI mê phim của bạn</p>
             </div>
             <button
               className="cinemate-close"
@@ -86,8 +86,8 @@ export function CinemateChat() {
             {messages.length === 0 ? (
               <div className="cinemate-empty-state">
                 <span className="cinemate-empty-icon" aria-hidden="true">✦</span>
-                <p>Cinemate có thể giúp bạn tìm một bộ phim phù hợp.</p>
-                <span>Hãy gửi câu hỏi đầu tiên của bạn.</span>
+                <p>Chào bạn, mình là Cine<em className="cinemate-mate">mate</em>!</p>
+                <span>Kể mình nghe tâm trạng hôm nay, cùng tìm một bộ phim hợp gu nhé.</span>
               </div>
             ) : (
               <div className="cinemate-message-list">
@@ -108,7 +108,7 @@ export function CinemateChat() {
             <input
               id="cinemate-message"
               type="text"
-              placeholder="Hỏi Cinemate về phim..."
+              placeholder="Kể mình nghe gu phim của bạn..."
               autoComplete="off"
               value={message}
               onChange={(event) => setMessage(event.target.value)}
@@ -131,7 +131,7 @@ export function CinemateChat() {
         aria-label={isOpen ? 'Đóng Cinemate' : 'Mở Cinemate'}
       >
         <span className="cinemate-launcher-icon" aria-hidden="true">✦</span>
-        <span>Cinemate</span>
+        <span>Cine<em className="cinemate-mate">mate</em></span>
       </button>
     </div>
   )

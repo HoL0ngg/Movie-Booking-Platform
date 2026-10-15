@@ -91,7 +91,7 @@ The gateway accepts a safe `X-Trace-Id` or creates one, sends it downstream, and
 
 ## Build and test
 
-`ai-service` runs on the host like existing application modules; Docker Compose infrastructure is unchanged. Start it with `mvn -pl services/ai-service spring-boot:run`. Default `AI_CHAT_PROVIDER=google-genai` requires `GEMINI_API_KEY`; explicitly set `AI_CHAT_PROVIDER=none` to start without credentials or inference. Export `AI_CHAT_PROVIDER=google-genai` and `GEMINI_API_KEY` in the Maven process environment to enable temporary `POST /api/v1/ai/chat` using `gemini-3.8-flash`. The only provider is the Gemini Developer API; no local model runtime is needed. AI service imports `../../.env` and then `./.env` as Java properties so repository-root and module-directory launches can use the existing root `GEMINI_API_KEY`. Environment variables take precedence. See [Gemini setup](../README.md#gemini-ai-service). The prototype chat endpoint is unauthenticated; production authorization and request limits remain required.
+`ai-service` runs on the host like existing application modules; Docker Compose infrastructure is unchanged. Start it with `mvn -pl services/ai-service spring-boot:run`. Default `AI_CHAT_PROVIDER=openai` requires `OPENROUTER_API_KEY`; explicitly set `AI_CHAT_PROVIDER=none` to start without credentials or inference. Export `AI_CHAT_PROVIDER=openai` and `OPENROUTER_API_KEY` in the Maven process environment to enable temporary `POST /api/v1/ai/chat` using `openrouter/free`. The only provider is the OpenRouter OpenAI-compatible API; no local model runtime is needed. AI service imports `../../.env` and then `./.env` as Java properties so repository-root and module-directory launches can use the existing root `OPENROUTER_API_KEY`. Environment variables take precedence. See [OpenRouter setup](../README.md#openrouter-ai-service). The prototype chat endpoint is unauthenticated; production authorization and request limits remain required.
 
 Docker-independent packaging checks: `mvn -pl gateway,services/ai-service -am package`. Frontend uses Playwright only: `npm test` from `frontend/`; if Chromium is missing, run `npx playwright install chromium`.
 
@@ -107,6 +107,14 @@ Backend test dependencies are temporarily removed and the parent sets `maven.tes
 
 Before any production deployment, define secret management, TLS, authenticated Kafka listeners and ACLs, multi-broker replication, database backup/restore, resource limits, network policy, image scanning, immutable application images, alert rules, dashboards, and deployment-specific availability targets.
 
-AI chat uses a 45-second Google SDK call timeout with one attempt, and a 60-second gateway route response timeout. Other gateway routes retain 5 seconds. Google overload/network errors return `503 AI_PROVIDER_UNAVAILABLE`; restart both AI service and gateway after these configuration changes.
+AI chat uses a 45-second SDK timeout without retries and a 60-second gateway route response timeout. Other gateway routes retain 5 seconds. OpenRouter/network errors return `503 AI_PROVIDER_UNAVAILABLE`; restart both AI service and gateway after these configuration changes.
 
-The standalone `services/ai-service/checks/com/cinema/ai/config/AiProviderCheck.java` check uses an in-process fake Gemini endpoint and never reads a real key. Compile it with `javac` using the AI service runtime classpath (compiled service classes plus runtime dependency JARs), then run `com.cinema.ai.config.AiProviderCheck` on that classpath. It asserts the 45-second SDK deadline, exactly one attempt on overload, safe 503 response, and trace ID propagation; it requires no JUnit dependencies.
+The standalone `services/ai-service/checks/OpenRouterSmokeCheck.java` check uses an in-process fake OpenRouter endpoint and never reads a real key. It checks disabled startup without credentials, enabled startup without inference, model/path/history, validation, unsupported routes, provider/network failures, no retries, safe errors, and trace IDs. It requires no JUnit dependencies. After packaging, run from the repository root:
+
+```powershell
+New-Item -ItemType Directory -Force services/ai-service/target/checks | Out-Null
+Push-Location services/ai-service/target/checks
+jar xf ../ai-service-0.1.0-SNAPSHOT.jar BOOT-INF/lib
+Pop-Location
+java --class-path "services/ai-service/target/classes;services/ai-service/target/checks/BOOT-INF/lib/*" services/ai-service/checks/OpenRouterSmokeCheck.java
+```

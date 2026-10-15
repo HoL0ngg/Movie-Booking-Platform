@@ -3,9 +3,9 @@ info:
   title: Cinema AI Service
   version: 0.1.0
   description: >-
-    Optional stateless cinema conversation using the Gemini Developer API
-    and model gemini-3.8-flash. Enable with AI_CHAT_PROVIDER=google-genai
-    and server-side GEMINI_API_KEY. Provider defaults to google-genai;
+    Optional stateless cinema conversation using the OpenRouter OpenAI-compatible API
+    and model openrouter/free. Enable with AI_CHAT_PROVIDER=openai
+    and server-side OPENROUTER_API_KEY. Provider defaults to openai;
     explicitly set AI_CHAT_PROVIDER=none to disable chat.
     This prototype chat endpoint is unauthenticated. No live catalog,
     showtime lookup, booking, or payment operations are supported.
@@ -17,10 +17,10 @@ paths:
       operationId: chat
       summary: General cinema conversation
       description: >-
-        Available only when Google GenAI is enabled. Client supplies bounded
+        Available only when OpenRouter is enabled. Client supplies bounded
         history; conversation state is not persisted. Production authorization,
-        request limits remain required. Gemini calls are bounded to 45 seconds
-        with one SDK attempt; the gateway AI route waits up to 60 seconds.
+        request limits remain required. OpenRouter calls are bounded to 45 seconds
+        with no SDK retries; the gateway AI route waits up to 60 seconds.
       security: []
       requestBody:
         required: true
@@ -38,7 +38,7 @@ paths:
         '400':
           description: Invalid request
         '503':
-          description: Gemini is overloaded or unavailable (AI_PROVIDER_UNAVAILABLE)
+          description: OpenRouter is overloaded or unavailable (AI_PROVIDER_UNAVAILABLE)
           content:
             application/json:
               schema:

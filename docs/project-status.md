@@ -11,7 +11,7 @@ In progress:
 
 Implemented in Phase 2:
 - Admin UI prototype under `/admin`: dashboard, movie/cinema/showtime demo editors, and read-only booking/payment views. See `docs/admin-ui.md`; backend admin APIs and role enforcement are not implemented.
-- Optional stateless `ai-service` using Spring AI 2.0.1/Google GenAI with `gemini-3.8-flash`, a temporary unauthenticated chat endpoint through the gateway, health/info, and trace IDs (ADR-011). Default provider `google-genai` requires `GEMINI_API_KEY`; explicitly set `AI_CHAT_PROVIDER=none` to disable inference. AI test sources were removed while backend test dependencies remain absent.
+- Optional stateless `ai-service` using Spring AI 2.0.1/OpenRouter with `openrouter/free`, a temporary unauthenticated chat endpoint through the gateway, health/info, and trace IDs (ADR-011). Default provider `openai` requires `OPENROUTER_API_KEY`; explicitly set `AI_CHAT_PROVIDER=none` to disable inference. AI test sources were removed while backend test dependencies remain absent.
 - Six service-owned PostgreSQL reference schemas at `src/main/resources/db/schema.sql`, including cinema-manager assignments, with matching JPA entities and repositories.
 - Manual managed-database schema updates (ADR-013); Hibernate mapping validation remains enabled and automatic SQL initialization is disabled. Earlier PostgreSQL Testcontainers checks covered mappings and constraints; backend tests are currently paused.
 - Database-level tests for seat row locking and unique sale, published showtime overlap, and payment webhook deduplication.

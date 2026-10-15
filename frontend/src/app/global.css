@@ -350,9 +350,11 @@ input::placeholder { color: var(--muted); opacity: 1; }
 .cinemate-launcher:hover { background: var(--red-dark); transform: translateY(-2px); }
 .cinemate-launcher-icon { display: grid; place-items: center; width: 25px; height: 25px; border: 1px solid rgba(255, 255, 255, .65); border-radius: 50%; font-size: .8rem; }
 .cinemate-panel { display: flex; flex-direction: column; width: min(380px, calc(100vw - 32px)); height: min(570px, calc(100vh - 110px)); overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 20px 60px rgba(32, 39, 56, .22); }
-.cinemate-panel-header { display: flex; align-items: center; gap: 11px; padding: 17px 18px; border-bottom: 1px solid var(--line); background: var(--soft); }
-.cinemate-avatar { display: grid; flex: 0 0 38px; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--red); color: #fff; font-family: 'Playfair Display', Georgia, serif; font-size: 1.2rem; }
+.cinemate-panel-header { display: flex; align-items: center; gap: 11px; padding: 17px 18px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.cinemate-avatar { display: grid; flex: 0 0 38px; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--red); color: #fff; font-family: Georgia, serif; font-size: 1.6rem; }
 .cinemate-panel-header h2 { margin: 0; color: var(--paper); font-family: 'DM Sans', system-ui, sans-serif; font-size: 1rem; letter-spacing: 0; }
+.cinemate-mate { color: var(--accent); font-family: Georgia, serif; font-style: italic; font-weight: 700; }
+.cinemate-launcher .cinemate-mate { color: #ffe0a8; }
 .cinemate-panel-header p { margin: 1px 0 0; color: var(--muted); font-size: .75rem; }
 .cinemate-close { display: grid; place-items: center; width: 32px; height: 32px; margin-left: auto; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; font-size: 1.5rem; line-height: 1; }
 .cinemate-close:hover { background: var(--surface); color: var(--paper); }

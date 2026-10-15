@@ -7,7 +7,7 @@ Status: Phase 0 baseline
 | Deployable | Responsibilities | Exclusively owned persistent data | Synchronous surface | Event role |
 |---|---|---|---|---|
 | `api-gateway` | Routing, edge authentication enforcement, rate limits, correlation IDs, request limits | No domain data | Public route facade | None initially |
-| `ai-service` | Optional assistance, recommendations, prompts, model integration | None initially | Temporary `POST /api/v1/ai/chat` when Google GenAI is enabled | None initially |
+| `ai-service` | Optional assistance, recommendations, prompts, model integration | None initially | Temporary `POST /api/v1/ai/chat` when OpenRouter is enabled | None initially |
 | `auth-service` | Registration, authentication, token/session lifecycle, roles, account security | Users, credentials, roles, refresh tokens/sessions, audit/security records | Auth/account commands and identity lookup | May later publish account lifecycle events |
 | `movie-service` | Movie catalog, genres, media metadata, content lifecycle | Movies, genres, cast/content metadata | Movie catalog queries/admin commands | Publishes catalog changes when needed |
 | `cinema-service` | Cinemas, auditoriums, physical seats, showtime scheduling and cancellation | Cinemas, auditoriums, seat definitions, showtimes, schedule rules | Cinema/showtime queries/admin commands | Publishes `ShowtimePublished` and `ShowtimeCancelled` |
@@ -19,7 +19,7 @@ Status: Phase 0 baseline
 
 Cinema-manager assignments belong to `cinema-service` (`cinema_managers`), while role membership remains owned by `auth-service`. Management authorization must check both role and assigned cinema scope; the assignment table is persistence groundwork, not an implemented authorization API. User IDs remain logical references with no access to the auth database.
 
-`ai-service` owns optional assistance, prompts, recommendations, and model integration. It has no persistent data or event role. The gateway and service permit temporary unauthenticated `POST /api/v1/ai/chat` when `AI_CHAT_PROVIDER=google-genai`; the service uses `gemini-3.8-flash` through the Gemini Developer API with server-side `GEMINI_API_KEY`. Other AI routes are denied. Production authorization and request limits remain required. Catalog/showtime data remains with its owners; model output cannot establish availability or payment state. See [ADR-011](ADR/ADR-011-optional-ai-service.md).
+`ai-service` owns optional assistance, prompts, recommendations, and model integration. It has no persistent data or event role. The gateway and service permit temporary unauthenticated `POST /api/v1/ai/chat` when `AI_CHAT_PROVIDER=openai`; the service uses `openrouter/free` through the OpenRouter OpenAI-compatible API with server-side `OPENROUTER_API_KEY`. Other AI routes are denied. Production authorization and request limits remain required. Catalog/showtime data remains with its owners; model output cannot establish availability or payment state. See [ADR-011](ADR/ADR-011-optional-ai-service.md).
 
 1. The owning service is the only writer and the only SQL reader of its database.
 2. A service identifier carried elsewhere is an opaque reference, not a cross-service foreign key.

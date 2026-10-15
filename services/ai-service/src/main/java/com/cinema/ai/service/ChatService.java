@@ -15,7 +15,7 @@ import com.cinema.ai.dto.ChatRequest;
 import com.cinema.ai.dto.ChatResponse;
 
 @Service
-@ConditionalOnProperty(name = "spring.ai.model.chat", havingValue = "google-genai")
+@ConditionalOnProperty(name = "spring.ai.model.chat", havingValue = "openai")
 public class ChatService {
 
     private static final String SYSTEM_PROMPT = """

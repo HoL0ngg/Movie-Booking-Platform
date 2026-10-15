@@ -3,8 +3,8 @@ package com.cinema.ai.exception;
 import java.time.Instant;
 import java.util.Map;
 
-import com.google.genai.errors.ApiException;
-import com.google.genai.errors.GenAiIOException;
+import com.openai.errors.OpenAIException;
+import com.openai.errors.OpenAIServiceException;
 import com.cinema.ai.controller.ChatController;
 import com.cinema.ai.filter.TraceIdFilter;
 
@@ -23,15 +23,15 @@ public class AiProviderExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(AiProviderExceptionHandler.class);
 
-    @ExceptionHandler({ApiException.class, GenAiIOException.class})
+    @ExceptionHandler(OpenAIException.class)
     public ResponseEntity<Map<String, Object>> providerUnavailable(HttpServletRequest request, Exception exception) {
         Throwable cause = NestedExceptionUtils.getMostSpecificCause(exception);
         log.warn("AI provider unavailable: traceId={} exceptionType={} providerStatus={}",
                 request.getAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE), cause.getClass().getSimpleName(),
-                cause instanceof ApiException apiException ? apiException.code() : "unavailable");
+                exception instanceof OpenAIServiceException apiException ? apiException.statusCode() : "unavailable");
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
                 "code", "AI_PROVIDER_UNAVAILABLE",
-                "message", "Cinemate đang tạm bận hoặc không kết nối được với Gemini. Vui lòng thử lại sau.",
+                "message", "Cinemate đang tạm bận hoặc không kết nối được với OpenRouter. Vui lòng thử lại sau.",
                 "traceId", String.valueOf(request.getAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE)),
                 "timestamp", Instant.now().toString()));
     }

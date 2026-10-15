@@ -25,7 +25,7 @@ Correctness must never be sacrificed for performance or implementation convenien
 
 **Frontend:** React, TypeScript, Vite, React Router, TanStack Query, Zustand (only for genuine global client state), Framer Motion, Three.js / React Three Fiber.
 
-**Backend:** Java 21, Spring Boot 4.1.1, Spring Web, Spring Security, Spring Data JPA, Spring Validation, PostgreSQL (managed on Supabase), Redis, Kafka, OpenAPI / Swagger. `ai-service` uses Spring AI 2.0.1 with Google GenAI (Gemini Developer API), using model `gemini-3.8-flash`.
+**Backend:** Java 21, Spring Boot 4.1.1, Spring Web, Spring Security, Spring Data JPA, Spring Validation, PostgreSQL (managed on Supabase), Redis, Kafka, OpenAPI / Swagger. `ai-service` uses Spring AI 2.0.1 with OpenRouter (OpenRouter OpenAI-compatible API), using model `openrouter/free`.
 
 **Testing:** JUnit Jupiter, AssertJ, Spring Boot Test, Testcontainers PostgreSQL, Playwright. Install specialized test helpers only when concrete tests need them.
 
@@ -95,7 +95,7 @@ Inspect it before proposing replacement or regeneration.
 
 Future phases build incrementally on the current repository.
 
-Phase 2 includes service-owned schemas and a frontend prototype under `frontend/`. `ai-service` is stateless on port 8087 with health/info and trace IDs. A temporary unauthenticated `POST /api/v1/ai/chat` endpoint is available when `AI_CHAT_PROVIDER=google-genai` and `GEMINI_API_KEY` is supplied. It uses `gemini-3.8-flash` for general conversation without live catalog/showtime data. Other routes remain denied; production authorization and request limits are still required. Default provider is `google-genai` and requires `GEMINI_API_KEY`; explicitly set `AI_CHAT_PROVIDER=none` to start without provider credentials. Core booking/payment flows remain independent of AI availability.
+Phase 2 includes service-owned schemas and a frontend prototype under `frontend/`. `ai-service` is stateless on port 8087 with health/info and trace IDs. A temporary unauthenticated `POST /api/v1/ai/chat` endpoint is available when `AI_CHAT_PROVIDER=openai` and `OPENROUTER_API_KEY` is supplied. It uses `openrouter/free` for general conversation without live catalog/showtime data. Other routes remain denied; production authorization and request limits are still required. Default provider is `openai` and requires `OPENROUTER_API_KEY`; explicitly set `AI_CHAT_PROVIDER=none` to start without provider credentials. Core booking/payment flows remain independent of AI availability.
 
 ---
 
@@ -265,7 +265,7 @@ Keep verification proportional to the change. Prefer a build/lint and the smalle
 - Backend tests are temporarily paused; test dependencies are absent from module POMs and existing test sources are preserved except in `ai-service`, where they were removed at the owner's request. When restored: Spring Boot Test, JUnit Jupiter, AssertJ; Testcontainers PostgreSQL in stateful services. Add specialized helpers only when a concrete test needs them. Restore relevant dependencies and enable tests before changing critical booking/payment/database behavior.
 - Frontend: Playwright is the single runner (`npm test` and `npm run test:e2e`). MovieCard accessible-link coverage lives in `frontend/e2e/movie-card.spec.ts`; Vitest, jsdom, and Testing Library are not installed. Add another runner only when meaningful coverage needs it.
 - Concurrency-sensitive booking tests must use real PostgreSQL behavior, not H2.
-- AI tests must not call live providers or download models. Verify disabled-provider startup, Google GenAI configuration with a fake key and no inference, and denial of unsupported business requests. The temporary chat endpoint is unauthenticated; production authorization remains required.
+- AI tests must not call live providers or download models. Verify disabled-provider startup, OpenRouter configuration with a fake key and no inference, and denial of unsupported business requests. The temporary chat endpoint is unauthenticated; production authorization remains required.
 
 ---
 

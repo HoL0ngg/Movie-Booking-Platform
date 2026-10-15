@@ -32,7 +32,7 @@ cinema-booking/
 `-- skills/
 ```
 
-The eight backend deployables are independent Maven modules under `gateway/` and `services/`. Each stateful service owns its database and reference schema at `src/main/resources/db/schema.sql`; Compose retains dedicated PostgreSQL containers for local development. The stateless `ai-service` adds optional Spring AI/Google GenAI integration with `gemini-3.8-flash` (ADR-011) and a temporary stateless chat endpoint. Kafka, disposable Redis, and an optional Prometheus profile are defined in `docker-compose.yml`. Application Prometheus export is currently removed; Actuator health/info and trace logging remain available. See [monitoring status](docs/infrastructure.md#secrets-and-startup) before enabling that profile.
+The eight backend deployables are independent Maven modules under `gateway/` and `services/`. Each stateful service owns its database and reference schema at `src/main/resources/db/schema.sql`; Compose retains dedicated PostgreSQL containers for local development. The stateless `ai-service` adds optional Spring AI/OpenAI-compatible OpenRouter integration with `openrouter/free` (ADR-011) and a temporary stateless chat endpoint. Kafka, disposable Redis, and an optional Prometheus profile are defined in `docker-compose.yml`. Application Prometheus export is currently removed; Actuator health/info and trace logging remain available. See [monitoring status](docs/infrastructure.md#secrets-and-startup) before enabling that profile.
 
 ## Non-negotiable foundations
 
@@ -99,20 +99,20 @@ mvn -pl gateway spring-boot:run
 mvn -pl services/booking-service spring-boot:run
 ```
 
-The gateway listens on `8080`; service ports are `8081` through `8087`. Start AI with `mvn -pl services/ai-service spring-boot:run`; default provider `google-genai` requires `GEMINI_API_KEY`. Set `AI_CHAT_PROVIDER=none` to start without credentials. See the Gemini setup below. See [local infrastructure](docs/infrastructure.md) for configuration. AI chat is temporarily public; see each service contract for its current routes.
+The gateway listens on `8080`; service ports are `8081` through `8087`. Start AI with `mvn -pl services/ai-service spring-boot:run`; default provider `openai` requires `OPENROUTER_API_KEY`. Set `AI_CHAT_PROVIDER=none` to start without credentials. See the OpenRouter setup below. See [local infrastructure](docs/infrastructure.md) for configuration. AI chat is temporarily public; see each service contract for its current routes.
 
-### Gemini AI service
+### OpenRouter AI service
 
-The only supported AI provider is the Gemini Developer API via Google GenAI. The model is `gemini-3.8-flash` and provider defaults to `google-genai`; no local model runtime is needed. Set `GEMINI_API_KEY` in the git-ignored repository-root `.env` (or module-local `.env`), or export it in the shell running Maven:
+The only supported AI provider is the OpenRouter OpenAI-compatible API via OpenRouter. The model is `openrouter/free` and provider defaults to `openai`; no local model runtime is needed. Set `OPENROUTER_API_KEY` in the git-ignored repository-root `.env` (or module-local `.env`), or export it in the shell running Maven:
 
 ```powershell
-$env:GEMINI_API_KEY = "<your Gemini API key>"
+$env:OPENROUTER_API_KEY = "<your OpenRouter API key>"
 mvn -pl services/ai-service spring-boot:run
 ```
 
 AI service imports `../../.env` followed by `./.env`, matching repository-root and service-directory launches. Use plain `KEY=value` properties syntax without surrounding quotes; process environment variables take precedence.
 
-Obtain the key from [Google AI Studio](https://aistudio.google.com/apikey) and keep it server-side, outside Git and frontend `VITE_*` variables. Set `AI_CHAT_PROVIDER=none` to disable inference. `POST /api/v1/ai/chat` accepts `message` and optional `history`, and returns `message`. It provides general cinema conversation without live catalog/showtime data or booking/payment actions. The prototype endpoint is public at both gateway and service; add authorization and request limits before production.
+Obtain the key from [OpenRouter](https://openrouter.ai/settings/keys) and keep it server-side, outside Git and frontend `VITE_*` variables. Set `AI_CHAT_PROVIDER=none` to disable inference. `POST /api/v1/ai/chat` accepts `message` and optional `history`, and returns `message`. It provides general cinema conversation without live catalog/showtime data or booking/payment actions. The prototype endpoint is public at both gateway and service; add authorization and request limits before production.
 
 ## Development workflow
 
@@ -120,12 +120,6 @@ Before any implementation, read `AGENTS.md`, load the relevant skill under `skil
 
 Phase 1 established infrastructure and application skeletons. Phase 2 has added the database layer and public movie catalog reads while preserving these boundaries; remaining business APIs and workflows are future work.
 
-AI chat uses a 45-second Google SDK call timeout with one attempt, and a 60-second gateway route response timeout. Other gateway routes retain 5 seconds. Google overload/network errors return `503 AI_PROVIDER_UNAVAILABLE`; restart both AI service and gateway after these configuration changes.
+AI chat uses a 45-second SDK timeout with no retries and a 60-second gateway AI route timeout. Other routes retain 5 seconds. Provider/network failures return `503 AI_PROVIDER_UNAVAILABLE`; diagnostics include trace ID, exception type and upstream status without provider bodies or chat content.
 
-For AI chat `503 AI_PROVIDER_UNAVAILABLE`, inspect the AI service warning `AI provider unavailable` and its `traceId`, `exceptionType`, and `providerStatus`. The public 503 can represent an upstream API error or a network failure; it does not identify the Google error by itself. Provider error messages, credentials, and chat content are omitted from this diagnostic. Restart AI service to apply the logging change.
-
-`exceptionType=UnknownHostException` means DNS resolution failed before an HTTP response was received; it does not establish an API-key or model error. Check `Resolve-DnsName generativelanguage.googleapis.com` on Windows, then restart the IntelliJ run process after restoring connectivity. A separate failure is possible when DNS succeeds but only IPv6 reaches Google: Java normally tries IPv4 first, and the SDK can exhaust its deadline on those unreachable addresses. The AI module's `spring-boot:run` now uses `-Djava.net.preferIPv6Addresses=system` to preserve the OS resolver order. For IntelliJ's direct `AiServiceApplication` run configuration, add the same flag under **Run → Edit Configurations → Modify options → Add VM options**, then restart. For a packaged JAR, put the flag before `-jar`. This is a JVM startup option; putting it in `.env` or `application.yml` does not configure Java networking. It preserves IPv4 support and does not fix a DNS outage. See [Java networking properties](https://docs.oracle.com/en/java/javase/23/docs/api/java.base/java/net/doc-files/net-properties.html).
-
-For chat `403` responses through the Vite proxy or gateway, compare with a direct request to AI service. Keep `spring.ai.model.chat: ${AI_CHAT_PROVIDER:google-genai}` in AI service configuration: its chat controller, service, and bounded Gemini client are conditional on this property. Removing it disables those beans, and the missing endpoint's error dispatch can return 403 under the service's deny-all policy. Restart AI service after restoring the property. The frontend's default `/api/v1` prefix correctly uses Vite's `/api` proxy; the gateway already permits `POST /api/v1/ai/chat`.
-
-Do not configure custom temperature/top-p/top-k for Gemini 3.8 Flash; Google recommends omitting these sampling parameters for Gemini 3.6+. Spring AI 2.0.1 still supplies sampling defaults internally; removing YAML properties does not remove those SDK request defaults. An upstream `providerStatus=400` indicates a request/client error, even though the public AI endpoint maps it to 503. See [Gemini troubleshooting](https://ai.google.dev/gemini-api/docs/troubleshooting).
+Keep `spring.ai.model.chat: ${AI_CHAT_PROVIDER:openai}`: both the controller and service require `openai`. Set `AI_CHAT_PROVIDER=none` to disable chat. The API base URL is `https://openrouter.ai/api/v1`. `OPENROUTER_MODEL` defaults to `openrouter/free`; this router may select different free models. `OPENROUTER_API_KEY` is preferred; existing `API_KEY` remains a compatibility fallback. A defined but empty `OPENROUTER_API_KEY` overrides that fallback. Restart AI service and gateway after changing configuration.

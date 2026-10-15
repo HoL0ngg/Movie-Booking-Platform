@@ -1,7 +1,7 @@
 # System Architecture
 
 Status: Phase 0 baseline  
-Last updated: 2026-10-14 (Gemini-only AI configuration in ADR-011; simple Java packages in ADR-012; manual schema management in ADR-013)
+Last updated: 2026-10-15 (OpenRouter AI configuration in ADR-011; simple Java packages in ADR-012; manual schema management in ADR-013)
 
 ## Goals
 
@@ -20,7 +20,7 @@ flowchart LR
     Gateway --> Booking[booking-service]
     Gateway --> Payment[payment-service]
     Gateway --> AI[ai-service: optional assistance]
-    AI -. optional model integration .-> Gemini[Gemini Developer API: gemini-3.8-flash]
+    AI -. optional model integration .-> OpenRouter[OpenRouter OpenAI-compatible API: openrouter/free]
 
     Auth --> AuthDB[(auth PostgreSQL)]
     Movie --> MovieDB[(movie PostgreSQL)]
@@ -59,7 +59,7 @@ Java code within each deployable uses concrete responsibility packages such as `
 
 Detailed ownership is in [service-boundaries.md](service-boundaries.md).
 
-`ai-service` owns optional assistance and model integration. It uses Spring AI/Google GenAI with `gemini-3.8-flash` and a temporary stateless `POST /api/v1/ai/chat` endpoint, with no database or events. Enable it with `AI_CHAT_PROVIDER=google-genai` and server-side `GEMINI_API_KEY`; provider defaults to `google-genai` and requires the key; explicitly set `AI_CHAT_PROVIDER=none` to disable inference. Chat is temporarily unauthenticated; authorization and request limits are required before production. It has no live catalog/showtime integration. Model output cannot establish booking/payment state; core flows work with AI disabled or unavailable. See [ADR-011](ADR/ADR-011-optional-ai-service.md).
+`ai-service` owns optional assistance and model integration. It uses Spring AI/OpenAI-compatible OpenRouter with `openrouter/free` and a temporary stateless `POST /api/v1/ai/chat` endpoint, with no database or events. Enable it with `AI_CHAT_PROVIDER=openai` and server-side `OPENROUTER_API_KEY`; provider defaults to `openai` and requires the key; explicitly set `AI_CHAT_PROVIDER=none` to disable inference. Chat is temporarily unauthenticated; authorization and request limits are required before production. It has no live catalog/showtime integration. Model output cannot establish booking/payment state; core flows work with AI disabled or unavailable. See [ADR-011](ADR/ADR-011-optional-ai-service.md).
 
 ## Communication rules
 

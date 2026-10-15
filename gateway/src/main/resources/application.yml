@@ -17,6 +17,8 @@ spring:
           routes:
             - id: ai-service
               uri: ${AI_SERVICE_URL:http://localhost:8087}
+              metadata:
+                response-timeout: 60000
               predicates:
                 - Path=/api/v1/ai/**
             - id: auth-service
