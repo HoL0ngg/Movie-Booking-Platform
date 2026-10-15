@@ -8,8 +8,8 @@ spring:
     name: cinema-service
   datasource:
     url: ${CINEMA_DB_URL:jdbc:postgresql://localhost:54323/cinema_cinema}
-    username: ${CINEMA_DB_USER:cinema_cinema_app}
-    password: ${CINEMA_DB_PASSWORD:}
+    username: ${DB_USER:cinema_cinema_app}
+    password: ${DB_PASSWORD:}
     hikari:
       connection-timeout: 3000
       maximum-pool-size: 10

@@ -5,6 +5,10 @@ const movie = {
   synopsis: null, posterUrl: null, durationMinutes: 101, releaseDate: null, status: 'NOW_SHOWING',
 }
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/v1/cinemas**', route => route.fulfill({ json: [] }))
+})
+
 test('catalog and detail read HTTP data with missing optional metadata', async ({ page }) => {
   const requests: string[] = []
   await page.route('**/api/v1/movies**', async route => {
@@ -14,7 +18,7 @@ test('catalog and detail read HTTP data with missing optional metadata', async (
   })
   await page.goto('/')
   await expect(page.getByRole('status')).toContainText('Chưa có phim sắp chiếu.')
-  await page.getByRole('link', { name: `Xem chi tiết ${movie.title}` }).click()
+  await page.getByRole('link', { name: `Đặt vé ${movie.title}` }).click()
   await expect(page.getByRole('heading', { name: movie.title })).toBeVisible()
   await expect(page.getByAltText(`Poster ${movie.title}`)).toHaveAttribute('src', '/movie-placeholder.svg')
   expect(requests).toContain('/api/v1/movies?status=NOW_SHOWING')
@@ -29,7 +33,7 @@ test('catalog and detail use the poster URL from the API', async ({ page }) => {
     json: new URL(route.request().url()).pathname.endsWith(movie.id) ? withPoster : [withPoster],
   }))
   await page.goto('/')
-  const card = page.getByRole('link', { name: `Xem chi tiết ${movie.title}` }).first()
+  const card = page.getByRole('link', { name: `Đặt vé ${movie.title}` }).first()
   await expect(card.getByRole('img')).toHaveAttribute('src', posterUrl)
   await card.click()
   await expect(page.getByAltText(`Poster ${movie.title}`)).toHaveAttribute('src', posterUrl)
@@ -42,10 +46,10 @@ test('catalog shows a request failure and supports retry without mock fallback',
     : { json: [movie] }))
   await page.goto('/')
   await expect(page.getByRole('alert').first()).toContainText('Không thể tải')
-  await expect(page.getByRole('link', { name: /Xem chi tiết/ })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: new RegExp(`Đặt vé ${movie.title}`) })).toHaveCount(0)
   failing = false
   await page.getByRole('button', { name: 'Thử lại' }).first().click()
-  await expect(page.getByRole('link', { name: `Xem chi tiết ${movie.title}` })).toBeVisible()
+  await expect(page.getByRole('link', { name: `Đặt vé ${movie.title}` }).first()).toBeVisible()
 })
 
 test('missing movie displays a not-found error', async ({ page }) => {

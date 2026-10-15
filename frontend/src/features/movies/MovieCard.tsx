@@ -3,7 +3,7 @@ import type { Movie } from '../../shared/contracts'
 
 export function MovieCard({ movie, rank }: { movie: Movie; rank?: number }) {
   return <article className="movie-card">
-    <Link to={`/movies/${movie.id}`} aria-label={`Xem chi tiết ${movie.title}`}>
+    <Link to={movie.status === 'NOW_SHOWING' ? `/showtimes?movieId=${movie.id}` : `/movies/${movie.id}`} aria-label={`${movie.status === 'NOW_SHOWING' ? 'Đặt vé' : 'Xem chi tiết'} ${movie.title}`}>
       <div className="poster-wrap">
         {rank && <span className="rank">{String(rank).padStart(2, '0')}</span>}
         <img src={movie.posterUrl} alt={`Poster ${movie.title}`} loading="lazy" />
