@@ -3,9 +3,90 @@ info:
   title: Cinema AI Service
   version: 0.1.0
   description: >-
-    Optional cinema assistance and Spring AI model integration skeleton.
-    No business operations are implemented. Business requests are denied until
-    service authorization and an explicit assistance contract are implemented.
+    Optional stateless cinema conversation using the Gemini Developer API
+    and model gemini-3.8-flash. Enable with AI_CHAT_PROVIDER=google-genai
+    and server-side GEMINI_API_KEY. Provider defaults to google-genai;
+    explicitly set AI_CHAT_PROVIDER=none to disable chat.
+    This prototype chat endpoint is unauthenticated. No live catalog,
+    showtime lookup, booking, or payment operations are supported.
 servers:
   - url: http://localhost:8087
-paths: {}
+paths:
+  /api/v1/ai/chat:
+    post:
+      operationId: chat
+      summary: General cinema conversation
+      description: >-
+        Available only when Google GenAI is enabled. Client supplies bounded
+        history; conversation state is not persisted. Production authorization,
+        request limits remain required. Gemini calls are bounded to 45 seconds
+        with one SDK attempt; the gateway AI route waits up to 60 seconds.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Generated conversational response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '400':
+          description: Invalid request
+        '503':
+          description: Gemini is overloaded or unavailable (AI_PROVIDER_UNAVAILABLE)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message, traceId, timestamp]
+                properties:
+                  code:
+                    type: string
+                    const: AI_PROVIDER_UNAVAILABLE
+                  message:
+                    type: string
+                  traceId:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+components:
+  schemas:
+    ChatRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: Must contain non-whitespace text.
+        history:
+          type: [array, 'null']
+          maxItems: 30
+          description: Omitted or null history is treated as empty.
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+    ChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [USER, ASSISTANT]
+        content:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: Must contain non-whitespace text.
+    ChatResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string

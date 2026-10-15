@@ -2,6 +2,8 @@ server:
   port: ${AI_SERVICE_PORT:8087}
 
 spring:
+  config:
+    import: 'optional:file:../../.env[.properties],optional:file:./.env[.properties]'
   application:
     name: ai-service
   ai:
@@ -9,22 +11,13 @@ spring:
       client:
         enabled: ${AI_CHAT_CLIENT_ENABLED:true}
     model:
-      chat: ${AI_CHAT_PROVIDER:none}
+      chat: ${AI_CHAT_PROVIDER:google-genai}
       embedding: none
     google:
       genai:
         api-key: ${GEMINI_API_KEY:}
         chat:
-          options:
-            model: ${AI_GEMINI_MODEL:gemini-2.5-flash}
-            temperature: ${AI_GEMINI_TEMPERATURE:0.7}
-    ollama:
-      base-url: ${AI_OLLAMA_BASE_URL:http://localhost:11434}
-      init:
-        pull-model-strategy: never
-      chat:
-        model: ${AI_OLLAMA_MODEL:llama3.2}
-        num-predict: 512
+          model: gemini-3.8-flash
 
 management:
   endpoints:
