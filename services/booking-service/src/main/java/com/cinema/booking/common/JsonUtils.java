@@ -1,5 +1,6 @@
 package com.cinema.booking.common;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public final class JsonUtils {
@@ -11,7 +12,7 @@ public final class JsonUtils {
     public static String toJson(Object object) {
         try {
             return OBJECT_MAPPER.writeValueAsString(object);
-        } catch (Exception e) {
+        } catch (JsonProcessingException e) {
             throw new IllegalStateException(
                     "Cannot convert object to JSON", e);
         }
@@ -20,7 +21,7 @@ public final class JsonUtils {
     public static <T> T fromJson(String json, Class<T> c) {
         try {
             return OBJECT_MAPPER.readValue(json, c);
-        } catch (Exception e) {
+        } catch (JsonProcessingException e) {
             throw new IllegalStateException(
                     "Cannot convert JSON to " + c.getSimpleName(), e);
         }

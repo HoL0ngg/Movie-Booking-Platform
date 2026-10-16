@@ -22,7 +22,7 @@ import com.cinema.booking.repository.ReservationRepository;
 import com.cinema.booking.repository.ReservationSeatRepository;
 import com.cinema.booking.repository.ShowtimeSeatRepository;
 import com.cinema.booking.repository.ShowtimeSnapshotRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.cinema.booking.exception.ApiException;
 import static com.cinema.booking.entity.Statuses.*;
 
@@ -36,7 +36,7 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final ReservationSeatRepository reservationSeatRepository;
     private final IdempotencyKeyRepository idempotencyRepository;
-    private final ObjectMapper objectMapper;
+    // private final ObjectMapper objectMapper;
     private final Duration holdTtl;
 
     public ReservationService(ShowtimeSnapshotRepository snapshotRepository,
@@ -44,14 +44,14 @@ public class ReservationService {
             ReservationRepository reservationRepository,
             ReservationSeatRepository reservationSeatRepository,
             IdempotencyKeyRepository idempotencyRepository,
-            ObjectMapper objectMapper,
+            // ObjectMapper objectMapper,
             @Value("${booking.hold-ttl:PT5M}") Duration holdTtl) {
         this.snapshotRepository = snapshotRepository;
         this.seatRepository = seatRepository;
         this.reservationRepository = reservationRepository;
         this.reservationSeatRepository = reservationSeatRepository;
         this.idempotencyRepository = idempotencyRepository;
-        this.objectMapper = objectMapper;
+        // this.objectMapper = objectMapper;
         this.holdTtl = holdTtl;
     }
 

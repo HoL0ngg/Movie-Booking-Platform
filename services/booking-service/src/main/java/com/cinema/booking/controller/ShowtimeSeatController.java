@@ -22,7 +22,7 @@ public class ShowtimeSeatController {
         this.showtimeSeatService = showtimeSeatService;
     }
 
-    @GetMapping("/{showtime_id}/seats")
+    @GetMapping("/{showtimeId}/seats")
     public List<GetSeatsResponse> getSeats(@PathVariable UUID showtimeId) {
         return showtimeSeatService.getSeats(showtimeId);
     }
