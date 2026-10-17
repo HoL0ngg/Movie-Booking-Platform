@@ -12,23 +12,23 @@ import org.springframework.stereotype.Service; // 8.9
 import org.springframework.transaction.annotation.Transactional; // 8.10
 
 import com.cinema.auth.config.JwtProperties; // 8.11
+import com.cinema.auth.dto.GoogleLoginRequest;
 import com.cinema.auth.dto.LoginRequest; // 8.12
 import com.cinema.auth.dto.MeResponse; // 8.13
 import com.cinema.auth.dto.OtpChallengeResponse;
 import com.cinema.auth.dto.OtpVerifyRequest;
 import com.cinema.auth.dto.RefreshRequest; // 8.14
-import com.cinema.auth.dto.RegisterRequest; // 8.15
-import com.cinema.auth.dto.TokenResponse; // 8.16
-import com.cinema.auth.entity.RefreshSessionEntity; // 8.17
-import com.cinema.auth.entity.RoleEntity; // 8.18
-import com.cinema.auth.entity.UserEntity; // 8.19
-import com.cinema.auth.entity.UserRoleEntity; // 8.20
-import com.cinema.auth.exception.AuthException; // 8.21 Vi phạm unique/FK ở DB
-import com.cinema.auth.repository.RefreshSessionRepository; // 8.22
-import com.cinema.auth.repository.RoleRepository; // 8.23
-import com.cinema.auth.repository.UserRepository; // 8.24
-import com.cinema.auth.repository.UserRoleRepository; // 8.25
-
+import com.cinema.auth.dto.RegisterRequest;
+import com.cinema.auth.dto.TokenResponse; // 8.15
+import com.cinema.auth.entity.RefreshSessionEntity; // 8.16
+import com.cinema.auth.entity.RoleEntity; // 8.17
+import com.cinema.auth.entity.UserEntity; // 8.18
+import com.cinema.auth.entity.UserRoleEntity; // 8.19
+import com.cinema.auth.exception.AuthException; // 8.20
+import com.cinema.auth.repository.RefreshSessionRepository; // 8.21 Vi phạm unique/FK ở DB
+import com.cinema.auth.repository.RoleRepository; // 8.22
+import com.cinema.auth.repository.UserRepository; // 8.23
+import com.cinema.auth.repository.UserRoleRepository; // 8.24
 @Service // 8.26 Bean chứa logic nghiệp vụ
 public class AuthService { // 8.27
 
@@ -43,12 +43,13 @@ public class AuthService { // 8.27
     private final JwtService jwtService; // 8.35
     private final TokenHasher tokenHasher; // 8.36
     private final JwtProperties jwtProperties; // 8.37
-    private final OtpService otpService;
+    private final OtpService otpService;                    // THÊM LẠI
+    private final GoogleTokenVerifier googleTokenVerifier; 
 
     public AuthService(UserRepository userRepository, RoleRepository roleRepository, // 8.38 Constructor injection
                        UserRoleRepository userRoleRepository, RefreshSessionRepository refreshSessionRepository, // 8.39
                        PasswordEncoder passwordEncoder, JwtService jwtService, // 8.40
-                       TokenHasher tokenHasher, JwtProperties jwtProperties, OtpService otpService) { // 8.41
+                       TokenHasher tokenHasher, JwtProperties jwtProperties, GoogleTokenVerifier googleTokenVerifier, OtpService otpService) { // 8.41
         this.userRepository = userRepository; // 8.42
         this.roleRepository = roleRepository; // 8.43
         this.userRoleRepository = userRoleRepository; // 8.44
@@ -57,10 +58,11 @@ public class AuthService { // 8.27
         this.jwtService = jwtService; // 8.47
         this.tokenHasher = tokenHasher; // 8.48
         this.jwtProperties = jwtProperties; // 8.49
-        this.otpService = otpService;
+        this.googleTokenVerifier = googleTokenVerifier;
+        this.otpService = otpService;       
     }
-
-    // ===== REGISTER + OTP =====
+    
+    // ===== REGISTER + OTP (đăng ký bằng email) =====
 
     public OtpChallengeResponse registerRequestOtp(RegisterRequest request) { // B1
         String normalized = request.email().trim().toLowerCase(Locale.ROOT);
@@ -81,12 +83,13 @@ public class AuthService { // 8.27
         return createCustomer(normalized, passwordHash);
     }
 
-    private TokenResponse createCustomer(String normalized, String passwordHash) { // đây chính là thân register() cũ
+    private TokenResponse createCustomer(String normalized, String passwordHash) {
         if (userRepository.existsByEmailNormalized(normalized)) throw emailTaken();
         RoleEntity role = roleRepository.findByCode(DEFAULT_ROLE)
                 .orElseThrow(() -> new IllegalStateException("Role CUSTOMER chưa được seed"));
         Instant now = Instant.now();
-        UserEntity user = new UserEntity(UUID.randomUUID(), normalized, normalized, passwordHash, ACTIVE, now);
+        UserEntity user = new UserEntity(UUID.randomUUID(), normalized, normalized, passwordHash,
+                null, ACTIVE, now); // null = chưa gắn Google (khác bản cũ: constructor mới có thêm googleSub)
         try {
             userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException ex) {
@@ -94,6 +97,41 @@ public class AuthService { // 8.27
         }
         userRoleRepository.save(new UserRoleEntity(user.getId(), role.getId(), now));
         return issueTokens(user, List.of(DEFAULT_ROLE), now);
+    }
+
+        // ===== GOOGLE SIGN-IN (đăng ký + đăng nhập gộp một) =====
+    @Transactional
+    public TokenResponse loginWithGoogle(GoogleLoginRequest request) {
+        GoogleTokenVerifier.GoogleProfile g = googleTokenVerifier.verify(request.idToken()); // [A1] verify chữ ký, hạn, iss, aud
+        if (!g.emailVerified()) { // [A2] chỉ tin email Google đã xác minh
+            throw new AuthException(HttpStatus.UNAUTHORIZED, "GOOGLE_EMAIL_NOT_VERIFIED", "Google email is not verified.");
+        }
+        String normalized = g.email().trim().toLowerCase(Locale.ROOT);
+        Instant now = Instant.now();
+
+        UserEntity user = userRepository.findByGoogleSub(g.sub())                  // [A3] ưu tiên tìm theo sub
+                .or(() -> userRepository.findByEmailNormalized(normalized))        // [A4] chưa có sub thì tìm theo email (tài khoản cũ)
+                .orElse(null);
+
+        if (user == null) { // [A5] chưa có tài khoản → ĐĂNG KÝ
+            RoleEntity role = roleRepository.findByCode(DEFAULT_ROLE)
+                    .orElseThrow(() -> new IllegalStateException("Role CUSTOMER chưa được seed"));
+            String unusableHash = passwordEncoder.encode(UUID.randomUUID().toString()); // mật khẩu ngẫu nhiên, không ai biết
+            user = new UserEntity(UUID.randomUUID(), normalized, normalized, unusableHash, g.sub(), ACTIVE, now);
+            try {
+                userRepository.saveAndFlush(user);
+            } catch (DataIntegrityViolationException ex) { // 2 request song song cùng email/sub
+                throw emailTaken();
+            }
+            userRoleRepository.save(new UserRoleEntity(user.getId(), role.getId(), now));
+            return issueTokens(user, List.of(DEFAULT_ROLE), now);
+        }
+
+        if (!ACTIVE.equals(user.getStatus())) { // [A6] tài khoản bị khóa
+            throw new AuthException(HttpStatus.FORBIDDEN, "ACCOUNT_DISABLED", "Account is disabled.");
+        }
+        if (user.getGoogleSub() == null) user.linkGoogle(g.sub(), now); // [A7] tài khoản cũ cùng email → gắn Google vào
+        return issueTokens(user, roleRepository.findCodesByUserId(user.getId()), now); // [A8] cấp access + refresh token (hàm có sẵn)
     }
 
         private UserEntity authenticate(LoginRequest request) { // email + mật khẩu (code cũ của login)

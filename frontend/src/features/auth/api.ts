@@ -59,14 +59,14 @@ const save = (d: TokenRes) => tokenStorage.set({ accessToken: d.accessToken, ref
 export type OtpChallenge = { expiresIn: number; resendAfter: number }
 
 export const authService = {
+  login: async (email: string, password: string) =>
+    save(await authedRequest<TokenRes>('/auth/login', { method: 'POST', body: JSON.stringify({ email: email.trim(), password }) })),
   requestOtp: (email: string, password: string) =>
     authedRequest<OtpChallenge>('/auth/register/otp', { method: 'POST', body: JSON.stringify({ email: email.trim(), password }) }),
   verifyOtp: async (email: string, otp: string) =>
     save(await authedRequest<TokenRes>('/auth/register/otp/verify', { method: 'POST', body: JSON.stringify({ email: email.trim(), otp }) })),
-  login: async (email: string, password: string) =>
-    save(await authedRequest<TokenRes>('/auth/login', { method: 'POST', body: JSON.stringify({ email: email.trim(), password }) })),
-  register: async (email: string, password: string) =>
-    save(await authedRequest<TokenRes>('/auth/register', { method: 'POST', body: JSON.stringify({ email: email.trim(), password }) })),
+  loginWithGoogle: async (idToken: string) =>
+    save(await authedRequest<TokenRes>('/auth/google', { method: 'POST', body: JSON.stringify({ idToken }) })), // lưu token như login thường
   me: async (): Promise<User | null> => {
     if (!tokenStorage.get()) return null
     const m = await authedRequest<MeRes>('/me')

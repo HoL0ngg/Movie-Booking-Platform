@@ -16,6 +16,10 @@ const byCode: Record<string, string> = {
   OTP_REQUIRED: 'Vui lòng đăng nhập bằng xác thực email.',
   OTP_STORE_UNAVAILABLE: 'Hệ thống xác thực đang gián đoạn. Vui lòng thử lại sau.',
   INTERNAL_ERROR: 'Máy chủ gặp lỗi. Vui lòng thử lại.',
+  GOOGLE_TOKEN_INVALID: 'Đăng nhập Google không hợp lệ. Vui lòng thử lại.',
+  GOOGLE_EMAIL_NOT_VERIFIED: 'Email Google chưa được xác minh.',
+  ACCOUNT_DISABLED: 'Tài khoản đã bị khóa.',
+  
 }
 
 const byStatus: Record<number, string> = {

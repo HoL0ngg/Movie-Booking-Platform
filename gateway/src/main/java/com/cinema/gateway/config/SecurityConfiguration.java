@@ -30,7 +30,8 @@ public class SecurityConfiguration {
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(HttpMethod.GET, "/api/v1/movies", "/api/v1/movies/*").permitAll()
                         .pathMatchers(HttpMethod.POST,
-                            "/api/v1/auth/register/otp", "/api/v1/auth/register/otp/verify",
+                            "/api/v1/auth/register/otp", "/api/v1/auth/register/otp/verify", // THÊM LẠI
+                            "/api/v1/auth/google",
                             "/api/v1/auth/login",
                             "/api/v1/auth/refresh",
                             "/api/v1/auth/logout").permitAll()

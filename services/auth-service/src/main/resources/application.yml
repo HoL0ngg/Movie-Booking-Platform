@@ -75,6 +75,8 @@ auth:
     refresh-ttl: 7d
   internal:
     token: ${INTERNAL_API_TOKEN:}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
   otp:
     ttl: 5m
     resend-cooldown: 60s
