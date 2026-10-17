@@ -10,4 +10,5 @@ import com.cinema.auth.entity.UserEntity; // 11.5
 public interface UserRepository extends JpaRepository<UserEntity, UUID> { // 11.6 CRUD sẵn có
     Optional<UserEntity> findByEmailNormalized(String emailNormalized); // 11.7 Spring tự sinh SQL từ tên method
     boolean existsByEmailNormalized(String emailNormalized); // 11.8
+    Optional<UserEntity> findByGoogleSub(String googleSub); // tra user theo id Google
 }

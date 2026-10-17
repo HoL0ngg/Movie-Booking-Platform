@@ -40,9 +40,10 @@ public class SecurityConfiguration { // 3.23
                         .requestMatchers("/error", "/actuator/health/**", "/actuator/info",
                                 "/openapi/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.POST,
-                                "/api/v1/auth/register/otp", "/api/v1/auth/register/otp/verify",
-                                "/api/v1/auth/login",
-                                "/api/v1/auth/refresh").permitAll()
+                            "/api/v1/auth/register/otp", "/api/v1/auth/register/otp/verify", // THÊM LẠI
+                            "/api/v1/auth/google",
+                            "/api/v1/auth/login",
+                            "/api/v1/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/v1/users/*/email").permitAll() // 3.36 Mở ở Security; token nội bộ kiểm trong controller (gateway không route /internal)
                         .requestMatchers("/api/v1/auth/logout", "/api/v1/me").authenticated() // 3.37 Bắt buộc Bearer hợp lệ
                         .anyRequest().denyAll()) // 3.38 Còn lại từ chối

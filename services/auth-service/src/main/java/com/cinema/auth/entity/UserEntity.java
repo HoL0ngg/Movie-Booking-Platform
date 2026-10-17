@@ -24,6 +24,9 @@ public class UserEntity { // 12.7
     @Column(name = "password_hash", nullable = false, columnDefinition = "text") // 12.15
     String passwordHash; // 12.16
 
+    @Column(name = "google_sub", columnDefinition = "text") // nullable: user đăng ký bằng mật khẩu cũ không có
+    String googleSub;
+
     @Column(name = "status", nullable = false, length = 16) // 12.17
     String status; // 12.18
 
@@ -35,14 +38,21 @@ public class UserEntity { // 12.7
 
     public UserEntity() {} // 12.23 JPA bắt buộc có constructor rỗng
 
-    public UserEntity(UUID id, String email, String emailNormalized, String passwordHash, String status, Instant now) { // 12.24 Constructor khi tạo mới
+    public UserEntity(UUID id, String email, String emailNormalized, String passwordHash,
+                      String googleSub, String status, Instant now) { // 12.24 Constructor khi tạo mới (googleSub = null nếu không dùng Google)
         this.id = id; // 12.25
         this.email = email; // 12.26
         this.emailNormalized = emailNormalized; // 12.27
         this.passwordHash = passwordHash; // 12.28
+        this.googleSub = googleSub; // id Google, null nếu tạo bằng cách khác
         this.status = status; // 12.29
         this.createdAt = now; // 12.30
         this.updatedAt = now; // 12.31
+    }
+
+    public void linkGoogle(String googleSub, Instant now) { // gắn Google vào tài khoản email đã có
+        this.googleSub = googleSub;
+        this.updatedAt = now; // JPA tự UPDATE khi commit (entity đang managed trong @Transactional)
     }
 
     public UUID getId() { return id; } // 12.32 Getter cho service (field package-private)
@@ -50,4 +60,5 @@ public class UserEntity { // 12.7
     public String getPasswordHash() { return passwordHash; } // 12.34
     public String getStatus() { return status; } // 12.35
     public String getEmailNormalized() { return emailNormalized; }
+    public String getGoogleSub() { return googleSub; } // THÊM: AuthService [A7] dùng để kiểm user đã gắn Google chưa
 }

@@ -11,15 +11,16 @@ import org.springframework.web.bind.annotation.RequestMapping; // 4.8
 import org.springframework.web.bind.annotation.ResponseStatus; // 4.9
 import org.springframework.web.bind.annotation.RestController; // 4.10 Lấy principal hiện tại
 
+import com.cinema.auth.dto.GoogleLoginRequest;
 import com.cinema.auth.dto.LoginRequest; // 4.11 Token đã verify
 import com.cinema.auth.dto.OtpChallengeResponse;
 import com.cinema.auth.dto.OtpVerifyRequest;
 import com.cinema.auth.dto.RefreshRequest; // 4.12
-import com.cinema.auth.dto.RegisterRequest; // 4.13
-import com.cinema.auth.dto.TokenResponse; // 4.14
-import com.cinema.auth.service.AuthService; // 4.15
+import com.cinema.auth.dto.RegisterRequest;
+import com.cinema.auth.dto.TokenResponse; // 4.13
+import com.cinema.auth.service.AuthService; // 4.14
 
-import jakarta.validation.Valid; // 4.16
+import jakarta.validation.Valid; // 4.15
 
 @RestController // 4.17 Controller trả JSON
 @RequestMapping("/api/v1/auth") // 4.18 Prefix chung
@@ -31,19 +32,23 @@ public class AuthController { // 4.19
         this.authService = authService; // 4.22
     }
 
-    @PostMapping("/register/otp")
-//    @ResponseStatus(HttpStatus.ACCEPTED) // 202: đã nhận, chờ xác minh
+    @PostMapping("/register/otp") // B1: nhận email + mật khẩu, gửi OTP
     public OtpChallengeResponse registerOtp(@Valid @RequestBody RegisterRequest request) {
         return authService.registerRequestOtp(request);
     }
 
-    @PostMapping("/register/otp/verify")
+    @PostMapping("/register/otp/verify") // B2: nhập OTP, tạo tài khoản
     @ResponseStatus(HttpStatus.CREATED)
     public TokenResponse registerVerify(@Valid @RequestBody OtpVerifyRequest request) {
         return authService.registerVerifyOtp(request);
     }
+        
+        @PostMapping("/google") // POST /api/v1/auth/google
+    public TokenResponse google(@Valid @RequestBody GoogleLoginRequest request) { // @Valid → kiểm @NotBlank idToken
+        return authService.loginWithGoogle(request); // controller mỏng, logic ở service
+    }
 
-    @PostMapping("/login") // 4.27
+        @PostMapping("/login") // 4.27
     public TokenResponse login(@Valid @RequestBody LoginRequest request) { // 4.28
         return authService.login(request); // 4.29
     }
