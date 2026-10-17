@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -29,7 +30,8 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    ResponseEntity<ApiError> handleConstraintViolation(ConstraintViolationException exception, HttpServletRequest request) {
+    ResponseEntity<ApiError> handleConstraintViolation(ConstraintViolationException exception,
+            HttpServletRequest request) {
         List<Map<String, String>> violations = exception.getConstraintViolations().stream()
                 .map(error -> Map.of("field", error.getPropertyPath().toString(), "message", error.getMessage()))
                 .toList();
@@ -51,5 +53,13 @@ public class ApiExceptionHandler {
         return message == null ? "Invalid value" : message;
     }
 
-}
+    @ExceptionHandler(ApiException.class)
+    public ProblemDetail handle(ApiException ex) {
+        return ProblemDetail.forStatusAndDetail(ex.getStatus(), ex.getMessage());
+    }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ProblemDetail handleBadRequest(IllegalArgumentException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+}

@@ -1,6 +1,9 @@
 package com.cinema.booking.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.UUID;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -9,6 +12,8 @@ import org.hibernate.type.SqlTypes;
 import java.io.Serializable;
 import java.util.Objects;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "idempotency_keys")
 @IdClass(IdempotencyKeyEntity.Key.class)
@@ -41,18 +46,43 @@ public class IdempotencyKeyEntity {
     @Column(name = "expires_at", nullable = false, columnDefinition = "timestamptz")
     Instant expiresAt;
 
-    public IdempotencyKeyEntity() {}
+    public IdempotencyKeyEntity() {
+    }
 
     public static class Key implements Serializable {
         public UUID actorId;
         public String operation;
         public String idempotencyKey;
-        public Key() {}
-        @Override public boolean equals(Object other) {
-            if (this == other) return true;
-            if (!(other instanceof Key key)) return false;
-            return Objects.equals(actorId, key.actorId) && Objects.equals(operation, key.operation) && Objects.equals(idempotencyKey, key.idempotencyKey);
+
+        public Key() {
         }
-        @Override public int hashCode() { return Objects.hash(actorId, operation, idempotencyKey); }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other)
+                return true;
+            if (!(other instanceof Key key))
+                return false;
+            return Objects.equals(actorId, key.actorId) && Objects.equals(operation, key.operation)
+                    && Objects.equals(idempotencyKey, key.idempotencyKey);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(actorId, operation, idempotencyKey);
+        }
+
+        public void setActorId(UUID actorId) {
+            this.actorId = actorId;
+        }
+
+        public void setOperation(String operation) {
+            this.operation = operation;
+        }
+
+        public void setIdempotencyKey(String idempotencyKey) {
+            this.idempotencyKey = idempotencyKey;
+        }
     }
+
 }
