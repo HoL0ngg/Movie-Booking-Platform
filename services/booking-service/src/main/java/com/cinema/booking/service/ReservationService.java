@@ -24,6 +24,9 @@ import com.cinema.booking.repository.ShowtimeSeatRepository;
 import com.cinema.booking.repository.ShowtimeSnapshotRepository;
 
 import com.cinema.booking.exception.ApiException;
+import com.cinema.booking.messaging.EventTypes;
+import com.cinema.booking.messaging.ReservationReleasedPayload;
+
 import static com.cinema.booking.entity.Statuses.*;
 
 @Service
@@ -37,6 +40,7 @@ public class ReservationService {
     private final ReservationSeatRepository reservationSeatRepository;
     private final IdempotencyKeyRepository idempotencyRepository;
     // private final ObjectMapper objectMapper;
+    private final OutboxService outboxService;
     private final Duration holdTtl;
 
     public ReservationService(ShowtimeSnapshotRepository snapshotRepository,
@@ -44,7 +48,7 @@ public class ReservationService {
             ReservationRepository reservationRepository,
             ReservationSeatRepository reservationSeatRepository,
             IdempotencyKeyRepository idempotencyRepository,
-            // ObjectMapper objectMapper,
+            OutboxService outboxService,
             @Value("${booking.hold-ttl:PT5M}") Duration holdTtl) {
         this.snapshotRepository = snapshotRepository;
         this.seatRepository = seatRepository;
@@ -52,6 +56,7 @@ public class ReservationService {
         this.reservationSeatRepository = reservationSeatRepository;
         this.idempotencyRepository = idempotencyRepository;
         // this.objectMapper = objectMapper;
+        this.outboxService = outboxService;
         this.holdTtl = holdTtl;
     }
 
@@ -163,14 +168,14 @@ public class ReservationService {
         var r = reservationRepository.lockById(reservationId)
                 .filter(x -> x.getUserId().equals(userId))
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Không tìm thấy reservation"));
-        if (RES_CANCELLED.equals(r.getStatus())) {
+        if (RES_RELEASED.equals(r.getStatus())) {
             return; // idempotent
         }
         if (!RES_HELD.equals(r.getStatus())) {
             throw new ApiException(HttpStatus.CONFLICT,
                     "Reservation ở trạng thái " + r.getStatus() + ", không thể huỷ");
         }
-        releaseSeats(r, RES_CANCELLED);
+        releaseSeats(r, RES_RELEASED, "USER_CANCELLED");
     }
 
     @Transactional
@@ -178,12 +183,22 @@ public class ReservationService {
         reservationRepository.lockById(reservationId).ifPresent(r -> {
             // Re-check sau khi có lock: có thể đã confirm/cancel trong lúc chờ
             if (RES_HELD.equals(r.getStatus()) && r.getHoldExpiresAt().isBefore(Instant.now())) {
-                releaseSeats(r, RES_EXPIRED);
+                releaseSeats(r, RES_EXPIRED, "HOLD_EXPIRED");
             }
         });
     }
 
-    private void releaseSeats(ReservationEntity r, String newStatus) {
+    @Transactional
+    public void releaseBySystem(UUID reservationId, String reason) {
+        reservationRepository.lockById(reservationId).ifPresent(r -> {
+
+            if (RES_HELD.equals(r.getStatus())) {
+                releaseSeats(r, RES_RELEASED, reason);
+            }
+        });
+    }
+
+    private void releaseSeats(ReservationEntity r, String newStatus, String reason) {
         Instant now = Instant.now();
         var items = reservationSeatRepository.findAllByReservationIdOrderBySeatId(r.getId());
         for (var i : items) {
@@ -201,6 +216,15 @@ public class ReservationService {
 
         r.setStatus(newStatus);
         r.setUpdatedAt(now);
+
+        // Cùng transaction với thay đổi dữ liệu => event chỉ tồn tại nếu việc nhả ghế
+        // commit thành công
+        String eventType = RES_EXPIRED.equals(newStatus)
+                ? EventTypes.RESERVATION_EXPIRED
+                : EventTypes.RESERVATION_RELEASED;
+        outboxService.record(eventType, 1, r.getId(), new ReservationReleasedPayload(
+                r.getId(), r.getShowtimeId(), r.getUserId(), reason,
+                items.stream().map(ReservationSeatEntity::getSeatId).toList()));
     }
 
     private void validation(String idempotencyKey, CreateReservationRequest req) {

@@ -12,7 +12,7 @@ public final class Statuses {
     // reservations.status
     public static final String RES_HELD = "HELD";
     public static final String RES_CONFIRMED = "CONFIRMED";
-    public static final String RES_CANCELLED = "CANCELLED";
+    public static final String RES_RELEASED = "RELEASED";
     public static final String RES_EXPIRED = "EXPIRED";
 
     // bookings.status

@@ -32,13 +32,13 @@ public class ReservationController {
 
     @PostMapping
     public ResponseEntity<ReservationResponse> create(
-            // @RequestHeader("X-User-Id") UUID userId,
-            // @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestHeader("X-User-Id") UUID userId,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @RequestBody CreateReservationRequest request) {
 
         // var body = reservationService.create(userId, idempotencyKey, request);
-        UUID userId = UUID.fromString("77f8e9d0-c1b2-4a3b-9c8d-7e6f5a4b3c2d");
-        String idempotencyKey = "req-55aa66bb-77cc-88dd-99ee";
+        // UUID userId = UUID.fromString("77f8e9d0-c1b2-4a3b-9c8d-7e6f5a4b3c2d");
+        // String idempotencyKey = "req-55aa66bb-77cc-88dd-99ee";
         var body = reservationService.create(userId, idempotencyKey, request);
         return ResponseEntity.created(URI.create("/api/v1/reservations/" + body.reservationId())).body(body);
     }
