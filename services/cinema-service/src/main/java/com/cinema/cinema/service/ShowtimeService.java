@@ -42,8 +42,8 @@ public class ShowtimeService { // 9.27
     private final CinemaAuthorizationService authorization; // 9.36
 
     public ShowtimeService(ShowtimeRepository showtimeRepository, AuditoriumRepository auditoriumRepository, // 9.37
-                           CinemaRepository cinemaRepository, SeatRepository seatRepository, // 9.38
-                           OutboxService outboxService, CinemaAuthorizationService authorization) { // 9.39
+            CinemaRepository cinemaRepository, SeatRepository seatRepository, // 9.38
+            OutboxService outboxService, CinemaAuthorizationService authorization) { // 9.39
         this.showtimeRepository = showtimeRepository; // 9.40
         this.auditoriumRepository = auditoriumRepository; // 9.41
         this.cinemaRepository = cinemaRepository; // 9.42
@@ -55,7 +55,8 @@ public class ShowtimeService { // 9.27
     @Transactional(readOnly = true) // 9.46
     public List<ShowtimeResponse> listByCinema(UUID cinemaId, LocalDate date, UUID movieId) { // 9.47
         CinemaEntity cinema = cinemaRepository.findById(cinemaId) // 9.48
-                .orElseThrow(() -> new CinemaException(HttpStatus.NOT_FOUND, "CINEMA_NOT_FOUND", "Cinema was not found.")); // 9.49
+                .orElseThrow(
+                        () -> new CinemaException(HttpStatus.NOT_FOUND, "CINEMA_NOT_FOUND", "Cinema was not found.")); // 9.49
         ZoneId zone = ZoneId.of(cinema.getTimezone()); // 9.50 "Ngày" tính theo múi giờ của rạp
         Instant rangeStart = date.atStartOfDay(zone).toInstant(); // 9.51 0h ngày đó → UTC
         Instant rangeEnd = date.plusDays(1).atStartOfDay(zone).toInstant(); // 9.52 0h ngày kế tiếp
@@ -81,9 +82,13 @@ public class ShowtimeService { // 9.27
     @Transactional // 9.67
     public ShowtimeResponse create(Jwt jwt, CreateShowtimeRequest request) { // 9.68
         AuditoriumEntity auditorium = auditoriumRepository.findById(request.auditoriumId()) // 9.69
-                .orElseThrow(() -> new CinemaException(HttpStatus.NOT_FOUND, "AUDITORIUM_NOT_FOUND", "Auditorium was not found.")); // 9.70
+                .orElseThrow(() -> new CinemaException(HttpStatus.NOT_FOUND, "AUDITORIUM_NOT_FOUND",
+                        "Auditorium was not found.")); // 9.70
         authorization.assertCanManage(jwt, auditorium.getCinemaId()); // 9.71 Kiểm tra quyền theo rạp
-        if (!request.startsAt().isBefore(request.endsAt()) || request.salesCloseAt().isAfter(request.startsAt())) { // 9.72 Khớp CHECK ck_showtimes_time
+        if (!request.startsAt().isBefore(request.endsAt()) || request.salesCloseAt().isAfter(request.startsAt())) { // 9.72
+                                                                                                                    // Khớp
+                                                                                                                    // CHECK
+                                                                                                                    // ck_showtimes_time
             throw new CinemaException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Invalid showtime times."); // 9.73
         }
         ShowtimeEntity showtime = new ShowtimeEntity(UUID.randomUUID(), auditorium.getId(), request.movieId(), // 9.74
@@ -105,7 +110,8 @@ public class ShowtimeService { // 9.27
         if (CANCELLED.equals(showtime.getStatus())) { // 9.87 Không publish lại suất đã hủy
             throw invalidState("Cancelled showtime cannot be published."); // 9.88
         }
-        List<SeatEntity> seats = seatRepository.findActiveByAuditoriumId(auditorium.getId()); // 9.89 Ghế đang hoạt động, đã sắp thứ tự
+        List<SeatEntity> seats = seatRepository.findActiveByAuditoriumId(auditorium.getId()); // 9.89 Ghế đang hoạt
+                                                                                              // động, đã sắp thứ tự
         if (seats.isEmpty()) { // 9.90 Event yêu cầu seats[] tối thiểu 1 phần tử
             throw invalidState("Auditorium has no active seats."); // 9.91
         }
@@ -130,20 +136,26 @@ public class ShowtimeService { // 9.27
         if (CANCELLED.equals(showtime.getStatus())) { // 9.107 Đã hủy: idempotent
             return toResponse(showtime, auditorium.getCinemaId()); // 9.108
         }
-        boolean wasPublished = PUBLISHED.equals(showtime.getStatus()); // 9.109 Chỉ suất đã publish mới có booking biết tới
+        boolean wasPublished = PUBLISHED.equals(showtime.getStatus()); // 9.109 Chỉ suất đã publish mới có booking biết
+                                                                       // tới
         Instant now = Instant.now(); // 9.110
         showtime.markCancelled(now); // 9.111 status → CANCELLED, snapshot_version + 1
         showtimeRepository.save(showtime); // 9.112
         if (wasPublished) { // 9.113
             outboxService.record("ShowtimeCancelled", showtime.getId(), // 9.114
-                    EventJson.cancelledPayload(showtime.getId(), showtime.getSnapshotVersion(), request.reasonCode(), now), now); // 9.115
+                    EventJson.cancelledPayload(showtime.getId(), showtime.getSnapshotVersion(), request.reasonCode(),
+                            now),
+                    now); // 9.115
         }
         return toResponse(showtime, auditorium.getCinemaId()); // 9.116
     }
 
     private AuditoriumEntity loadAuditorium(UUID auditoriumId) { // 9.117
         return auditoriumRepository.findById(auditoriumId) // 9.118
-                .orElseThrow(() -> new IllegalStateException("Auditorium missing for showtime")); // 9.119 FK đảm bảo luôn có → nếu không là lỗi hệ thống (500)
+                .orElseThrow(() -> new IllegalStateException("Auditorium missing for showtime")); // 9.119 FK đảm bảo
+                                                                                                  // luôn có → nếu không
+                                                                                                  // là lỗi hệ thống
+                                                                                                  // (500)
     }
 
     private CinemaException showtimeNotFound() { // 9.120

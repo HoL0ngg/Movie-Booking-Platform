@@ -29,6 +29,11 @@ export const useAuth = () => {
       onSuccess: async () => { await loadUser(); showToast('Tạo tài khoản thành công', 'success') },
       onError: (e: Error) => showToast(authErrorMessage(e), 'error'),
     }),
+    googleLogin: useMutation({
+      mutationFn: (idToken: string) => authService.loginWithGoogle(idToken),
+      onSuccess: async () => { await loadUser(); showToast('Đăng nhập thành công', 'success') },
+      onError: (e: Error) => showToast(authErrorMessage(e), 'error'),
+    }),
     logout: useMutation({
       mutationFn: authService.logout,
       onSettled: () => {

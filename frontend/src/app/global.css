@@ -377,3 +377,10 @@ input::placeholder { color: var(--muted); opacity: 1; }
   .cinemate-chat { right: 16px; bottom: 16px; }
   .cinemate-panel { height: min(570px, calc(100vh - 96px)); }
 }
+/* ---- Google sign-in ---- */
+.auth-divider { display: flex; align-items: center; gap: 14px; margin: 22px 0; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); } /* hai đường kẻ hai bên chữ "hoặc" */
+.google-wrap { max-width: 420px; }                         /* cùng bề rộng với form */
+.google-wrap.busy { opacity: .5; pointer-events: none; }   /* đang đăng nhập: chặn bấm lặp */
+.google-btn { display: flex; justify-content: center; min-height: 44px; color-scheme: light; } /* giữ chỗ để bố cục không nhảy khi nút tải xong */
+.auth-panel .switch-auth { margin-top: 22px; }

@@ -6,11 +6,12 @@ import { ThemeToggle } from '../../app/ThemeToggle'
 import { HttpApiError } from '../../shared/apiClient'
 import { OtpInput } from './OtpInput'
 import { PasswordInput } from './PasswordInput'
+import { GoogleSignInButton } from './GoogleSignInButton'
 
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const registerMode = mode === 'register'
   const navigate = useNavigate()
-  const { login, requestOtp, verifyOtp } = useAuth()
+  const { login, requestOtp, verifyOtp, googleLogin } = useAuth() // thêm googleLogin
   const [step, setStep] = useState<'form' | 'otp'>('form')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -24,13 +25,16 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
     return () => window.clearTimeout(t)
   }, [cooldown])
 
+  const onGoogle = (idToken: string) => // đăng ký/đăng nhập bằng Google: bỏ qua OTP
+    googleLogin.mutate(idToken, { onSuccess: () => navigate('/bookings') })
+
   const sendOtp = () =>
-  requestOtp.mutate({ email, password }, {
-    onSuccess: c => { setStep('otp'); setOtp(''); setCooldown(c.resendAfter) },
-    onError: e => {
-      if (e instanceof HttpApiError && e.code === 'OTP_RESEND_TOO_SOON') { setStep('otp'); setCooldown(60) }
-    },
-  })
+    requestOtp.mutate({ email, password }, {
+      onSuccess: c => { setStep('otp'); setOtp(''); setCooldown(c.resendAfter) },
+      onError: e => {
+        if (e instanceof HttpApiError && e.code === 'OTP_RESEND_TOO_SOON') { setStep('otp'); setCooldown(60) }
+      },
+    })
 
   const submitForm = (e: FormEvent) => { // B1: nhập email + mật khẩu
     e.preventDefault()
@@ -67,6 +71,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
             <p className="eyebrow">{registerMode ? 'Thành viên mới' : 'Chào mừng trở lại'}</p>
             <h1>{registerMode ? 'Tạo tài khoản' : 'Đăng nhập'}</h1>
             <p>{registerMode ? 'Lưu vé và theo dõi lịch sử đặt chỗ.' : 'Tiếp tục hành trình điện ảnh của bạn.'}</p>
+
             <label>Email
               <input type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} />
             </label>
@@ -79,9 +84,17 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
                 <PasswordInput autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} />
               </label>
             )}
-            <button className="primary-button wide" disabled={requestOtp.isPending || login.isPending}>
+
+            <button className="primary-button wide" disabled={requestOtp.isPending || login.isPending || googleLogin.isPending}>
               {registerMode ? (requestOtp.isPending ? 'Đang gửi mã…' : 'Tiếp tục') : (login.isPending ? 'Đang đăng nhập…' : 'Đăng nhập')}
             </button>
+
+            <div className="auth-divider" role="separator"><span>hoặc</span></div> {/* ngăn cách hai cách đăng nhập */}
+
+            <div className={googleLogin.isPending ? 'google-wrap busy' : 'google-wrap'}> {/* làm mờ + chặn bấm khi đang xử lý */}
+              <GoogleSignInButton onCredential={onGoogle} />
+            </div>
+
             <p className="switch-auth">
               {registerMode ? 'Đã có tài khoản?' : 'Chưa có tài khoản?'}{' '}
               <Link to={registerMode ? '/login' : '/register'}>{registerMode ? 'Đăng nhập' : 'Đăng ký'}</Link>

@@ -7,6 +7,8 @@ CREATE TABLE users (
   email text NOT NULL,
   email_normalized text NOT NULL UNIQUE,
   password_hash text NOT NULL,
+  google_sub text UNIQUE,
+  -- THÊM: "sub" claim của Google, dùng để nhận diện user Google
   status varchar(16) NOT NULL,
   created_at timestamptz NOT NULL,
   updated_at timestamptz NOT NULL,
