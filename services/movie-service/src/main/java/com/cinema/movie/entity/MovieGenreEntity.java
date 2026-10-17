@@ -24,6 +24,12 @@ public class MovieGenreEntity {
 
     public MovieGenreEntity() {}
 
+    public MovieGenreEntity(UUID movieId, UUID genreId) {
+        this.movieId = movieId;
+        this.genreId = genreId;
+        this.createdAt = Instant.now();
+    }
+
     public static class Key implements Serializable {
         public UUID movieId;
         public UUID genreId;

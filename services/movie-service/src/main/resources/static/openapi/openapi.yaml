@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Cinema Movie Service API
   version: 0.1.0
-    description: Public read-only published movie catalog with title search and genre filter. Pagination is not yet implemented.
+  description: Public published catalog and ADMIN-only movie CRUD. Delete archives catalog metadata without cancelling showtimes. Pagination is not yet implemented.
 servers:
   - url: /api/v1
 paths:
@@ -33,7 +33,102 @@ paths:
               schema: {$ref: "#/components/schemas/Movie"}
         "400": {$ref: "#/components/responses/Error"}
         "404": {$ref: "#/components/responses/Error"}
+  /admin/movies:
+    get:
+      operationId: listAdminMovies
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: All movie lifecycle states, ordered by title and ID
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: "#/components/schemas/AdminMovie"}}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+    post:
+      operationId: createMovie
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AdminMovieInput"}
+      responses:
+        "201":
+          description: Created; Location identifies the admin detail resource. No automatic retries.
+          headers:
+            Location: {schema: {type: string}}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AdminMovie"}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+  /admin/movies/{movieId}:
+    parameters:
+      - {name: movieId, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: getAdminMovie
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Movie including draft or archived metadata
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AdminMovie"}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+    put:
+      operationId: updateMovie
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AdminMovieInput"}
+      responses:
+        "200":
+          description: Metadata and genre membership replaced in one local transaction
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AdminMovie"}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+    delete:
+      operationId: archiveMovie
+      security: [{bearerAuth: []}]
+      responses:
+        "204": {description: Archived; repeating delete on an existing archived movie also returns 204. Does not cancel showtimes or delete history.}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+  /admin/genres:
+    get:
+      operationId: listAdminGenres
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Existing service-owned genres for movie membership selection
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, name]
+                  properties:
+                    id: {type: string, format: uuid}
+                    name: {type: string}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
 components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
   responses:
     Error:
       description: Standard error
@@ -41,6 +136,24 @@ components:
         application/json:
           schema: {$ref: "#/components/schemas/Error"}
   schemas:
+    AdminMovieInput:
+      type: object
+      required: [title, durationMinutes, status, genreIds]
+      properties:
+        title: {type: string, minLength: 1, maxLength: 160, description: Must not be blank; trimmed before storage}
+        synopsis: {type: [string, "null"], maxLength: 3000}
+        posterUrl: {type: [string, "null"], maxLength: 2048, pattern: '^[hH][tT][tT][pP][sS]?://[^\s/]+(?:/[^\s]*)?$', description: HTTP(S) URL or null}
+        durationMinutes: {type: integer, minimum: 1, maximum: 600}
+        releaseDate: {type: [string, "null"], format: date, description: Defaults to the current UTC date when omitted or null}
+        status: {type: string, enum: [DRAFT, PUBLISHED, ARCHIVED]}
+        genreIds: {type: array, minItems: 1, maxItems: 50, uniqueItems: true, items: {type: string, format: uuid}, description: Must reference at least one existing genre}
+    AdminMovie:
+      allOf:
+        - {$ref: "#/components/schemas/AdminMovieInput"}
+        - type: object
+          required: [id, synopsis, posterUrl, releaseDate]
+          properties:
+            id: {type: string, format: uuid}
     Movie:
       type: object
       required: [id, title, synopsis, posterUrl, durationMinutes, releaseDate, status, genres]

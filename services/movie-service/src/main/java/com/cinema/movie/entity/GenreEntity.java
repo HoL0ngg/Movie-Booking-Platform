@@ -19,4 +19,6 @@ public class GenreEntity {
     Instant createdAt;
 
     public GenreEntity() {}
+    public UUID getId() { return id; }
+    public String getName() { return name; }
 }

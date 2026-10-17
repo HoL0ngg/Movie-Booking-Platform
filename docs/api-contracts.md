@@ -1,6 +1,6 @@
 # REST API Contract Baseline
 
-Status: Phase 1 contract baseline with implemented public movie catalog reads; other business operations remain unimplemented
+Status: Contract baseline with implemented public movie reads and admin movie CRUD; implementation status for other operations is service-specific.
 
 Static OpenAPI 3.1 contracts are published from each Spring Boot module at `/openapi/openapi.yaml` and listed by the gateway contract. They are contract artifacts, not evidence that an operation is implemented. This document remains the semantic authority until implementation-time DTO schemas and contract tests are added.
 
@@ -59,10 +59,22 @@ Token format and refresh storage are open security decisions for Phase 1.
 |---|---|
 | `GET /api/v1/movies` | Public published catalog; optional `status=NOW_SHOWING` or `COMING_SOON` |
 | `GET /api/v1/movies/{movieId}` | Movie detail |
+| `GET /api/v1/admin/movies` | ADMIN: all movies including draft/archived |
+| `GET /api/v1/admin/movies/{movieId}` | ADMIN: movie metadata and genre IDs |
+| `POST /api/v1/admin/movies` | ADMIN: create, `201` with Location |
+| `PUT /api/v1/admin/movies/{movieId}` | ADMIN: replace metadata and genre membership |
+| `DELETE /api/v1/admin/movies/{movieId}` | ADMIN: archive, `204`; repeat archive also `204` |
+| `GET /api/v1/admin/genres` | ADMIN: existing `{id, name}` genre choices |
 
-Administrative catalog commands will be specified with role checks when requested; they are not needed for initial customer skeletons.
+Admin routes accept the auth-service HS256 bearer token, verify its signature, issuer `cinema-auth-service` and expiry, and require `ADMIN` in the `roles` claim inside movie-service. Gateway forwards these requests without granting domain permission. Set the same `AUTH_JWT_SECRET` (at least 32 UTF-8 bytes) as auth-service; movie-service now requires this at startup, including for public reads.
 
-Implemented movie reads return an array for list and one object for detail. Fields: `id` (UUID), `title`, nullable `synopsis`, nullable `posterUrl` (public image URL), `durationMinutes`, nullable `releaseDate` (ISO date), and `status` (`NOW_SHOWING`/`COMING_SOON`). Only database records with lifecycle status `PUBLISHED` are exposed; draft/archived details also return `404 MOVIE_NOT_FOUND`. Display status is derived from release date against the current UTC date: future is coming soon; current, past or absent is now showing. Invalid status or malformed UUID returns `400 VALIDATION_ERROR`. Search and cursor pagination are reserved future capabilities, not currently supported. The frontend uses `posterUrl` when present and a local placeholder when absent. Credits, genre names and ratings are not yet part of this response.
+Admin movie input contains `title` (nonblank, max 160, trimmed), nullable `synopsis` (max 3000), nullable HTTP(S) `posterUrl` (max 2048), `durationMinutes` (1–600), optional ISO `releaseDate` (omitted/null defaults to the current UTC date on create/update), lifecycle `status` (`DRAFT/PUBLISHED/ARCHIVED`), and required `genreIds` (1–50 distinct existing UUIDs). The response adds the server-generated `id`. Public display status remains derived from release date, separate from admin lifecycle. Genre membership and movie metadata commit in one local transaction; updates/archive serialize on the owning movie row. Empty genre lists, unknown or duplicate genre IDs, malformed bodies/UUIDs and invalid fields return `400 VALIDATION_ERROR`. Unauthenticated/non-admin requests return `401`/`403`; unknown movie IDs return `404 MOVIE_NOT_FOUND`.
+
+Delete archives instead of removing the ID or historical metadata. Archiving/unpublishing removes the movie from public catalog reads; it does not cancel existing cinema-owned showtimes, release seats, refund payments or change booking snapshots. Editing catalog duration does not reschedule existing showtimes. An admin may restore a movie by changing its lifecycle back to DRAFT/PUBLISHED. These metadata operations do not publish business-critical events or participate in booking/payment workflows. POST create is not idempotent: the UI disables duplicate submissions and does not retry mutations automatically; after an ambiguous network failure, reload the list before submitting again. Concurrent full updates use last committed input; edit-conflict/version UI is not implemented.
+
+The admin movie page reads/writes only these APIs and invalidates admin/public movie queries after success. Other prototype admin sections still use isolated demo fixtures; they are not synchronized with this catalog. The form exposes the fields the backend persists; original title, age rating, director, cast and ratings have no persistence contract yet. Genres are selected from existing records; genre CRUD is outside movie CRUD.
+
+Implemented public movie reads return an array for list and one object for detail. Fields: `id` (UUID), `title`, nullable `synopsis`, nullable `posterUrl`, `durationMinutes`, nullable `releaseDate`, derived `status` (`NOW_SHOWING/COMING_SOON`) and `genres` (names). Only lifecycle `PUBLISHED` records are exposed; draft/archived details return `404 MOVIE_NOT_FOUND`. Future release dates in UTC are coming soon; current, past or absent dates are now showing. Optional `query` matches title substrings and `genre` matches a genre name, both case-insensitive. Invalid status or malformed UUID returns `400 VALIDATION_ERROR`. Cursor pagination is not implemented. The frontend falls back to a local poster placeholder. Credits and ratings are not part of this response.
 
 ## Cinema service
 

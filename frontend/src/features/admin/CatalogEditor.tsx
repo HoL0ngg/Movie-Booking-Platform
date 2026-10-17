@@ -30,7 +30,6 @@ export function CatalogEditor({ kind, record, data, onClose, onSaved }: { kind: 
   }
   return <Modal title={`${record ? 'Chỉnh sửa' : 'Thêm'} ${names[kind]}`} onClose={onClose}>
     <form className="admin-form" onSubmit={submit}>
-      <p className="admin-form-note">{record ? 'Cập nhật thông tin trong không gian demo.' : 'Tạo mới dữ liệu trong không gian demo.'}</p>
       {kind === 'movies' && <>
         <label>Tên phim<input name="title" required maxLength={160} defaultValue={movie?.title} autoFocus /></label>
         <label>Tên gốc<input name="originalTitle" maxLength={160} defaultValue={movie?.originalTitle} /></label>
@@ -44,7 +43,6 @@ export function CatalogEditor({ kind, record, data, onClose, onSaved }: { kind: 
         <label>Tên rạp<input name="name" required autoFocus maxLength={160} defaultValue={cinema?.name} placeholder="Cinémat Central" /></label>
         <label>Thành phố<input name="city" required maxLength={100} defaultValue={cinema?.city} list="admin-cities" /><datalist id="admin-cities"><option>TP. Hồ Chí Minh</option><option>Hà Nội</option><option>Đà Nẵng</option></datalist></label>
         <label>Địa chỉ<input name="address" required maxLength={300} defaultValue={cinema?.address} placeholder="Số nhà, đường, quận/huyện" /></label>
-        {!record && <p className="admin-form-note">Rạp demo mới được tạo cùng một phòng chiếu mặc định “Phòng 01”.</p>}
       </>}
       {kind === 'showtimes' && <>
         <label>Phim<select name="movieId" required defaultValue={slot?.movieId ?? data.movies[0]?.id}>{data.movies.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>

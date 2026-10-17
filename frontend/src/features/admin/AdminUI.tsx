@@ -18,7 +18,7 @@ const paths: Record<IconName, ReactNode> = {
 export function Icon({ name }: { name: IconName }) { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg> }
 export const money = (amount: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(amount)
 export const dateTime = (value: string) => new Date(value).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-const labels: Record<string, string> = { NOW_SHOWING: 'Đang chiếu', COMING_SOON: 'Sắp chiếu', CONFIRMED: 'Đã xác nhận', CANCELLED: 'Đã hủy', PAYMENT_PENDING: 'Chờ thanh toán', SUCCEEDED: 'Thành công', REQUESTED: 'Đang xử lý', FAILED: 'Thất bại' }
+const labels: Record<string, string> = { DRAFT: 'Bản nháp', PUBLISHED: 'Đã công bố', ARCHIVED: 'Đã lưu trữ', NOW_SHOWING: 'Đang chiếu', COMING_SOON: 'Sắp chiếu', CONFIRMED: 'Đã xác nhận', CANCELLED: 'Đã hủy', PAYMENT_PENDING: 'Chờ thanh toán', SUCCEEDED: 'Thành công', REQUESTED: 'Đang xử lý', FAILED: 'Thất bại' }
 export function Status({ value }: { value: string }) { return <span className={`admin-status admin-status-${value.toLowerCase()}`}><span />{labels[value] ?? value}</span> }
 
 export function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {

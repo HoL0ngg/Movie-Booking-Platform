@@ -66,7 +66,12 @@ export function CinemateChat() {
         <section id={`${titleId}-panel`} className="cinemate-panel" role="dialog" aria-modal="false" aria-labelledby={titleId}>
           <header className="cinemate-panel-header">
             <div className="cinemate-avatar" aria-hidden="true">
-              ☺
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="12" cy="12" r="9" />
+                <circle cx="9" cy="9" r=".75" fill="currentColor" stroke="none" />
+                <circle cx="15" cy="9" r=".75" fill="currentColor" stroke="none" />
+                <path d="M8 14c1 4 7 4 8 0" strokeLinecap="round" />
+              </svg>
             </div>
             <div>
               <h2 id={titleId}>Cine<em className="cinemate-mate">mate</em></h2>

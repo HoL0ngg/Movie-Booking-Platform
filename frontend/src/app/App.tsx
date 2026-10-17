@@ -15,6 +15,7 @@ import { AdminLoginPage } from '../features/auth/AdminLoginPage'
 import { RequireAdmin } from '../features/auth/AdminAuthContext'
 import { RequireAuth } from '../features/auth/RequireAuth'
 import { ShowtimePublishing } from '../features/admin/ShowtimePublishing'
+import { MovieManager } from '../features/admin/MovieManager'
 
 export default function App() {
   return <Routes>
@@ -22,7 +23,7 @@ export default function App() {
     <Route element={<RequireAdmin />}>
       <Route path="admin" element={<AdminLayout />}>
         <Route index element={<AdminOverview />} />
-        <Route path="movies" element={<AdminRecords key="movies" section="movies" />} />
+        <Route path="movies" element={<MovieManager />} />
         <Route path="cinemas" element={<AdminRecords key="cinemas" section="cinemas" />} />
         <Route path="showtimes" element={<AdminRecords key="showtimes" section="showtimes" />} />
         <Route path="bookings" element={<AdminRecords key="bookings" section="bookings" />} />

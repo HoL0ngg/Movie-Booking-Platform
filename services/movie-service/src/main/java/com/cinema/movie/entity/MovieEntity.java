@@ -44,4 +44,28 @@ public class MovieEntity {
     public String getPosterUrl() { return posterUrl; }
     public Integer getDurationMinutes() { return durationMinutes; }
     public LocalDate getReleaseDate() { return releaseDate; }
+    public String getStatus() { return status; }
+
+    public static MovieEntity create() {
+        MovieEntity movie = new MovieEntity();
+        movie.id = UUID.randomUUID();
+        movie.createdAt = Instant.now();
+        return movie;
+    }
+
+    public void update(String title, String synopsis, String posterUrl, Integer durationMinutes,
+                       LocalDate releaseDate, String status) {
+        this.title = title.trim();
+        this.synopsis = synopsis;
+        this.posterUrl = posterUrl;
+        this.durationMinutes = durationMinutes;
+        this.releaseDate = releaseDate;
+        this.status = status;
+        this.updatedAt = Instant.now();
+    }
+
+    public void archive() {
+        this.status = "ARCHIVED";
+        this.updatedAt = Instant.now();
+    }
 }

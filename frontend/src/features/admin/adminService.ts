@@ -1,5 +1,5 @@
 import { apiClient, MockApiError } from '../../shared/apiClient'
-import { auditoriums, cinemas, movies, seededBooking, showtimes } from '../../shared/mocks/data'
+import { auditoriums, cinemas, movies, seededBooking, seatsFor, showtimes } from '../../shared/mocks/data'
 import type { Auditorium, Booking, Cinema, Movie, Payment, SeatType, Showtime } from '../../shared/contracts'
 
 export type AdminPayment = Payment & { createdAt: string; reference: string }
@@ -16,6 +16,10 @@ export interface AdminData {
 export type CatalogKind = 'movies' | 'cinemas' | 'showtimes'
 export type CatalogRecord = Movie | Cinema | Showtime
 const storageKey = 'cinemat.admin-demo.v1'
+const demoSeats: PhysicalSeat[] = auditoriums.flatMap(room => seatsFor('').map(seat => ({
+  id: `${room.id}-${seat.label}`, auditoriumId: room.id, rowLabel: seat.row, seatNumber: seat.number,
+  seatType: seat.type, isActive: true,
+})))
 
 // Isolated demo fixtures, never a source of booking or payment truth.
 function seed(): AdminData {
@@ -31,7 +35,7 @@ function seed(): AdminData {
     return { ...seededBooking, id: `demo-booking-${index + 1}`, reservationId: `demo-reservation-${index + 1}`, userId: `demo-customer-${index + 1}`, bookingCode: `CM${String(10240 + index)}`, movie, cinema, showtime, items, total: { amountMinor: showtime.price.amountMinor * items.length, currency: 'VND' }, status, createdAt: createdAt.toISOString() }
   })
   const payments: AdminPayment[] = bookings.map((booking, index) => ({ id: `demo-payment-${index + 1}`, bookingId: booking.id, method: index % 2 ? 'MOMO' : 'VNPAY', amount: booking.total, status: booking.status === 'CONFIRMED' ? 'SUCCEEDED' : booking.status === 'CANCELLED' ? 'FAILED' : 'REQUESTED', createdAt: booking.createdAt, reference: `DEMO-${String(800001 + index)}` }))
-  return structuredClone({ movies, cinemas, auditoriums, seats: [], showtimes, bookings, payments })
+  return structuredClone({ movies, cinemas, auditoriums, seats: demoSeats, showtimes, bookings, payments })
 }
 
 function read(): AdminData {
@@ -40,9 +44,11 @@ function read(): AdminData {
     if (value) {
       const data = JSON.parse(value) as AdminData
       if (!data || !['movies', 'cinemas', 'auditoriums', 'showtimes', 'bookings', 'payments'].every(key => Array.isArray(data[key as keyof AdminData]))) throw new Error('Invalid demo data')
-      // Older browser fixtures have no physical seat layouts.
+      // Restore missing layouts only for known demo rooms; preserve saved and custom layouts.
       data.seats ??= []
       if (!Array.isArray(data.seats)) throw new Error('Invalid seat data')
+      data.seats.push(...demoSeats.filter(seat => data.auditoriums.some(room => room.id === seat.auditoriumId)
+        && !data.seats.some(item => item.auditoriumId === seat.auditoriumId)))
       return data
     }
     const data = seed()

@@ -24,7 +24,6 @@ export function RoomManager({ cinema, data, onClose }: { cinema: Cinema; data: A
   if (layoutRoom) return <SeatLayoutEditor key={layoutRoom.id} room={layoutRoom} data={data} onClose={() => setLayoutRoom(null)} />
   return <Modal title={`Quản lý phòng · ${cinema.name}`} onClose={onClose}>
     <div className="admin-room-manager">
-      <p className="admin-form-note">Thay đổi lưu trên trình duyệt, chưa đồng bộ lên hệ thống rạp.</p>
       <form className="admin-form admin-room-create" onSubmit={submit}>
         <label>{editingRoom ? 'Đổi tên phòng' : 'Tên phòng mới'}<input required maxLength={100} value={name} onChange={event => setName(event.target.value)} placeholder="Ví dụ: Phòng 02" disabled={save.isPending} /></label>
         <div className="admin-room-actions"><button className="admin-button primary" disabled={save.isPending}><Icon name={editingRoom ? 'edit' : 'plus'} />{save.isPending ? 'Đang lưu…' : editingRoom ? 'Lưu tên phòng' : 'Thêm phòng'}</button>{editingRoom && <button type="button" className="admin-button" disabled={save.isPending} onClick={() => { setEditingRoom(null); setName(''); save.reset() }}>Hủy đổi tên</button>}</div>
@@ -36,7 +35,7 @@ export function RoomManager({ cinema, data, onClose }: { cinema: Cinema; data: A
           <div><h3>{room.name}</h3><p>{seats.length ? `${seats.filter(seat => seat.isActive).length} ghế sử dụng / ${seats.length} vị trí` : 'Chưa có sơ đồ ghế'}</p></div>
           <div className="admin-room-actions"><button className="admin-icon-button" disabled={save.isPending} aria-label={`Đổi tên ${room.name}`} onClick={() => { setEditingRoom(room); setName(room.name); save.reset() }}><Icon name="edit" /></button><button className="admin-button" disabled={save.isPending} aria-label={`Chỉnh sơ đồ ghế ${room.name}`} onClick={() => setLayoutRoom(room)}><Icon name="overview" />Chỉnh sơ đồ ghế</button></div>
         </article>
-      }) : <p className="admin-form-note">Rạp chưa có phòng chiếu. Thêm phòng đầu tiên ở phía trên.</p>}</div>
+      }) : <p className="admin-form-note">Rạp chưa có phòng chiếu.</p>}</div>
       <div className="admin-dialog-actions"><button className="admin-button" onClick={onClose}>Đóng</button></div>
     </div>
   </Modal>
@@ -86,6 +85,10 @@ function SeatLayoutEditor({ room, data, onClose }: { room: Auditorium; data: Adm
   }
   function toggleSeat(seat: PhysicalSeat) {
     const ids = [seat.id, ...(seat.pairedSeatId && seats.some(item => item.id === seat.pairedSeatId) ? [seat.pairedSeatId] : [])]
+    toggleSeats(ids)
+  }
+  function toggleSeats(ids: string[]) {
+    if (locked || save.isPending) return
     setSelectedIds(current => ids.every(id => current.includes(id)) ? current.filter(id => !ids.includes(id)) : [...new Set([...current, ...ids])])
     setSelectionError('')
   }
@@ -94,26 +97,31 @@ function SeatLayoutEditor({ room, data, onClose }: { room: Auditorium; data: Adm
     try { setSeats(changeSeatType(seats, selectedIds, type)); setSelectedIds([]); setSelectionError(''); save.reset() }
     catch (error) { setSelectionError(error instanceof Error ? error.message : 'Không thể đổi loại ghế.') }
   }
+  function setSelectedActive(isActive: boolean) {
+    if (locked || save.isPending || !selectedIds.length) return
+    setSeats(items => items.map(seat => selectedIds.includes(seat.id) ? { ...seat, isActive } : seat))
+    setSelectionError('')
+    save.reset()
+  }
   return <Modal title={`Chỉnh sơ đồ ghế · ${room.name}`} onClose={close}>
     <div className="admin-seat-editor">
-      <p className="admin-form-note">Sơ đồ vật lý theo hàng và số ghế. Thay đổi lưu trên trình duyệt, chưa đồng bộ lên hệ thống rạp.</p>
-      {locked && <p className="admin-form-error" role="status">Phòng đã có lịch chiếu, sơ đồ chỉ được xem. Tạo phòng mới để thiết kế sơ đồ khác.</p>}
+      {locked && <p className="admin-form-note" role="status">Chỉ xem · Phòng đã có lịch chiếu</p>}
       <form className="admin-form admin-seat-dimensions" onSubmit={generate}>
         <label>Số hàng<input type="number" min={1} max={26} required value={Number.isNaN(rowCount) ? '' : rowCount} onChange={event => setRowCount(event.target.valueAsNumber)} disabled={locked || save.isPending} /></label>
         <label>Ghế mỗi hàng<input type="number" min={1} max={30} required value={Number.isNaN(columnCount) ? '' : columnCount} onChange={event => setColumnCount(event.target.valueAsNumber)} disabled={locked || save.isPending} /></label>
         <button className="admin-button" disabled={locked || save.isPending}>{seats.length ? 'Tạo lại sơ đồ' : 'Tạo sơ đồ'}</button>
       </form>
       <div className="admin-seat-preview"><div className="admin-seat-screen">MÀN HÌNH</div><div className="admin-seat-scroll" role="group" aria-label={`Sơ đồ ghế ${room.name}`}>
-        {rows.length ? rows.map(row => <div className="admin-seat-row" key={row}><span>{row || '?'}</span><div style={{ gridTemplateColumns: `repeat(${columns}, 36px)` }}>{Array.from({ length: columns }, (_, index) => {
+        {rows.length ? rows.map(row => <div className="admin-seat-row" key={row}><button type="button" className="admin-seat-row-toggle" aria-label={`Chọn cả hàng ${row}`} aria-pressed={seats.filter(seat => seat.rowLabel === row).every(seat => selectedIds.includes(seat.id))} title={`Chọn hoặc bỏ chọn cả hàng ${row}`} disabled={locked || save.isPending} onClick={() => toggleSeats(seats.filter(seat => seat.rowLabel === row).map(seat => seat.id))}>{row || '?'}</button><div style={{ gridTemplateColumns: `repeat(${columns}, 36px)` }}>{Array.from({ length: columns }, (_, index) => {
           const seat = seats.find(item => item.rowLabel === row && item.seatNumber === index + 1)
           const partner = seats.find(item => item.id === seat?.pairedSeatId)
-          return seat ? <button type="button" key={index} className={`admin-physical-seat ${seat.seatType.toLowerCase()} ${seat.isActive ? '' : 'inactive'} ${partner && seat.seatNumber < partner.seatNumber ? 'pair-start' : ''}`} title={`${seat.rowLabel}${seat.seatNumber} · ${seatTypes[seat.seatType]}`} aria-label={`${seat.rowLabel}${seat.seatNumber}, ghế ${seatTypes[seat.seatType]}${partner ? `, ghép với ${partner.rowLabel}${partner.seatNumber}` : ''}, ${seat.isActive ? 'sử dụng' : 'ngừng sử dụng'}`} aria-pressed={selectedIds.includes(seat.id)} disabled={save.isPending} onClick={() => toggleSeat(seat)}>{seat.isActive ? <>{seat.seatNumber}{seat.seatType === 'COUPLE' && <small>Đ</small>}</> : '×'}</button> : <span className="admin-seat-gap" key={index} />
-        })}</div><span>{row || '?'}</span></div>) : <p className="admin-form-note">Chưa có ghế. Chọn số hàng và ghế mỗi hàng để tạo sơ đồ.</p>}
+          return seat ? <button type="button" key={index} className={`admin-physical-seat ${seat.seatType.toLowerCase()} ${seat.isActive ? '' : 'inactive'} ${partner && seat.seatNumber < partner.seatNumber ? 'pair-start' : ''}`} title={`${seat.rowLabel}${seat.seatNumber} · ${seatTypes[seat.seatType]}`} aria-label={`${seat.rowLabel}${seat.seatNumber}, ghế ${seatTypes[seat.seatType]}${partner ? `, ghép với ${partner.rowLabel}${partner.seatNumber}` : ''}, ${seat.isActive ? 'sử dụng' : 'tạm khóa'}`} aria-pressed={selectedIds.includes(seat.id)} disabled={locked || save.isPending} onClick={() => toggleSeat(seat)}>{seat.isActive ? <>{seat.seatNumber}{seat.seatType === 'COUPLE' && <small>Đ</small>}</> : '×'}</button> : <span className="admin-seat-gap" key={index} />
+        })}</div></div>) : <p className="admin-form-note">Chưa có sơ đồ ghế.</p>}
       </div></div>
-      <div className="admin-seat-legend"><span>Thường</span><span>VIP · Vàng</span><span>Đ · Đôi (2 ghế)</span><span>× Ngừng sử dụng</span></div>
-      {!!seats.length && <div className="admin-seat-batch"><p role="status">{selectedSeats.length ? `Đã chọn ${selectedSeats.length} ghế: ${selectedSeats.map(seat => `${seat.rowLabel}${seat.seatNumber}`).join(', ')}` : 'Bấm từng ghế để chọn nhiều ghế. Bấm lại để bỏ chọn.'}</p><div className="admin-room-actions"><button className="admin-button" disabled={locked || save.isPending || !selectedSeats.length} onClick={() => applyType('STANDARD')}>Đổi sang thường</button><button className="admin-button" disabled={locked || save.isPending || !selectedSeats.length} onClick={() => applyType('VIP')}>Đổi sang VIP</button><button className="admin-button" disabled={locked || save.isPending || !selectedSeats.length} onClick={() => applyType('COUPLE')}>Ghép ghế đôi</button><button className="admin-button" disabled={save.isPending || !selectedSeats.length} onClick={() => { setSelectedIds([]); setSelectionError('') }}>Bỏ chọn</button></div><p className="admin-form-note">Ghế đôi: chọn đúng 2 ghế liền nhau trong cùng hàng. Chọn một ghế đôi sẽ chọn cả cặp.</p></div>}
+      <div className="admin-seat-legend"><span>Thường</span><span>VIP · Vàng</span><span>Đ · Đôi (2 ghế)</span><span>× Tạm khóa</span></div>
+      {!!seats.length && <div className="admin-seat-batch"><p role="status">{selectedSeats.length ? `Đã chọn ${selectedSeats.length} ghế: ${selectedSeats.map(seat => `${seat.rowLabel}${seat.seatNumber}`).join(', ')}` : 'Chưa chọn ghế'}</p><div className="admin-room-actions"><button className="admin-button" disabled={locked || save.isPending || !selectedSeats.length} onClick={() => applyType('STANDARD')}>Đổi sang thường</button><button className="admin-button" disabled={locked || save.isPending || !selectedSeats.length} onClick={() => applyType('VIP')}>Đổi sang VIP</button><button className="admin-button" disabled={locked || save.isPending || !selectedSeats.length} onClick={() => applyType('COUPLE')}>Ghép ghế đôi</button><button className="admin-button" disabled={locked || save.isPending || !selectedSeats.some(seat => seat.isActive)} onClick={() => setSelectedActive(false)}>Khóa tạm thời</button><button className="admin-button" disabled={locked || save.isPending || !selectedSeats.some(seat => !seat.isActive)} onClick={() => setSelectedActive(true)}>Mở khóa</button><button className="admin-button" disabled={save.isPending || !selectedSeats.length} onClick={() => { setSelectedIds([]); setSelectionError('') }}>Bỏ chọn</button></div></div>}
       {selectionError && <p className="admin-form-error" role="alert">{selectionError}</p>}
-      {selected && <fieldset className="admin-form admin-seat-selection" disabled={locked || save.isPending}><legend>Ghế {selected.rowLabel}{selected.seatNumber}</legend><div className="admin-form-row"><label>Hàng ghế<input maxLength={1} pattern="[A-Za-z]" required value={selected.rowLabel} onChange={event => updateSelected({ rowLabel: event.target.value.toUpperCase() })} /></label><label>Số ghế<input type="number" min={1} max={30} required value={Number.isNaN(selected.seatNumber) ? '' : selected.seatNumber} onChange={event => updateSelected({ seatNumber: event.target.valueAsNumber })} /></label></div><label className="admin-seat-active"><input type="checkbox" checked={selected.isActive} onChange={event => updateSelected({ isActive: event.target.checked })} />Sử dụng ghế này</label></fieldset>}
+      {selected && <fieldset className="admin-form admin-seat-selection" disabled={locked || save.isPending}><legend>Ghế {selected.rowLabel}{selected.seatNumber}</legend><div className="admin-form-row"><label>Hàng ghế<input maxLength={1} pattern="[A-Za-z]" required value={selected.rowLabel} onChange={event => updateSelected({ rowLabel: event.target.value.toUpperCase() })} /></label><label>Số ghế<input type="number" min={1} max={30} required value={Number.isNaN(selected.seatNumber) ? '' : selected.seatNumber} onChange={event => updateSelected({ seatNumber: event.target.valueAsNumber })} /></label></div></fieldset>}
       {save.isError && <p className="admin-form-error" role="alert">{save.error.message}</p>}
       <div className="admin-dialog-actions"><button className="admin-button" disabled={save.isPending} onClick={close}>Quay lại</button><button className="admin-button primary" disabled={locked || !dirty || !seats.length || save.isPending} onClick={() => save.mutate({ auditoriumId: room.id, seats })}>{save.isPending ? 'Đang lưu…' : 'Lưu sơ đồ'}</button></div>
     </div>

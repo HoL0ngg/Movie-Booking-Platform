@@ -46,7 +46,7 @@ export function ShowtimePublishing() {
   }
 
   return <>
-    <PageHeading title="Phát hành suất chiếu" description="Tạo, phát hành và hủy suất chiếu qua cinema-service. Phát hành/hủy ghi một event vào outbox." />
+    <PageHeading title="Phát hành suất chiếu" description="Quản lý phát hành và hủy suất chiếu." />
     <section className="admin-panel" style={{ marginBottom: 20 }}>
       <div className="admin-panel-heading"><div><h2>Tạo suất chiếu (DRAFT)</h2></div></div>
       <form className="admin-form" style={{ padding: '0 24px 24px' }} onSubmit={submit}>
@@ -66,7 +66,7 @@ export function ShowtimePublishing() {
       </form>
     </section>
     <section className="admin-panel">
-      <div className="admin-panel-heading"><div><h2>Suất chiếu</h2><p>Server chỉ liệt kê suất PUBLISHED theo ngày; DRAFT/CANCELLED hiện khi bạn vừa thao tác.</p></div>
+      <div className="admin-panel-heading"><div><h2>Suất chiếu</h2></div>
         <input aria-label="Ngày" type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
       {notice && <p className="admin-form-note" role="status" style={{ padding: '0 24px' }}>{notice}</p>}
       {list.length === 0 ? <Empty>Chưa có suất chiếu cho rạp và ngày này.</Empty> :

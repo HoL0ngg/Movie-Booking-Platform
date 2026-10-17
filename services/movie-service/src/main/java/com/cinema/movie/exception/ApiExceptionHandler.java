@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -22,7 +23,7 @@ import jakarta.validation.ConstraintViolationException;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class, HttpMessageNotReadableException.class})
     ResponseEntity<ApiError> handleInvalidParameter(HttpServletRequest request) {
         return badRequest(request, Map.of());
     }

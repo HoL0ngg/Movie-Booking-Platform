@@ -95,7 +95,7 @@ export function AdminRecords({ section }: { section: Section }) {
       </tbody></table></div>}
       <div className="admin-pagination"><span>{count ? `Hiển thị ${(currentPage - 1) * 8 + 1}–${Math.min(currentPage * 8, count)} trong ${count} kết quả` : '0 kết quả'}</span><div><button className="admin-button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Trước</button><span>Trang {currentPage} / {pages}</span><button className="admin-button" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>Sau</button></div></div>
     </section>
-    {(section === 'payments' || section === 'bookings') && <p className="admin-readonly-note">Chỉ xem dữ liệu demo. Xác nhận thanh toán, hủy vé và hoàn tiền cần API cùng quyền quản trị từ backend.</p>}
+    {(section === 'payments' || section === 'bookings') && <p className="admin-readonly-note">Dữ liệu demo · Chỉ xem</p>}
     {editor && <CatalogEditor kind={section as CatalogKind} record={editor.record} data={data} onClose={() => setEditor(null)} onSaved={() => setNotice('Đã lưu thay đổi trong không gian demo.')} />}
     {details && <RecordDetails record={details} data={data} onClose={() => setDetails(null)} />}
     {managedCinema && <RoomManager cinema={managedCinema} data={data} onClose={() => setManagedCinema(null)} />}
