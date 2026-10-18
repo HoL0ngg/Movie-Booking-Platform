@@ -7,7 +7,7 @@ public final class Statuses {
     // showtime_seats.status
     public static final String SEAT_AVAILABLE = "AVAILABLE";
     public static final String SEAT_HELD = "HELD";
-    public static final String SEAT_BOOKED = "BOOKED";
+    public static final String SEAT_BOOKED = "SOLD";
 
     // reservations.status
     public static final String RES_HELD = "HELD";
@@ -19,5 +19,5 @@ public final class Statuses {
     public static final String BOOKING_CONFIRMED = "CONFIRMED";
 
     // showtime_snapshots.status
-    public static final String SHOWTIME_OPEN = "OPEN";
+    public static final String SHOWTIME_OPEN = "PUBLISHED";
 }

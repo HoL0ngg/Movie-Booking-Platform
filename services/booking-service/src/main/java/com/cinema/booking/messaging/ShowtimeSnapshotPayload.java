@@ -1,5 +1,6 @@
 package com.cinema.booking.messaging;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.List;
@@ -23,6 +24,7 @@ public record ShowtimeSnapshotPayload(
         List<Seat> seats) {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Seat(UUID seatId, String seatLabel, String seatType, long priceMinor) {
+    public record Seat(UUID seatId, @JsonAlias("label") String seatLabel,
+            @JsonAlias("type") String seatType, long priceMinor) {
     }
 }

@@ -49,6 +49,22 @@ cinema:
     payment-topic: cinema.payment-events.v1
     booking-quarantine-topic: cinema.booking-events.quarantine.v1
 
+  outbox:
+    enabled: true
+    batch-size: 50
+    poll-delay-ms: 500
+    send-timeout-ms: 5000
+    max-backoff: PT5M
+  housekeeping:
+    cron: "0 15 * * * *"
+    outbox-retention: P7D
+    processed-retention: P14D
+  expiry:
+    enabled: true
+    poll-delay-ms: 30000
+    batch-size: 100
+    max-batches-per-run: 20
+
 management:
   endpoints:
     web:

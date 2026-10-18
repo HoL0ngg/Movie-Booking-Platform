@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.cinema.booking.repository.ProcessedEventRepository;
 
+@Component
 public class IdempotentEventProcessor {
     private static final Logger LOG = Logger.getLogger(IdempotentEventProcessor.class.getName());
 
