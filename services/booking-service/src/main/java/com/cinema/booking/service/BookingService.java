@@ -1,5 +1,6 @@
 package com.cinema.booking.service;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class BookingService {
@@ -205,4 +207,34 @@ public class BookingService {
         return new BookingResponse(b.getId(), b.getReservationId(), b.getShowtimeId(), b.getStatus(),
                 b.getAmountMinor(), b.getCurrency(), b.getConfirmedAt(), seats);
     }
+
+    @Transactional(readOnly = true)
+    public List<BookingResponse> list(UUID userId, int limit) {
+        var bookings = bookingRepository.findAllByUserIdOrderByCreatedAtDesc(
+                userId, PageRequest.of(0, Math.min(Math.max(limit, 1), 50)));
+        if (bookings.isEmpty())
+            return List.of();
+
+        var itemsByBooking = bookingItemRepository
+                .findAllByBookingIdIn(bookings.stream().map(BookingEntity::getId).toList())
+                .stream().collect(Collectors.groupingBy(BookingItemEntity::getBookingId));
+
+        // Nhãn ghế: một truy vấn cho mỗi suất chiếu
+        Map<UUID, String> labels = new HashMap<>();
+        itemsByBooking.values().stream().flatMap(List::stream)
+                .collect(Collectors.groupingBy(BookingItemEntity::getShowtimeId,
+                        Collectors.mapping(BookingItemEntity::getSeatId, Collectors.toList())))
+                .forEach((showtimeId, seatIds) -> showtimeSeatRepository
+                        .findAllByShowtimeIdAndSeatIdIn(showtimeId, seatIds)
+                        .forEach(s -> labels.put(s.getSeatId(), s.getSeatLabel())));
+
+        return bookings.stream().map(b -> new BookingResponse(
+                b.getId(), b.getReservationId(), b.getShowtimeId(), b.getStatus(),
+                b.getAmountMinor(), b.getCurrency(), b.getConfirmedAt(),
+                itemsByBooking.getOrDefault(b.getId(), List.of()).stream()
+                        .map(i -> new ReservedSeat(i.getSeatId(), labels.get(i.getSeatId()), i.getPriceMinor()))
+                        .toList()))
+                .toList();
+    }
+
 }

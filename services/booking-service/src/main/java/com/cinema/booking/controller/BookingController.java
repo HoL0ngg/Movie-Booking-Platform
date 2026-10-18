@@ -8,6 +8,7 @@ import com.cinema.booking.dto.ConfirmBookingRequest;
 import com.cinema.booking.service.BookingService;
 
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
@@ -39,6 +40,12 @@ public class BookingController {
     @GetMapping("/bookings/{bookingId}")
     public BookingResponse get(@RequestHeader("X-User-Id") UUID userId, @PathVariable UUID bookingId) {
         return bookingService.get(userId, bookingId);
+    }
+
+    @GetMapping("/bookings")
+    public List<BookingResponse> list(@RequestHeader("X-User-Id") UUID userId,
+            @RequestParam(defaultValue = "20") int limit) {
+        return bookingService.list(userId, limit);
     }
 
 }
