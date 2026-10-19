@@ -1,5 +1,5 @@
 import { HttpApiError } from "../../shared/apiClient";
-import { getCurrentUserId } from "./currentUser";
+import { getCurrentUserCredentials } from "./currentUser";
 // Cùng gốc /api/v1 với cinemaApi (qua gateway). Đổi bằng VITE_API_BASE_URL nếu cần.
 const BASE = (
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "/api/v1"
@@ -28,16 +28,17 @@ function parseJson(text: string): unknown {
   }
 }
 
-/** Gọi Booking Service: tự gắn X-User-Id / Idempotency-Key và quy mọi lỗi về HttpApiError. */
+/** Gọi Booking Service với bearer token, X-User-Id / Idempotency-Key và chuẩn hóa lỗi. */
 export async function bookingRequest<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
   const { method = "GET", body, idempotencyKey, signal } = options;
-  const userId = await getCurrentUserId();
+  const { userId, accessToken: token } = await getCurrentUserCredentials();
   const headers: Record<string, string> = {
     Accept: "application/json",
     "X-User-Id": userId,
+    Authorization: `Bearer ${token}`,
   };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;

@@ -43,8 +43,12 @@ export const useSeats = (showtimeId = "") =>
   useQuery({
     queryKey: ["seats", showtimeId],
     queryFn: ({ signal }) => seatService.getByShowtime(showtimeId, signal),
+    // Chỉ làm mới khi có showtimeId, tránh gọi API vô nghĩa.
     enabled: Boolean(showtimeId),
+    // Làm mới mỗi 15 giây. Giúp cập nhật trạng thái ghế mới nhất khi người dùng đang xem sơ đồ ghế.
+    // 15000ms
     refetchInterval: 15_000,
+    // Lỗi 4xx (404, 409, 410, 422…) là lỗi nghiệp vụ, thử lại vô ích → không retry.
     retry: retryUnlessClientError,
   });
 
@@ -56,7 +60,7 @@ export const useBooking = (id = "") =>
     retry: retryUnlessClientError,
   });
 
-export const  useBookingHistory = () =>
+export const useBookingHistory = () =>
   useQuery({
     queryKey: ["bookings"],
     queryFn: ({ signal }) => bookingService.history(signal),
