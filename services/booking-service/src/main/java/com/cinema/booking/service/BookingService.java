@@ -116,10 +116,14 @@ public class BookingService {
 
         Instant now = Instant.now();
         if (!RES_HELD.equals(reservation.getStatus())) {
-            throw new ApiException(HttpStatus.CONFLICT, "Reservation ở trạng thái " + reservation.getStatus());
+            // throw new ApiException(HttpStatus.CONFLICT, "Reservation ở trạng thái " +
+            // reservation.getStatus());
+            return Outcome.fail(HttpStatus.CONFLICT, "Reservation ở trạng thái " + reservation.getStatus());
         }
         if (!reservation.getHoldExpiresAt().isAfter(now)) {
-            throw new ApiException(HttpStatus.CONFLICT, "Reservation đã hết hạn giữ ghế");
+            // throw new ApiException(HttpStatus.CONFLICT, "Reservation đã hết hạn giữ
+            // ghế");
+            return Outcome.fail(HttpStatus.CONFLICT, "Reservation đã hết hạn giữ ghế");
         }
         var showtime = showtimeSnapshotRepository.findById(reservation.getShowtimeId()).orElseThrow();
         var items = reservationSeatRepository.findAllByReservationIdOrderBySeatId(reservationId);
@@ -144,7 +148,7 @@ public class BookingService {
         booking.setId(UUID.randomUUID());
         booking.setReservationId(reservationId);
         booking.setShowtimeId(reservation.getShowtimeId());
-        booking.setUserId(userId);
+        booking.setUserId(reservation.getUserId());
         booking.setPaymentId(paymentId);
         booking.setAmountMinor(items.stream().mapToLong(ReservationSeatEntity::getPriceMinor).sum());
         booking.setCurrency(showtime.getCurrency());
