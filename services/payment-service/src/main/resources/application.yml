@@ -53,7 +53,7 @@ payment:
   default-provider: vnpay
   default-currency: VND
   # Địa chỉ trang kết quả của frontend; ProviderReturnController redirect khách về đây sau khi thanh toán.
-  frontend-result-url: ${PAYMENT_FRONTEND_RESULT_URL:http://localhost:3000/payment/result}
+  frontend-result-url: ${PAYMENT_FRONTEND_RESULT_URL:http://localhost:5173/payment/result}
   booking:
     base-url: ${BOOKING_SERVICE_URL:http://localhost:8084}
     timeout: PT5S

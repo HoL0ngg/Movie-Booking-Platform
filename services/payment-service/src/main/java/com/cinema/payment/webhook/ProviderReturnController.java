@@ -14,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.cinema.payment.dto.PaymentResponse;
@@ -23,6 +25,8 @@ import com.cinema.payment.service.PaymentService;
 
 import jakarta.servlet.http.HttpServletRequest;
 
+@RestController
+@RequestMapping("/provider-return/{provider}")
 public class ProviderReturnController {
     private static final Logger LOG = Logger.getLogger(ProviderReturnController.class.getName());
 
@@ -47,7 +51,7 @@ public class ProviderReturnController {
         this.frontendResultUrl = frontendResultUrl;
     }
 
-    @GetMapping("/provider")
+    @GetMapping
     public ResponseEntity<Void> providerReturn(@PathVariable String provider,
             HttpServletRequest request) {
         // Tìm handler theo provider trên URL.

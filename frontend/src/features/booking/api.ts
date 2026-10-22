@@ -1,4 +1,5 @@
 export { cinemaService } from "./cinemaApi";
+import { request } from "../../shared/apiClient";
 import { bookingRequest } from "./bookingHttp";
 
 // ---------- Kiểu dữ liệu dùng trong UI ----------
@@ -39,6 +40,36 @@ export interface Booking {
   confirmedAt: string | null;
   seats: BookedSeat[];
   bookingCode: string;
+}
+
+export interface Payment {
+  paymentId: string;
+  reservationId: string;
+  status: string;
+  amountMinor: number;
+  currency: string;
+  checkout: { provider: string; url: string } | null;
+  failureCode: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePaymentRequest {
+  reservationId: string;
+  provider?: string;
+  bankCode?: string;
+  locale?: "vn" | "en";
+}
+
+export interface PaymentRefund {
+  refundId: string;
+  paymentId: string;
+  status: string;
+  amountMinor: number;
+  currency: string;
+  failureCode: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const BOOKING_STATUS_LABEL: Record<string, string> = {
@@ -186,6 +217,36 @@ export const bookingService = {
       await bookingRequest<BookingDto>(`/bookings/${encodeURIComponent(id)}`, {
         signal,
       }),
+    );
+  },
+};
+
+export const paymentService = {
+  async create(
+    payload: CreatePaymentRequest,
+    idempotencyKey: string,
+  ): Promise<Payment> {
+    return request<Payment>("/payments", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: { "Idempotency-Key": idempotencyKey },
+    });
+  },
+
+  async get(paymentId: string, signal?: AbortSignal): Promise<Payment> {
+    return request<Payment>(
+      `/payments/${encodeURIComponent(paymentId)}`,
+      { signal },
+    );
+  },
+
+  async refunds(
+    paymentId: string,
+    signal?: AbortSignal,
+  ): Promise<PaymentRefund[]> {
+    return request<PaymentRefund[]>(
+      `/payments/${encodeURIComponent(paymentId)}/refunds`,
+      { signal },
     );
   },
 };

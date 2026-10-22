@@ -2,7 +2,6 @@ package com.cinema.booking.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -26,9 +25,9 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(requests -> requests
                         .requestMatchers(
                                 "/actuator/health/**", "/actuator/info",
-                                "/openapi/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
+                                "/openapi/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs")
                         .permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/bookings")
+                        .requestMatchers("/api/v1/reservations/**", "/api/v1/bookings/**")
                         .authenticated()
                         .requestMatchers("/api/v1/**")
                         .permitAll()

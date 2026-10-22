@@ -3,8 +3,9 @@ import { useRef } from "react";
 import {
   bookingService,
   cinemaService,
+  paymentService,
   seatService,
-  type PaymentMethod,
+  type CreatePaymentRequest,
 } from "./api";
 import { useMovie } from "../movies/hooks";
 
@@ -60,6 +61,50 @@ export const useBooking = (id = "") =>
     retry: retryUnlessClientError,
   });
 
+export const usePayment = (paymentId = "") =>
+  useQuery({
+    queryKey: ["payment", paymentId],
+    queryFn: ({ signal }) => paymentService.get(paymentId, signal),
+    enabled: Boolean(paymentId),
+    retry: (failureCount, error) => {
+      const code = (error as { code?: string } | null)?.code;
+      if (code === "PAYMENT_NOT_READY") return failureCount < 5;
+      return retryUnlessClientError(failureCount, error);
+    },
+    retryDelay: (failureCount) => Math.min(1000 * 2 ** failureCount, 5000),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "REQUESTED" || status === "PROVIDER_PENDING"
+        ? 3000
+        : false;
+    },
+  });
+
+export const usePaymentRefunds = (paymentId = "") =>
+  useQuery({
+    queryKey: ["payment", paymentId, "refunds"],
+    queryFn: ({ signal }) => paymentService.refunds(paymentId, signal),
+    enabled: Boolean(paymentId),
+    retry: retryUnlessClientError,
+  });
+
+export const useCreatePayment = () => {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      payload,
+      idempotencyKey,
+    }: {
+      payload: CreatePaymentRequest;
+      idempotencyKey: string;
+    }) => paymentService.create(payload, idempotencyKey),
+    onSuccess: (payment) => {
+      client.setQueryData(["payment", payment.paymentId], payment);
+    },
+  });
+};
+
 export const useBookingHistory = () =>
   useQuery({
     queryKey: ["bookings"],
@@ -86,12 +131,12 @@ export function useShowtimeContext(showtimeId = "") {
 interface Attempt {
   signature: string;
   reservationKey: string;
-  paymentId: string;
+  paymentKey: string;
 }
 const newAttempt = (signature: string): Attempt => ({
   signature,
   reservationKey: crypto.randomUUID(),
-  paymentId: crypto.randomUUID(),
+  paymentKey: crypto.randomUUID(),
 });
 
 export const useCheckout = () => {
@@ -99,50 +144,78 @@ export const useCheckout = () => {
   const attempt = useRef<Attempt | null>(null);
 
   return useMutation({
-    // `method` chỉ phục vụ giao diện: chưa có payment-service nên paymentId được sinh ở client (prototype).
     mutationFn: async ({
       showtimeId,
       seatIds,
     }: {
       showtimeId: string;
       seatIds: string[];
-      method: PaymentMethod;
     }) => {
       const signature = `${showtimeId}:${[...seatIds].sort().join(",")}`;
       if (attempt.current?.signature !== signature)
         attempt.current = newAttempt(signature);
 
-      let { reservationKey, paymentId } = attempt.current;
-      let reservation = await bookingService.reserve(
-        showtimeId,
-        seatIds,
-        reservationKey,
-      );
+      const reserve = async (reservationKey: string) => {
+        try {
+          return await bookingService.reserve(
+            showtimeId,
+            seatIds,
+            reservationKey,
+          );
+        } catch (error) {
+          const status = statusOf(error);
+          if (status === 409 || status === 410 || status === 422)
+            attempt.current = null;
+          throw error;
+        }
+      };
+
+      let { reservationKey, paymentKey } = attempt.current;
+      let reservation = await reserve(reservationKey);
 
       // Lần thử trước đã giữ ghế nhưng hết hạn trong lúc chờ → xin giữ lại bằng khoá mới.
       if (Date.parse(reservation.holdExpiresAt) <= Date.now()) {
         attempt.current = newAttempt(signature);
-        ({ reservationKey, paymentId } = attempt.current);
-        reservation = await bookingService.reserve(
-          showtimeId,
-          seatIds,
-          reservationKey,
-        );
+        ({ reservationKey, paymentKey } = attempt.current);
+        reservation = await reserve(reservationKey);
       }
-      return bookingService.confirm(reservation.id, paymentId);
+      const payment = await paymentService.create(
+        {
+          reservationId: reservation.id,
+          provider: "vnpay",
+          locale: "vn",
+        },
+        paymentKey,
+      );
+
+      if (!payment.checkout?.url)
+        throw new Error("Payment service chưa trả về đường dẫn thanh toán VNPay.");
+
+      let checkoutUrl: URL;
+      try {
+        checkoutUrl = new URL(payment.checkout.url);
+      } catch {
+        throw new Error("Đường dẫn thanh toán VNPay không hợp lệ.");
+      }
+      if (
+        checkoutUrl.protocol !== "https:" ||
+        checkoutUrl.hostname !== "sandbox.vnpayment.vn"
+      ) {
+        throw new Error("Chỉ chấp nhận đường dẫn VNPay Sandbox hợp lệ.");
+      }
+
+      return { payment, checkoutUrl: checkoutUrl.href };
     },
-    onSuccess: (booking) => {
+    onSuccess: ({ payment }, variables) => {
       attempt.current = null;
-      client.setQueryData(["booking", booking.id], booking);
-      void client.invalidateQueries({ queryKey: ["bookings"] });
+      client.setQueryData(["payment", payment.paymentId], payment);
       void client.invalidateQueries({
-        queryKey: ["seats", booking.showtimeId],
+        queryKey: ["seats", variables.showtimeId],
       });
     },
     onError: (error, variables) => {
       const status = statusOf(error);
       if (status === 409 || status === 410 || status === 422) {
-        attempt.current = null; // lỗi nghiệp vụ: lần sau phải đặt mới
         void client.invalidateQueries({
           queryKey: ["seats", variables.showtimeId],
         }); // cập nhật sơ đồ ghế

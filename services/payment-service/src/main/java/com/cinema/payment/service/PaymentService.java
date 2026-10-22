@@ -173,6 +173,9 @@ public class PaymentService {
         attempt.setCheckoutUrl(paymentProvider.createCheckout(new CheckoutRequest(
                 attempt.getMerchantReference(), amount, currency, description, clientIp,
                 createdAt, expireAt, options)).url());
+        attempt.setStatus(ATTEMPT_PROVIDER_PENDING);
+        attempt.setUpdatedAt(Instant.now());
+        attemptRepository.save(attempt);
 
         payment.setStatus(PAY_PROVIDER_PENDING);
         return payment.getId();

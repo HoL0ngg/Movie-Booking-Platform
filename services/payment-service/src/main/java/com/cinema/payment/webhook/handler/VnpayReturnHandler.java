@@ -6,15 +6,16 @@ import com.cinema.payment.webhook.ParsedPaymentReturn;
 import com.cinema.payment.webhook.PaymentReturnHandler;
 import com.cinema.payment.webhook.utils.ProviderRequestUtils;
 
+import org.springframework.stereotype.Component;
+
 import jakarta.servlet.http.HttpServletRequest;
 
+@Component
 public class VnpayReturnHandler implements PaymentReturnHandler {
     private final VnpayGateway vnpayGateway;
 
     public VnpayReturnHandler(VnpayGateway vnpayGateway) {
-
         this.vnpayGateway = vnpayGateway;
-        ;
     }
 
     @Override
