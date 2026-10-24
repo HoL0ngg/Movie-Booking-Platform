@@ -15,6 +15,8 @@ public interface BookingRepository extends JpaRepository<BookingEntity, UUID> {
 
     Optional<BookingEntity> findByIdAndUserId(UUID id, UUID userId);
 
+    Optional<BookingEntity> findByPaymentIdAndUserId(UUID paymentId, UUID userId);
+
     // BookingRepository
     List<BookingEntity> findAllByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 

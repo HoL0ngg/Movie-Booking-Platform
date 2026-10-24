@@ -46,6 +46,14 @@ public class BookingController {
         return bookingService.get(userId, bookingId);
     }
 
+    @GetMapping("/bookings/by-payment/{paymentId}")
+    public BookingResponse getByPaymentId(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID paymentId) {
+        UUID userId = UUID.fromString(jwt.getSubject());
+        return bookingService.getByPaymentId(userId, paymentId);
+    }
+
     @GetMapping("/bookings")
     public List<BookingResponse> list(@AuthenticationPrincipal Jwt jwt,
             @RequestParam(defaultValue = "20") int limit) {

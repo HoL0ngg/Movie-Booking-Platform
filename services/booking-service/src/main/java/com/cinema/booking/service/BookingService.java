@@ -197,6 +197,13 @@ public class BookingService {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Không tìm thấy booking"));
     }
 
+    @Transactional(readOnly = true)
+    public BookingResponse getByPaymentId(UUID userId, UUID paymentId) {
+        return bookingRepository.findByPaymentIdAndUserId(paymentId, userId)
+                .map(this::toResponse)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Chưa tìm thấy booking cho payment"));
+    }
+
     public BookingResponse toResponse(BookingEntity b) {
         var items = bookingItemRepository.findAllByBookingIdOrderBySeatId(b.getId());
         Map<UUID, String> labels = new HashMap<>();

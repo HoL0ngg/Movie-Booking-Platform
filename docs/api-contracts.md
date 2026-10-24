@@ -85,6 +85,7 @@ Static auditorium/seat labels may be returned by cinema APIs, but live availabil
 | `POST /api/v1/reservations/{reservationId}/checkout` | Move valid hold to payment pending | Requires new command key; returns `202` with stable booking/payment IDs/status links |
 | `POST /api/v1/reservations/{reservationId}/release` | Explicitly release an eligible owned hold | Idempotent command; ambiguous payment state may reject/defer |
 | `GET /api/v1/bookings/{bookingId}` | Read booking/Saga status | Does not infer success from frontend redirect |
+| `GET /api/v1/bookings/by-payment/{paymentId}` | Find the current user's booking by payment ID | Returns `404` until booking-service processes the verified payment result; never exposes another user's booking |
 | `GET /api/v1/bookings/{bookingId}/ticket` | Read confirmed ticket entitlement | `409 BOOKING_NOT_CONFIRMED` while pending; only confirmed owner/support |
 
 Reservation request:

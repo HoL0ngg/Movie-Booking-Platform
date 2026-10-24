@@ -219,6 +219,18 @@ export const bookingService = {
       }),
     );
   },
+
+  async getByPaymentId(
+    paymentId: string,
+    signal?: AbortSignal,
+  ): Promise<Booking> {
+    return toBooking(
+      await bookingRequest<BookingDto>(
+        `/bookings/by-payment/${encodeURIComponent(paymentId)}`,
+        { signal },
+      ),
+    );
+  },
 };
 
 export const paymentService = {

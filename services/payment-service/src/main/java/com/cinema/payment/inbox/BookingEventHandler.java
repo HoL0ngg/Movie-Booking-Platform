@@ -16,7 +16,7 @@ public class BookingEventHandler {
     }
 
     // Đã thu tiền nhưng booking không xác định được ==> tạo yêu cầu hoàn
-    // tiền(imdempotent)
+    // tiền(idempotent)
     public void onBookingConfirmationFailed(EventEnvelope event) {
         BookingConfirmationFailedPayload p = event.payloadAs(BookingConfirmationFailedPayload.class);
         if (p.paymentId() == null) {

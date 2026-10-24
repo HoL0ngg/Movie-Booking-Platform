@@ -61,6 +61,19 @@ export const useBooking = (id = "") =>
     retry: retryUnlessClientError,
   });
 
+export const useBookingByPaymentId = (
+  paymentId = "",
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: ["booking-by-payment", paymentId],
+    queryFn: ({ signal }) => bookingService.getByPaymentId(paymentId, signal),
+    enabled: Boolean(paymentId) && enabled,
+    retry: (failureCount, error) =>
+      statusOf(error) === 404 && failureCount < 10,
+    retryDelay: 1500,
+  });
+
 export const usePayment = (paymentId = "") =>
   useQuery({
     queryKey: ["payment", paymentId],

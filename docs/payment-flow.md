@@ -69,7 +69,7 @@ sequenceDiagram
     BDB-->>B: Commit
 ```
 
-The frontend redirect only prompts a status refresh. It never sets `SUCCEEDED`, confirms a booking, or creates a ticket.
+The frontend redirect only prompts a status refresh. It never sets `SUCCEEDED`, confirms a booking, or creates a ticket. The payment service returns the browser to `/payment/result?paymentId=...`; that page reads payment status from the payment API and, only after a verified `SUCCEEDED` status, looks up the booking by payment ID through booking-service. It navigates to the booking-success page only after booking-service returns the confirmed booking. Because the payment and booking events are asynchronous, the lookup may return `404` briefly while booking-service processes the event.
 
 ## Payment request idempotency
 
