@@ -1,12 +1,17 @@
 package com.cinema.booking.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.UUID;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.io.Serializable;
 import java.util.Objects;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "showtime_seats")
 @IdClass(ShowtimeSeatEntity.Key.class)
@@ -50,17 +55,76 @@ public class ShowtimeSeatEntity {
     @Column(name = "updated_at", nullable = false, columnDefinition = "timestamptz")
     Instant updatedAt;
 
-    public ShowtimeSeatEntity() {}
+    public ShowtimeSeatEntity() {
+    }
 
     public static class Key implements Serializable {
         public UUID showtimeId;
         public UUID seatId;
-        public Key() {}
-        @Override public boolean equals(Object other) {
-            if (this == other) return true;
-            if (!(other instanceof Key key)) return false;
+
+        public Key() {
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other)
+                return true;
+            if (!(other instanceof Key key))
+                return false;
             return Objects.equals(showtimeId, key.showtimeId) && Objects.equals(seatId, key.seatId);
         }
-        @Override public int hashCode() { return Objects.hash(showtimeId, seatId); }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(showtimeId, seatId);
+        }
+    }
+
+    public UUID getShowtimeId() {
+        return showtimeId;
+    }
+
+    public UUID getSeatId() {
+        return seatId;
+    }
+
+    public String getSeatLabel() {
+        return seatLabel;
+    }
+
+    public String getSeatType() {
+        return seatType;
+    }
+
+    public Long getPriceMinor() {
+        return priceMinor;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public UUID getReservationId() {
+        return reservationId;
+    }
+
+    public UUID getBookingId() {
+        return bookingId;
+    }
+
+    public Instant getHoldExpiresAt() {
+        return holdExpiresAt;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
     }
 }

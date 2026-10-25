@@ -1,10 +1,15 @@
 package com.cinema.booking.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.UUID;
 import java.time.Instant;
 import java.time.LocalDate;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "bookings")
 public class BookingEntity {
@@ -42,5 +47,6 @@ public class BookingEntity {
     @Column(name = "updated_at", nullable = false, columnDefinition = "timestamptz")
     Instant updatedAt;
 
-    public BookingEntity() {}
+    public BookingEntity() {
+    }
 }

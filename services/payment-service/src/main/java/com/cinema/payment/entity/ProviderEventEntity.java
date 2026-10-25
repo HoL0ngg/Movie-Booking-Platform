@@ -3,7 +3,6 @@ package com.cinema.payment.entity;
 import jakarta.persistence.*;
 import java.util.UUID;
 import java.time.Instant;
-import java.time.LocalDate;
 
 @Entity
 @Table(name = "provider_events")
@@ -33,5 +32,6 @@ public class ProviderEventEntity {
     @Column(name = "received_at", nullable = false, columnDefinition = "timestamptz")
     Instant receivedAt;
 
-    public ProviderEventEntity() {}
+    public ProviderEventEntity() {
+    }
 }
