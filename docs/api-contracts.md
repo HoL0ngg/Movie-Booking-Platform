@@ -82,7 +82,7 @@ Static auditorium/seat labels may be returned by cinema APIs, but live availabil
 | `GET /api/v1/showtimes/{showtimeId}/seats` | Authoritative booking availability snapshot | May become stale immediately; reservation command still locks/revalidates |
 | `POST /api/v1/reservations` | Atomically hold a seat set | Requires auth and `Idempotency-Key`; `201`, repeatable response, or clean `409` |
 | `GET /api/v1/reservations/{reservationId}` | Read owned reservation/deadline | Owner/support authorization |
-| `POST /api/v1/reservations/{reservationId}/checkout` | Move valid hold to payment pending | Requires new command key; returns `202` with stable booking/payment IDs/status links |
+| `POST /api/v1/reservations/{reservationId}/checkout` | Create a pending booking and move the valid hold to payment pending | Requires `Idempotency-Key`; atomically returns `202` with `bookingId`, `paymentId`, and `status=PAYMENT_PENDING`. `PaymentRequested` is written to the booking outbox; payment creation is asynchronous |
 | `POST /api/v1/reservations/{reservationId}/release` | Explicitly release an eligible owned hold | Idempotent command; ambiguous payment state may reject/defer |
 | `GET /api/v1/bookings/{bookingId}` | Read booking/Saga status | Does not infer success from frontend redirect |
 | `GET /api/v1/bookings/by-payment/{paymentId}` | Find the current user's booking by payment ID | Returns `404` until booking-service processes the verified payment result; never exposes another user's booking |

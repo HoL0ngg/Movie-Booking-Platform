@@ -40,7 +40,7 @@ public class ReservationExpiryJob {
         int failed = 0;
 
         for (int batch = 0; batch < maxBatchesPerRun; batch++) {
-            List<UUID> ids = reservationRepository.findExpiredHeldIds(Instant.now(), PageRequest.of(0, batchSize));
+            List<UUID> ids = reservationRepository.findExpiredReservationIds(Instant.now(), PageRequest.of(0, batchSize));
             if (ids.isEmpty()) {
                 break;
             }

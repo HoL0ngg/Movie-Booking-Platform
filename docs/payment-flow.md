@@ -73,7 +73,7 @@ The frontend redirect only prompts a status refresh. It never sets `SUCCEEDED`, 
 
 ## Payment request idempotency
 
-`PaymentRequested` contains a stable `paymentId`, booking/reservation IDs, amount in minor units, currency, and request idempotency key derived from the checkout intent. `payment-service` uses unique constraints on its consumer inbox and scoped idempotency key/request hash so duplicate events converge on the same payment/attempt.
+`PaymentRequested` contains a stable `paymentId`, booking/reservation IDs, amount in minor units, currency, request idempotency key derived from the checkout intent, the original hold deadline, provider, locale, and client IP required to create the provider checkout. `bankCode` is nullable. The client IP is transient checkout metadata; never log it. `payment-service` uses unique constraints on its consumer inbox and scoped idempotency key/request hash so duplicate events converge on the same payment/attempt.
 
 Provider create/refund calls use a stable merchant reference and provider idempotency key whenever supported. An external timeout is resolved by repeating only a provider-documented safe call or querying by that stable reference; it is not retried with a new identity.
 

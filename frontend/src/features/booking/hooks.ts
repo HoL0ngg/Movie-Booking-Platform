@@ -5,7 +5,6 @@ import {
   cinemaService,
   paymentService,
   seatService,
-  type CreatePaymentRequest,
 } from "./api";
 import { useMovie } from "../movies/hooks";
 
@@ -101,23 +100,6 @@ export const usePaymentRefunds = (paymentId = "") =>
     retry: retryUnlessClientError,
   });
 
-export const useCreatePayment = () => {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      payload,
-      idempotencyKey,
-    }: {
-      payload: CreatePaymentRequest;
-      idempotencyKey: string;
-    }) => paymentService.create(payload, idempotencyKey),
-    onSuccess: (payment) => {
-      client.setQueryData(["payment", payment.paymentId], payment);
-    },
-  });
-};
-
 export const useBookingHistory = () =>
   useQuery({
     queryKey: ["bookings"],
@@ -144,13 +126,36 @@ export function useShowtimeContext(showtimeId = "") {
 interface Attempt {
   signature: string;
   reservationKey: string;
-  paymentKey: string;
+  checkoutKey: string;
 }
 const newAttempt = (signature: string): Attempt => ({
   signature,
   reservationKey: crypto.randomUUID(),
-  paymentKey: crypto.randomUUID(),
+  checkoutKey: crypto.randomUUID(),
 });
+
+const waitForPaymentCheckout = async (paymentId: string) => {
+  for (let attempt = 0; attempt < 30; attempt++) {
+    try {
+      const payment = await paymentService.get(paymentId);
+      if (payment.checkout?.url) return payment;
+      if (["SUCCEEDED", "REFUND_PENDING", "REFUNDED", "REFUND_FAILED"].includes(payment.status)) {
+        return payment;
+      }
+      if (payment.status === "FAILED") {
+        throw new Error(
+          `Không thể tạo thanh toán VNPay (${payment.failureCode ?? payment.status}).`,
+        );
+      }
+    } catch (error) {
+      if (statusOf(error) !== 404) throw error;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 1000));
+  }
+  throw new Error(
+    "Payment service chưa tạo xong đường dẫn thanh toán. Hãy thử lại; booking được giữ nguyên để tránh tạo giao dịch trùng.",
+  );
+};
 
 export const useCheckout = () => {
   const client = useQueryClient();
@@ -183,26 +188,28 @@ export const useCheckout = () => {
         }
       };
 
-      let { reservationKey, paymentKey } = attempt.current;
+      let { reservationKey, checkoutKey } = attempt.current;
       let reservation = await reserve(reservationKey);
 
       // Lần thử trước đã giữ ghế nhưng hết hạn trong lúc chờ → xin giữ lại bằng khoá mới.
       if (Date.parse(reservation.holdExpiresAt) <= Date.now()) {
         attempt.current = newAttempt(signature);
-        ({ reservationKey, paymentKey } = attempt.current);
+        ({ reservationKey, checkoutKey } = attempt.current);
         reservation = await reserve(reservationKey);
       }
-      const payment = await paymentService.create(
-        {
-          reservationId: reservation.id,
-          provider: "vnpay",
-          locale: "vn",
-        },
-        paymentKey,
-      );
+      const booking = await bookingService.beginCheckout(reservation.id, checkoutKey);
+      if (booking.status === "CONFIRMED") {
+        const payment = await paymentService.get(booking.paymentId);
+        return { booking, payment, checkoutUrl: null };
+      }
+      if (booking.status !== "PAYMENT_PENDING") {
+        attempt.current = null;
+        void client.invalidateQueries({ queryKey: ["seats", showtimeId] });
+        throw new Error("Booking không còn ở trạng thái chờ thanh toán.");
+      }
+      const payment = await waitForPaymentCheckout(booking.paymentId);
 
-      if (!payment.checkout?.url)
-        throw new Error("Payment service chưa trả về đường dẫn thanh toán VNPay.");
+      if (!payment.checkout?.url) return { booking, payment, checkoutUrl: null };
 
       let checkoutUrl: URL;
       try {
@@ -217,11 +224,12 @@ export const useCheckout = () => {
         throw new Error("Chỉ chấp nhận đường dẫn VNPay Sandbox hợp lệ.");
       }
 
-      return { payment, checkoutUrl: checkoutUrl.href };
+      return { booking, payment, checkoutUrl: checkoutUrl.href };
     },
-    onSuccess: ({ payment }, variables) => {
+    onSuccess: ({ booking, payment }, variables) => {
       attempt.current = null;
       client.setQueryData(["payment", payment.paymentId], payment);
+      client.setQueryData(["booking", booking.id], booking);
       void client.invalidateQueries({
         queryKey: ["seats", variables.showtimeId],
       });

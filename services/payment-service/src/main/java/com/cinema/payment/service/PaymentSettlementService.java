@@ -14,7 +14,8 @@ import com.cinema.payment.entity.PaymentEntity;
 import com.cinema.payment.entity.ProviderResult;
 import com.cinema.payment.enums.Result;
 import com.cinema.payment.messaging.EventTypes;
-import com.cinema.payment.messaging.PaymentPayload;
+import com.cinema.payment.messaging.PaymentFailedPayload;
+import com.cinema.payment.messaging.PaymentSucceededPayload;
 import com.cinema.payment.provider.vnpay.VnpayCodec;
 import com.cinema.payment.repository.PaymentAttemptRepository;
 import com.cinema.payment.repository.PaymentRepository;
@@ -96,7 +97,9 @@ public class PaymentSettlementService {
         paymentEntity.setStatus(PAY_SUCCEEDED);
         paymentEntity.setUpdatedAt(now);
         outboxService.record(EventTypes.PAYMENT_SUCCEEDED, 1, paymentEntity.getId(),
-                payload(paymentEntity, null, r.failureCode(), PROVIDER_VNPAY));
+                new PaymentSucceededPayload(paymentEntity.getId(), paymentEntity.getBookingId(),
+                        paymentEntity.getReservationId(), paymentEntity.getAmountMinor(), paymentEntity.getCurrency(),
+                        PROVIDER_VNPAY, paymentAttemptEntity.getProviderTransactionId(), now));
 
         return Result.SETTLED;
     }
@@ -114,12 +117,8 @@ public class PaymentSettlementService {
         paymentEntity.setUpdatedAt(now);
 
         outboxService.record(EventTypes.PAYMENT_FAILED, 1, paymentEntity.getId(),
-                payload(paymentEntity, null, r.failureCode(), PROVIDER_VNPAY));
+                new PaymentFailedPayload(paymentEntity.getId(), paymentEntity.getBookingId(),
+                        paymentEntity.getReservationId(), PROVIDER_VNPAY, r.failureCode(), now));
         return Result.SETTLED;
-    }
-
-    static PaymentPayload payload(PaymentEntity p, String providerTransactionId, String reasonCode, String provider) {
-        return new PaymentPayload(p.getId(), p.getReservationId(), p.getUserId(), p.getAmountMinor(), p.getCurrency(),
-                provider, providerTransactionId, reasonCode);
     }
 }

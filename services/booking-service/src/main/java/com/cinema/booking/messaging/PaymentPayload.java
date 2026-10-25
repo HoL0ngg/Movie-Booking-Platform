@@ -6,5 +6,11 @@ import java.util.UUID;
 
 /** Payload của PaymentSucceeded / PaymentFailed. */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record PaymentPayload(UUID paymentId, UUID reservationId) {
+public record PaymentPayload(
+        UUID paymentId,
+        UUID bookingId,
+        UUID reservationId,
+        long amountMinor,
+        String currency,
+        String failureCode) {
 }

@@ -82,7 +82,7 @@ export function PaymentResultPage() {
 
     return (
       <div className="page-width page-top">
-        <LoadingState label="Thanh toán đã xác minh. Đang chờ booking-service xác nhận vé…" />
+        <LoadingState label="Thanh toán đã xác minh. Đang chờ xác nhận vé…" />
       </div>
     );
   }
@@ -100,9 +100,7 @@ export function PaymentResultPage() {
 
   return (
     <div className="page-width page-top">
-      <ErrorState
-        message={`Thanh toán chưa hoàn tất (trạng thái: ${payment.data.status}).`}
-      />
+      <ErrorState message={`Thanh toán thất bại.`} />
       <Link className="secondary-button" to="/bookings">
         Xem vé của tôi
       </Link>

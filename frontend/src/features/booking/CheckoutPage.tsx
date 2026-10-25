@@ -29,7 +29,15 @@ export function CheckoutPage() {
     checkout.mutate(
       { showtimeId: draft.showtimeId!, seatIds: draft.seatIds },
       {
-        onSuccess: ({ checkoutUrl }) => window.location.assign(checkoutUrl),
+        onSuccess: ({ checkoutUrl, payment }) => {
+          if (checkoutUrl) {
+            window.location.assign(checkoutUrl);
+          } else {
+            window.location.assign(
+              `/payment/result?paymentId=${encodeURIComponent(payment.paymentId)}`,
+            );
+          }
+        },
       },
     );
   return (

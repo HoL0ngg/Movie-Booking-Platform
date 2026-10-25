@@ -8,6 +8,7 @@ public record BookingResponse(
         UUID bookingId,
         UUID reservationId,
         UUID showtimeId,
+        UUID paymentId,
         String status,
         long amountMinor,
         String currency,

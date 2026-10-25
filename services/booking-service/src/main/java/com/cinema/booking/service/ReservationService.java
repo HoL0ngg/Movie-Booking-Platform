@@ -25,7 +25,10 @@ import com.cinema.booking.repository.ShowtimeSnapshotRepository;
 
 import com.cinema.booking.exception.ApiException;
 import com.cinema.booking.messaging.EventTypes;
+import com.cinema.booking.messaging.BookingCancelledPayload;
 import com.cinema.booking.messaging.ReservationReleasedPayload;
+import com.cinema.booking.messaging.SeatHoldExpiredPayload;
+import com.cinema.booking.repository.BookingRepository;
 
 import static com.cinema.booking.entity.Statuses.*;
 
@@ -39,6 +42,7 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final ReservationSeatRepository reservationSeatRepository;
     private final IdempotencyKeyRepository idempotencyRepository;
+    private final BookingRepository bookingRepository;
     // private final ObjectMapper objectMapper;
     private final OutboxService outboxService;
     private final Duration holdTtl;
@@ -48,6 +52,7 @@ public class ReservationService {
             ReservationRepository reservationRepository,
             ReservationSeatRepository reservationSeatRepository,
             IdempotencyKeyRepository idempotencyRepository,
+            BookingRepository bookingRepository,
             OutboxService outboxService,
             @Value("${booking.hold-ttl:PT5M}") Duration holdTtl) {
         this.snapshotRepository = snapshotRepository;
@@ -55,6 +60,7 @@ public class ReservationService {
         this.reservationRepository = reservationRepository;
         this.reservationSeatRepository = reservationSeatRepository;
         this.idempotencyRepository = idempotencyRepository;
+        this.bookingRepository = bookingRepository;
         // this.objectMapper = objectMapper;
         this.outboxService = outboxService;
         this.holdTtl = holdTtl;
@@ -182,7 +188,8 @@ public class ReservationService {
     public void expire(UUID reservationId) {
         reservationRepository.lockById(reservationId).ifPresent(r -> {
             // Re-check sau khi có lock: có thể đã confirm/cancel trong lúc chờ
-            if (RES_HELD.equals(r.getStatus()) && r.getHoldExpiresAt().isBefore(Instant.now())) {
+            if ((RES_HELD.equals(r.getStatus()) || RES_PAYMENT_PENDING.equals(r.getStatus()))
+                    && r.getHoldExpiresAt().isBefore(Instant.now())) {
                 releaseSeats(r, RES_EXPIRED, "HOLD_EXPIRED");
             }
         });
@@ -192,7 +199,7 @@ public class ReservationService {
     public void releaseBySystem(UUID reservationId, String reason) {
         reservationRepository.lockById(reservationId).ifPresent(r -> {
 
-            if (RES_HELD.equals(r.getStatus())) {
+            if (RES_HELD.equals(r.getStatus()) || RES_PAYMENT_PENDING.equals(r.getStatus())) {
                 releaseSeats(r, RES_RELEASED, reason);
             }
         });
@@ -201,30 +208,47 @@ public class ReservationService {
     private void releaseSeats(ReservationEntity r, String newStatus, String reason) {
         Instant now = Instant.now();
         var items = reservationSeatRepository.findAllByReservationIdOrderBySeatId(r.getId());
+        var pendingBooking = bookingRepository.lockByReservationId(r.getId())
+                .filter(b -> BOOKING_PAYMENT_PENDING.equals(b.getStatus()))
+                .orElse(null);
         for (var i : items) {
             seatRepository.lockSeat(r.getShowtimeId(), i.getSeatId()).ifPresent(seat -> {
-                // only reset status of seat belonging to this reservation
-                if (r.getId().equals(seat.getReservationId()) && SEAT_HELD.equals(seat.getStatus())) {
+                boolean ownedHold = SEAT_HELD.equals(seat.getStatus()) && seat.getBookingId() == null;
+                boolean ownedPending = SEAT_PAYMENT_PENDING.equals(seat.getStatus()) && pendingBooking != null
+                        && pendingBooking.getId().equals(seat.getBookingId());
+                if (r.getId().equals(seat.getReservationId()) && (ownedHold || ownedPending)) {
                     seat.setStatus(SEAT_AVAILABLE);
                     seat.setHoldExpiresAt(null);
                     seat.setReservationId(null);
+                    seat.setBookingId(null);
                     seat.setUpdatedAt(now);
                 }
             });
-            ;
         }
 
         r.setStatus(newStatus);
         r.setUpdatedAt(now);
+        if (pendingBooking != null) {
+            pendingBooking.setStatus(BOOKING_CANCELLED);
+            pendingBooking.setUpdatedAt(now);
+            List<UUID> seatIds = items.stream().map(ReservationSeatEntity::getSeatId).toList();
+            outboxService.record(EventTypes.BOOKING_CANCELLED, 1, pendingBooking.getId(),
+                    new BookingCancelledPayload(pendingBooking.getId(), r.getId(), pendingBooking.getPaymentId(),
+                            r.getUserId(), r.getShowtimeId(), seatIds, reason, now));
+        }
 
         // Cùng transaction với thay đổi dữ liệu => event chỉ tồn tại nếu việc nhả ghế
         // commit thành công
-        String eventType = RES_EXPIRED.equals(newStatus)
-                ? EventTypes.RESERVATION_EXPIRED
-                : EventTypes.RESERVATION_RELEASED;
-        outboxService.record(eventType, 1, r.getId(), new ReservationReleasedPayload(
-                r.getId(), r.getShowtimeId(), r.getUserId(), reason,
-                items.stream().map(ReservationSeatEntity::getSeatId).toList()));
+        List<UUID> seatIds = items.stream().map(ReservationSeatEntity::getSeatId).toList();
+        if (RES_EXPIRED.equals(newStatus)) {
+            outboxService.record(EventTypes.SEAT_HOLD_EXPIRED, 1, r.getId(),
+                    new SeatHoldExpiredPayload(r.getId(), r.getUserId(), r.getShowtimeId(), seatIds, now));
+        } else {
+            outboxService.record(EventTypes.RESERVATION_RELEASED, 1, r.getId(),
+                    new ReservationReleasedPayload(r.getId(),
+                            pendingBooking == null ? null : pendingBooking.getId(),
+                            r.getShowtimeId(), seatIds, reason, now));
+        }
     }
 
     private void validation(String idempotencyKey, CreateReservationRequest req) {

@@ -122,7 +122,7 @@ On `PaymentFailed`, the equivalent transaction releases still-owned `PAYMENT_PEN
 
 ## Expiration and cancellation
 
-Workers claim expired aggregates in bounded batches using PostgreSQL locks and `SKIP LOCKED`. They re-check the deadline and state under lock, lock seats in canonical order, release only rows still owned by that reservation, update aggregate state, and write `SeatHoldExpired`/`ReservationReleased` in the same transaction. Multiple workers and repeated runs are safe.
+Workers claim expired aggregates in bounded batches using PostgreSQL locks and `SKIP LOCKED`. They re-check the deadline and state under lock, lock seats in canonical order, release only rows still owned by that reservation, update aggregate state, and write `SeatHoldExpired` in the same transaction. Explicit/system releases emit `ReservationReleased`; if a pending booking is cancelled, `BookingCancelled` is emitted as well. Multiple workers and repeated runs are safe.
 
 User cancellation follows the same aggregate-then-seat lock order and ownership checks. Cancellation during an ambiguous provider operation must coordinate through Saga state; it cannot assume money was not captured.
 

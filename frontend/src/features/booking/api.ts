@@ -34,6 +34,7 @@ export interface Booking {
   id: string;
   reservationId: string;
   showtimeId: string;
+  paymentId: string;
   status: string; // CONFIRMED | PAYMENT_PENDING | CANCELLED | REFUND_PENDING | REFUNDED
   amountMinor: number;
   currency: string;
@@ -44,6 +45,7 @@ export interface Booking {
 
 export interface Payment {
   paymentId: string;
+  bookingId: string;
   reservationId: string;
   status: string;
   amountMinor: number;
@@ -52,13 +54,6 @@ export interface Payment {
   failureCode: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface CreatePaymentRequest {
-  reservationId: string;
-  provider?: string;
-  bankCode?: string;
-  locale?: "vn" | "en";
 }
 
 export interface PaymentRefund {
@@ -101,6 +96,7 @@ interface BookingDto {
   bookingId: string;
   reservationId: string;
   showtimeId: string;
+  paymentId: string;
   status: string;
   amountMinor: number;
   currency: string;
@@ -148,6 +144,7 @@ const toBooking = (dto: BookingDto): Booking => ({
   id: dto.bookingId,
   reservationId: dto.reservationId,
   showtimeId: dto.showtimeId,
+  paymentId: dto.paymentId,
   status: dto.status,
   amountMinor: dto.amountMinor,
   currency: dto.currency,
@@ -186,14 +183,17 @@ export const bookingService = {
     );
   },
 
-  /** Xác nhận booking sau khi thanh toán. Idempotent theo reservation. */
-  async confirm(reservationId: string, paymentId: string): Promise<Booking> {
+  /** Tạo booking PAYMENT_PENDING và phát PaymentRequested qua outbox. */
+  async beginCheckout(
+    reservationId: string,
+    idempotencyKey: string,
+  ): Promise<Booking> {
     return toBooking(
       await bookingRequest<BookingDto>(
-        `/reservations/${encodeURIComponent(reservationId)}/bookings`,
+        `/reservations/${encodeURIComponent(reservationId)}/checkout`,
         {
           method: "POST",
-          body: { paymentId },
+          idempotencyKey,
         },
       ),
     );
@@ -234,17 +234,6 @@ export const bookingService = {
 };
 
 export const paymentService = {
-  async create(
-    payload: CreatePaymentRequest,
-    idempotencyKey: string,
-  ): Promise<Payment> {
-    return request<Payment>("/payments", {
-      method: "POST",
-      body: JSON.stringify(payload),
-      headers: { "Idempotency-Key": idempotencyKey },
-    });
-  },
-
   async get(paymentId: string, signal?: AbortSignal): Promise<Payment> {
     return request<Payment>(
       `/payments/${encodeURIComponent(paymentId)}`,

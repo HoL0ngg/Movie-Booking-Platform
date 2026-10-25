@@ -1,6 +1,7 @@
 package com.cinema.booking.messaging;
 
 import java.util.List;
+import java.time.Instant;
 import java.util.UUID;
 
 public record BookingConfirmedPayload(
@@ -9,8 +10,6 @@ public record BookingConfirmedPayload(
         UUID showtimeId,
         UUID userId,
         UUID paymentId,
-        long amountMinor,
-        String currency,
-        String confirmedAt,
+        Instant confirmedAt,
         List<UUID> seatIds) {
 }

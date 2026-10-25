@@ -34,6 +34,11 @@ public class BookingEventConsumer {
                     throw new PoisonMessageException("Version " + e.eventVersion() + " chưa được hỗ trợ");
                 }
                 processor.process(CONSUMER_NAME, e.eventId(), () -> handler.onBookingConfirmationFailed(e));
+            } else if (EventTypes.PAYMENT_REQUESTED.equals(e.eventType())) {
+                if (e.eventVersion() != 1) {
+                    throw new PoisonMessageException("Version " + e.eventVersion() + " chưa được hỗ trợ");
+                }
+                processor.process(CONSUMER_NAME, e.eventId(), () -> handler.onPaymentRequested(e));
             } else {
                 LOG.fine(() -> "Bỏ qua event type " + e.eventType());
             }

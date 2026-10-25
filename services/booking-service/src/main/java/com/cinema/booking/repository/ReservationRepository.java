@@ -20,6 +20,6 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
     Optional<ReservationEntity> findByIdAndUserId(UUID id, UUID userId);
 
-    @Query("select r.id from ReservationEntity r where r.status = 'HELD' and r.holdExpiresAt < :now order by r.holdExpiresAt")
-    List<UUID> findExpiredHeldIds(@Param("now") Instant now, Pageable pageable);
+    @Query("select r.id from ReservationEntity r where r.status in ('HELD', 'PAYMENT_PENDING') and r.holdExpiresAt < :now order by r.holdExpiresAt")
+    List<UUID> findExpiredReservationIds(@Param("now") Instant now, Pageable pageable);
 }

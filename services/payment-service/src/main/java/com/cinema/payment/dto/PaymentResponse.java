@@ -10,6 +10,7 @@ import java.util.UUID;
  */
 public record PaymentResponse(
         UUID paymentId,
+        UUID bookingId,
         UUID reservationId,
         String status,
         long amountMinor,

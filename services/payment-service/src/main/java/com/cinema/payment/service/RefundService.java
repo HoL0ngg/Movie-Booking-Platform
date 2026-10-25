@@ -17,6 +17,8 @@ import com.cinema.payment.entity.PaymentEntity;
 import com.cinema.payment.entity.RefundEntity;
 import com.cinema.payment.messaging.EventTypes;
 import com.cinema.payment.messaging.PoisonMessageException;
+import com.cinema.payment.messaging.RefundCompletedPayload;
+import com.cinema.payment.messaging.RefundFailedPayload;
 import com.cinema.payment.provider.vnpay.VnpayApiException;
 import com.cinema.payment.provider.vnpay.VnpayCodec;
 import com.cinema.payment.provider.vnpay.VnpayGateway;
@@ -189,14 +191,17 @@ public class RefundService {
                 refund.setStatus(REFUND_COMPLETED);
                 refund.setProviderRefundId(providerRefundId);
                 payment.setStatus(PAY_REFUNDED);
-                outboxService.record(EventTypes.PAYMENT_REFUNDED, 1, payment.getId(),
-                        PaymentSettlementService.payload(payment, providerRefundId, null, "vnpay"));
+                outboxService.record(EventTypes.REFUND_COMPLETED, 1, payment.getId(),
+                        new RefundCompletedPayload(refund.getId(), refund.getRefundRequestId(), payment.getId(),
+                                payment.getBookingId(), payment.getUserId(), refund.getAmountMinor(),
+                                refund.getCurrency(), providerRefundId, now));
             } else {
                 refund.setStatus(REFUND_FAILED);
                 refund.setFailureCode(failureCode);
                 payment.setStatus(PAY_REFUND_FAILED);
-                outboxService.record(EventTypes.PAYMENT_REFUND_FAILED, 1, payment.getId(),
-                        PaymentSettlementService.payload(payment, null, failureCode, "vnpay"));
+                outboxService.record(EventTypes.REFUND_FAILED, 1, payment.getId(),
+                        new RefundFailedPayload(refund.getId(), refund.getRefundRequestId(), payment.getId(),
+                                failureCode, now, false));
             }
         });
     }

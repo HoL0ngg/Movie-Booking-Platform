@@ -11,28 +11,25 @@ import com.cinema.booking.messaging.PaymentPayload;
 import com.cinema.booking.messaging.PoisonMessageException;
 import com.cinema.booking.service.BookingService;
 import com.cinema.booking.service.OutboxService;
-import com.cinema.booking.service.ReservationService;
 
 @Component
 public class PaymentEventHandler {
     private static final Logger LOG = Logger.getLogger(PaymentEventHandler.class.getName());
 
     private final BookingService bookingService;
-    private final ReservationService reservationService;
     private final OutboxService outboxService;
 
     public PaymentEventHandler(BookingService bookingService,
-            ReservationService reservationService,
             OutboxService outboxService) {
         this.bookingService = bookingService;
-        this.reservationService = reservationService;
         this.outboxService = outboxService;
     }
 
     public void onPaymentSucceeded(EventEnvelope event) {
         PaymentPayload p = requirePayload(event);
 
-        BookingService.Failure failure = bookingService.confirmForPayment(p.reservationId(), p.paymentId());
+        BookingService.Failure failure = bookingService.confirmForPayment(
+                p.bookingId(), p.reservationId(), p.paymentId(), p.amountMinor(), p.currency());
         if (failure != null) {
             LOG.warning("Không xác nhận được booking cho reservation " + p.reservationId()
                     + " sau khi thanh toán " + p.paymentId() + ": " + failure.reason());
@@ -44,15 +41,21 @@ public class PaymentEventHandler {
 
     public void onPaymentFailed(EventEnvelope event) {
         PaymentPayload p = requirePayload(event);
-        reservationService.releaseBySystem(p.reservationId(), "PAYMENT_FAILED"); // nhả ghế sớm
+        bookingService.failPayment(p.bookingId(), p.reservationId(), p.paymentId(),
+                p.failureCode() == null ? "PAYMENT_FAILED" : p.failureCode());
     }
 
     private PaymentPayload requirePayload(EventEnvelope event) {
         PaymentPayload p = event.payloadAs(PaymentPayload.class);
         UUID reservationId = p.reservationId();
-        if (reservationId == null || p.paymentId() == null) {
+        if (reservationId == null || p.paymentId() == null || p.bookingId() == null) {
             throw new PoisonMessageException(
-                    event.eventType() + " thiếu reservationId/paymentId (" + event.eventId() + ")");
+                    event.eventType() + " thiếu bookingId/reservationId/paymentId (" + event.eventId() + ")");
+        }
+        if (EventTypes.PAYMENT_SUCCEEDED.equals(event.eventType())
+                && (p.amountMinor() <= 0 || p.currency() == null || p.currency().isBlank())) {
+            throw new PoisonMessageException(
+                    event.eventType() + " thiếu amountMinor/currency (" + event.eventId() + ")");
         }
         return p;
     }
