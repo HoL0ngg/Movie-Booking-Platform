@@ -69,11 +69,11 @@ sequenceDiagram
     BDB-->>B: Commit
 ```
 
-The frontend redirect only prompts a status refresh. It never sets `SUCCEEDED`, confirms a booking, or creates a ticket.
+The frontend redirect only prompts a status refresh. It never sets `SUCCEEDED`, confirms a booking, or creates a ticket. The payment service returns the browser to `/payment/result?paymentId=...`; that page reads payment status from the payment API and, only after a verified `SUCCEEDED` status, looks up the booking by payment ID through booking-service. It navigates to the booking-success page only after booking-service returns the confirmed booking. Because the payment and booking events are asynchronous, the lookup may return `404` briefly while booking-service processes the event.
 
 ## Payment request idempotency
 
-`PaymentRequested` contains a stable `paymentId`, booking/reservation IDs, amount in minor units, currency, and request idempotency key derived from the checkout intent. `payment-service` uses unique constraints on its consumer inbox and scoped idempotency key/request hash so duplicate events converge on the same payment/attempt.
+`PaymentRequested` contains a stable `paymentId`, booking/reservation IDs, amount in minor units, currency, request idempotency key derived from the checkout intent, the original hold deadline, provider, locale, and client IP required to create the provider checkout. `bankCode` is nullable. The client IP is transient checkout metadata; never log it. `payment-service` uses unique constraints on its consumer inbox and scoped idempotency key/request hash so duplicate events converge on the same payment/attempt.
 
 Provider create/refund calls use a stable merchant reference and provider idempotency key whenever supported. An external timeout is resolved by repeating only a provider-documented safe call or querying by that stable reference; it is not retried with a new identity.
 

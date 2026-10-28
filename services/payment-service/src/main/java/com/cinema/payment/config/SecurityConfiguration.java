@@ -2,6 +2,7 @@ package com.cinema.payment.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -26,8 +27,13 @@ public class SecurityConfiguration {
                                 "/actuator/health/**", "/actuator/info",
                                 "/openapi/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
                         .permitAll()
+                        .requestMatchers("/provider-webhooks/**", "/provider-return/**")
+                        .permitAll()
+                        .requestMatchers("/api/v1/payments/**")
+                        .authenticated()
                         .anyRequest()
                         .denyAll())
+                .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
                 .build();
     }
 
@@ -38,4 +44,3 @@ public class SecurityConfiguration {
         };
     }
 }
-

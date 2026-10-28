@@ -1,28 +1,247 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef } from 'react'
-import { bookingService, cinemaService, paymentService, seatService, type PaymentMethod } from './api'
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
+import {
+  bookingService,
+  cinemaService,
+  paymentService,
+  seatService,
+} from "./api";
+import { useMovie } from "../movies/hooks";
 
-export const useCinemas = () => useQuery({ queryKey: ['cinemas'], queryFn: cinemaService.list })
-export const useShowtimes = (movieId = '') => useQuery({ queryKey: ['showtimes', movieId], queryFn: () => cinemaService.showtimes(movieId), enabled: Boolean(movieId) })
-export const useShowtime = (id = '') => useQuery({ queryKey: ['showtime', id], queryFn: () => cinemaService.showtime(id), enabled: Boolean(id) })
-export const useSeats = (showtimeId = '') => useQuery({ queryKey: ['seats', showtimeId], queryFn: () => seatService.getByShowtime(showtimeId), enabled: Boolean(showtimeId) })
-export const useBooking = (id = '') => useQuery({ queryKey: ['booking', id], queryFn: () => bookingService.get(id), enabled: Boolean(id) })
-export const useBookingHistory = () => useQuery({ queryKey: ['bookings'], queryFn: bookingService.history })
+// Không phụ thuộc tên thuộc tính cụ thể của HttpApiError: chỉ cần có trường `status`.
+export const statusOf = (error: unknown): number | undefined =>
+  (error as { status?: number } | null)?.status;
+
+// Lỗi 4xx (404, 409, 410, 422…) là lỗi nghiệp vụ, thử lại vô ích → không retry.
+const retryUnlessClientError = (failureCount: number, error: unknown) => {
+  const status = statusOf(error);
+  return (
+    !(status !== undefined && status >= 400 && status < 500) && failureCount < 2
+  );
+};
+
+export const useCinemas = () =>
+  useQuery({ queryKey: ["cinemas"], queryFn: cinemaService.list });
+
+export const useShowtimes = (movieId = "") =>
+  useQuery({
+    queryKey: ["showtimes", movieId],
+    queryFn: () => cinemaService.showtimes(movieId),
+    enabled: Boolean(movieId),
+  });
+
+export const useShowtime = (id = "") =>
+  useQuery({
+    queryKey: ["showtime", id],
+    queryFn: () => cinemaService.showtime(id),
+    enabled: Boolean(id),
+    retry: retryUnlessClientError,
+  });
+
+// Ghế thay đổi liên tục (người khác giữ/đặt) → làm mới định kỳ khi tab đang mở.
+export const useSeats = (showtimeId = "") =>
+  useQuery({
+    queryKey: ["seats", showtimeId],
+    queryFn: ({ signal }) => seatService.getByShowtime(showtimeId, signal),
+    // Chỉ làm mới khi có showtimeId, tránh gọi API vô nghĩa.
+    enabled: Boolean(showtimeId),
+    // Làm mới mỗi 15 giây. Giúp cập nhật trạng thái ghế mới nhất khi người dùng đang xem sơ đồ ghế.
+    // 15000ms
+    refetchInterval: 15_000,
+    // Lỗi 4xx (404, 409, 410, 422…) là lỗi nghiệp vụ, thử lại vô ích → không retry.
+    retry: retryUnlessClientError,
+  });
+
+export const useBooking = (id = "") =>
+  useQuery({
+    queryKey: ["booking", id],
+    queryFn: ({ signal }) => bookingService.get(id, signal),
+    enabled: Boolean(id),
+    retry: retryUnlessClientError,
+  });
+
+export const useBookingByPaymentId = (
+  paymentId = "",
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: ["booking-by-payment", paymentId],
+    queryFn: ({ signal }) => bookingService.getByPaymentId(paymentId, signal),
+    enabled: Boolean(paymentId) && enabled,
+    retry: (failureCount, error) =>
+      statusOf(error) === 404 && failureCount < 10,
+    retryDelay: 1500,
+  });
+
+export const usePayment = (paymentId = "") =>
+  useQuery({
+    queryKey: ["payment", paymentId],
+    queryFn: ({ signal }) => paymentService.get(paymentId, signal),
+    enabled: Boolean(paymentId),
+    retry: (failureCount, error) => {
+      const code = (error as { code?: string } | null)?.code;
+      if (code === "PAYMENT_NOT_READY") return failureCount < 5;
+      return retryUnlessClientError(failureCount, error);
+    },
+    retryDelay: (failureCount) => Math.min(1000 * 2 ** failureCount, 5000),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "REQUESTED" || status === "PROVIDER_PENDING"
+        ? 3000
+        : false;
+    },
+  });
+
+export const usePaymentRefunds = (paymentId = "") =>
+  useQuery({
+    queryKey: ["payment", paymentId, "refunds"],
+    queryFn: ({ signal }) => paymentService.refunds(paymentId, signal),
+    enabled: Boolean(paymentId),
+    retry: retryUnlessClientError,
+  });
+
+export const useBookingHistory = () =>
+  useQuery({
+    queryKey: ["bookings"],
+    queryFn: ({ signal }) => bookingService.history(signal),
+  });
+
+/** Gom thông tin hiển thị của một suất chiếu (suất + phim + rạp) cho trang vé / lịch sử. */
+export function useShowtimeContext(showtimeId = "") {
+  const showtime = useShowtime(showtimeId);
+  const movie = useMovie(showtime.data?.movieId);
+  const cinemas = useCinemas();
+  return {
+    showtime: showtime.data,
+    movie: movie.data,
+    cinema: cinemas.data?.find((item) => item.id === showtime.data?.cinemaId),
+    showtimeError: showtime.error,
+    isLoading: showtime.isLoading || movie.isLoading || cinemas.isLoading,
+  };
+}
+
+// Mỗi "lần thử đặt vé" có bộ khoá riêng. Cùng ghế + cùng suất → dùng lại khoá, nên bấm lại sau lỗi mạng
+// là an toàn (backend trả đúng reservation cũ, không tạo thêm). Đổi ghế → khoá mới, tránh lỗi 422
+// "Idempotency-Key đã được dùng với request khác".
+interface Attempt {
+  signature: string;
+  reservationKey: string;
+  checkoutKey: string;
+}
+const newAttempt = (signature: string): Attempt => ({
+  signature,
+  reservationKey: crypto.randomUUID(),
+  checkoutKey: crypto.randomUUID(),
+});
+
+const waitForPaymentCheckout = async (paymentId: string) => {
+  for (let attempt = 0; attempt < 30; attempt++) {
+    try {
+      const payment = await paymentService.get(paymentId);
+      if (payment.checkout?.url) return payment;
+      if (["SUCCEEDED", "REFUND_PENDING", "REFUNDED", "REFUND_FAILED"].includes(payment.status)) {
+        return payment;
+      }
+      if (payment.status === "FAILED") {
+        throw new Error(
+          `Không thể tạo thanh toán VNPay (${payment.failureCode ?? payment.status}).`,
+        );
+      }
+    } catch (error) {
+      if (statusOf(error) !== 404) throw error;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 1000));
+  }
+  throw new Error(
+    "Payment service chưa tạo xong đường dẫn thanh toán. Hãy thử lại; booking được giữ nguyên để tránh tạo giao dịch trùng.",
+  );
+};
 
 export const useCheckout = () => {
-  const client = useQueryClient()
-  const reservationKey = useRef(crypto.randomUUID())
-  const checkoutKey = useRef(crypto.randomUUID())
+  const client = useQueryClient();
+  const attempt = useRef<Attempt | null>(null);
+
   return useMutation({
-    mutationFn: async ({ showtimeId, seatIds, method }: { showtimeId: string; seatIds: string[]; method: PaymentMethod }) => {
-      const reservation = await bookingService.reserve(showtimeId, seatIds, reservationKey.current)
-      const { payment } = await bookingService.checkout(reservation.id, method, checkoutKey.current)
-      return paymentService.confirmMock(payment.id)
+    mutationFn: async ({
+      showtimeId,
+      seatIds,
+    }: {
+      showtimeId: string;
+      seatIds: string[];
+    }) => {
+      const signature = `${showtimeId}:${[...seatIds].sort().join(",")}`;
+      if (attempt.current?.signature !== signature)
+        attempt.current = newAttempt(signature);
+
+      const reserve = async (reservationKey: string) => {
+        try {
+          return await bookingService.reserve(
+            showtimeId,
+            seatIds,
+            reservationKey,
+          );
+        } catch (error) {
+          const status = statusOf(error);
+          if (status === 409 || status === 410 || status === 422)
+            attempt.current = null;
+          throw error;
+        }
+      };
+
+      let { reservationKey, checkoutKey } = attempt.current;
+      let reservation = await reserve(reservationKey);
+
+      // Lần thử trước đã giữ ghế nhưng hết hạn trong lúc chờ → xin giữ lại bằng khoá mới.
+      if (Date.parse(reservation.holdExpiresAt) <= Date.now()) {
+        attempt.current = newAttempt(signature);
+        ({ reservationKey, checkoutKey } = attempt.current);
+        reservation = await reserve(reservationKey);
+      }
+      const booking = await bookingService.beginCheckout(reservation.id, checkoutKey);
+      if (booking.status === "CONFIRMED") {
+        const payment = await paymentService.get(booking.paymentId);
+        return { booking, payment, checkoutUrl: null };
+      }
+      if (booking.status !== "PAYMENT_PENDING") {
+        attempt.current = null;
+        void client.invalidateQueries({ queryKey: ["seats", showtimeId] });
+        throw new Error("Booking không còn ở trạng thái chờ thanh toán.");
+      }
+      const payment = await waitForPaymentCheckout(booking.paymentId);
+
+      if (!payment.checkout?.url) return { booking, payment, checkoutUrl: null };
+
+      let checkoutUrl: URL;
+      try {
+        checkoutUrl = new URL(payment.checkout.url);
+      } catch {
+        throw new Error("Đường dẫn thanh toán VNPay không hợp lệ.");
+      }
+      if (
+        checkoutUrl.protocol !== "https:" ||
+        checkoutUrl.hostname !== "sandbox.vnpayment.vn"
+      ) {
+        throw new Error("Chỉ chấp nhận đường dẫn VNPay Sandbox hợp lệ.");
+      }
+
+      return { booking, payment, checkoutUrl: checkoutUrl.href };
     },
-    onSuccess: booking => {
-      client.setQueryData(['booking', booking.id], booking)
-      void client.invalidateQueries({ queryKey: ['bookings'] })
-      void client.invalidateQueries({ queryKey: ['seats', booking.showtime.id] })
+    onSuccess: ({ booking, payment }, variables) => {
+      attempt.current = null;
+      client.setQueryData(["payment", payment.paymentId], payment);
+      client.setQueryData(["booking", booking.id], booking);
+      void client.invalidateQueries({
+        queryKey: ["seats", variables.showtimeId],
+      });
     },
-  })
-}
+    onError: (error, variables) => {
+      const status = statusOf(error);
+      if (status === 409 || status === 410 || status === 422) {
+        void client.invalidateQueries({
+          queryKey: ["seats", variables.showtimeId],
+        }); // cập nhật sơ đồ ghế
+      }
+      // Lỗi mạng / 5xx: giữ nguyên khoá để bấm lại vẫn idempotent
+    },
+  });
+};

@@ -74,13 +74,13 @@ All fields below are inside `payload`; the standard envelope remains mandatory.
 | `SeatsHeld` | `reservationId`, `showtimeId`, `seatIds[]`, `holdExpiresAt` |
 | `SeatHoldExpired` | `reservationId`, `userId`, `showtimeId`, `seatIds[]`, `expiredAt` |
 | `ReservationReleased` | `reservationId`, `bookingId` when present, `showtimeId`, `seatIds[]`, `reasonCode`, `releasedAt` |
-| `PaymentRequested` | `paymentId`, `bookingId`, `reservationId`, `userId`, `amountMinor`, `currency`, `idempotencyKey`, `requestedAt` |
+| `PaymentRequested` | `paymentId`, `bookingId`, `reservationId`, `userId`, `amountMinor`, `currency`, `idempotencyKey`, `requestedAt`, `holdExpiresAt`, `provider`, `locale`, `clientIp`; `bankCode` is nullable |
 | `PaymentSucceeded` | `paymentId`, `bookingId`, `reservationId`, `amountMinor`, `currency`, `provider`, `providerTransactionId`, `succeededAt` |
 | `PaymentFailed` | `paymentId`, `bookingId`, `reservationId`, `provider`, `failureCode`, `failedAt` |
 | `BookingConfirmed` | `bookingId`, `reservationId`, `paymentId`, `userId`, `showtimeId`, `seatIds[]`, `confirmedAt` |
 | `BookingCancelled` | `bookingId`, `reservationId`, `paymentId` when present, `userId`, `showtimeId`, `seatIds[]`, `reasonCode`, `cancelledAt` |
 | `RefundRequested` | `refundRequestId`, `paymentId`, `bookingId`, `userId`, `amountMinor`, `currency`, `reasonCode`, `idempotencyKey` |
-| `RefundCompleted` | `refundId`, `refundRequestId`, `paymentId`, `bookingId`, `userId`, `amountMinor`, `currency`, `providerRefundId`, `refundedAt` |
+| `RefundCompleted` | `refundId`, `refundRequestId`, `paymentId`, `bookingId`, `userId`, `amountMinor`, `currency`, `providerRefundId` (nullable when provider supplies none), `refundedAt` |
 | `RefundFailed` | `refundId`, `refundRequestId`, `paymentId`, `failureCode`, `failedAt`, `retryable` |
 
 Arrays representing a seat set are emitted in canonical seat order for deterministic payload hashing and diagnostics. Events contain stable internal identifiers rather than copied credentials or unnecessary personal data.
@@ -151,4 +151,4 @@ Late success or other fulfilment failure:
 
 Seat hold timeout before successful fulfilment:
 
-`SeatHoldExpired` + `ReservationReleased`; any later `PaymentSucceeded` follows the refund path and never resurrects seats.
+`SeatHoldExpired`; other explicit/system releases emit `ReservationReleased`. Any later `PaymentSucceeded` follows the refund path and never resurrects seats.

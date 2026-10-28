@@ -1,10 +1,14 @@
 package com.cinema.payment.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.UUID;
 import java.time.Instant;
-import java.time.LocalDate;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "payments")
 public class PaymentEntity {
@@ -42,5 +46,6 @@ public class PaymentEntity {
     @Column(name = "updated_at", nullable = false, columnDefinition = "timestamptz")
     Instant updatedAt;
 
-    public PaymentEntity() {}
+    public PaymentEntity() {
+    }
 }

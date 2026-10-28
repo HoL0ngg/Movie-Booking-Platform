@@ -1,7 +1,12 @@
 server:
   port: ${PAYMENT_SERVICE_PORT:8085}
-
+auth:
+  jwt:
+    secret: ${AUTH_JWT_SECRET:}
+    issuer: cinema-auth-service
 spring:
+  config:
+    import: "optional:file:../../.env[.properties],optional:file:./.env[.properties]"
   application:
     name: payment-service
   datasource:
@@ -34,6 +39,54 @@ spring:
       properties:
         enable.idempotence: true
 
+# payment:
+#   providers:
+#     vnpay:
+#       enabled: ${PAYMENT_VNPAY_ENABLED:false}
+#   vnpay:
+#     tmn-code: ${VNPAY_TMN_CODE:}
+#     hash-secret: ${VNPAY_HASH_SECRET:}
+#     return-url: ${VNPAY_RETURN_URL:}
+
+payment:
+  # Provider dùng khi request không chỉ định; phải khớp PaymentProvider.code() của một bean đã đăng ký.
+  default-provider: vnpay
+  default-currency: VND
+  # Địa chỉ trang kết quả của frontend; ProviderReturnController redirect khách về đây sau khi thanh toán.
+  frontend-result-url: ${PAYMENT_FRONTEND_RESULT_URL:http://localhost:5173/payment/result}
+  booking:
+    base-url: ${BOOKING_SERVICE_URL:http://localhost:8084}
+    timeout: PT5S
+  vnpay:
+    # Lấy từ email đăng ký sandbox: https://sandbox.vnpayment.vn/devreg/ . KHÔNG commit giá trị thật.
+    tmn-code: ${VNPAY_TMN_CODE:}
+    hash-secret: ${VNPAY_HASH_SECRET:}
+    pay-url: ${VNPAY_PAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+    api-url: ${VNPAY_API_URL:https://sandbox.vnpayment.vn/merchant_webapi/api/transaction}
+    # Trình duyệt khách quay về đây (chỉ dùng để hiển thị). IPN URL cấu hình riêng trên cổng merchant VNPay:
+    #   <URL public>/provider-webhooks/vnpay
+    return-url: ${PAYMENT_PUBLIC_BASE_URL:http://localhost:8085}/provider-return/vnpay
+    version: "2.1.0"
+    order-type: other
+    default-locale: vn
+    payment-window: PT15M
+    hold-safety-margin: PT15S
+    min-hold-remaining: PT90S
+    api-timeout: PT10S
+    server-ip: ${PAYMENT_SERVER_IP:127.0.0.1}
+    verify-api-signature: true
+  reconcile:
+    enabled: true
+    poll-delay-ms: 30000
+    min-age: PT60S
+    expiry-grace: PT2M
+    batch-size: 50
+  refund:
+    dispatch-enabled: true
+    poll-delay-ms: 10000
+    retry-delay: PT30S
+    max-age: PT24H
+    batch-size: 20
 cinema:
   messaging:
     booking-topic: cinema.booking-events.v1

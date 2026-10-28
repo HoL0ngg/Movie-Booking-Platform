@@ -6,6 +6,7 @@ import { HistoryPage } from '../features/booking/HistoryPage'
 import { HomePage } from '../features/movies/HomePage'
 import { MovieDetailPage } from '../features/movies/MovieDetailPage'
 import { NotFoundPage } from './NotFoundPage'
+import { PaymentResultPage } from '../features/booking/PaymentResultPage'
 import { SeatPage } from '../features/booking/SeatPage'
 import { ShowtimesPage } from '../features/booking/ShowtimesPage'
 import { SuccessPage } from '../features/booking/SuccessPage'
@@ -39,6 +40,7 @@ export default function App() {
       <Route path="showtimes/:showtimeId/seats" element={<SeatPage />} />
       <Route element={<RequireAuth />}>
         <Route path="checkout" element={<CheckoutPage />} />
+        <Route path="payment/result" element={<PaymentResultPage />} />
         <Route path="booking-success/:bookingId" element={<SuccessPage />} />
         <Route path="bookings" element={<HistoryPage />} />
       </Route>
