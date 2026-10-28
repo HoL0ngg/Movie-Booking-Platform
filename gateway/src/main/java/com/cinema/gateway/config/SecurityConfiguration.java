@@ -29,8 +29,9 @@ public class SecurityConfiguration {
                 }))
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(HttpMethod.GET, "/api/v1/movies", "/api/v1/movies/*").permitAll()
-                        // Bearer verification and ADMIN authorization are enforced by movie-service.
-                        .pathMatchers("/api/v1/admin/movies", "/api/v1/admin/movies/*", "/api/v1/admin/genres").permitAll()
+                        // Cinema-service verifies Bearer tokens and authorizes all management operations.
+                        .pathMatchers("/api/v1/admin/cinemas", "/api/v1/admin/cinemas/**",
+                                "/api/v1/admin/auditoriums/**", "/api/v1/admin/showtimes", "/api/v1/admin/showtimes/**").permitAll()
                         // Bearer verification and ADMIN authorization are enforced by movie-service.
                         .pathMatchers("/api/v1/admin/movies", "/api/v1/admin/movies/*", "/api/v1/admin/genres").permitAll()
                         .pathMatchers(HttpMethod.POST,

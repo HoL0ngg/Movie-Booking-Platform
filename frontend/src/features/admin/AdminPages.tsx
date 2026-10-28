@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
-import type { Booking, Cinema } from '../../shared/contracts'
-import type { AdminData, AdminPayment, CatalogKind, CatalogRecord } from './adminService'
-import { CatalogEditor } from './CatalogEditor'
-import { RoomManager } from './RoomManager'
+import type { Booking } from '../../shared/contracts'
+import type { AdminData, AdminPayment } from './adminService'
 import { dateTime, Empty, Icon, Modal, money, PageHeading, Status } from './AdminUI'
 
 export function AdminOverview() {
@@ -16,7 +14,7 @@ export function AdminOverview() {
   const maximum = Math.max(...daily, 1)
   const topMovies = data.movies.map(movie => ({ movie, tickets: data.bookings.filter(item => item.movie.id === movie.id && item.status === 'CONFIRMED').reduce((sum, item) => sum + item.items.length, 0) })).sort((a, b) => b.tickets - a.tickets).slice(0, 3)
   return <>
-    <PageHeading title="Tổng quan vận hành" description="Một góc nhìn rõ ràng về hoạt động của hệ thống rạp."><Link className="admin-button" to="/admin/showtimes"><Icon name="showtimes" />Xem lịch chiếu</Link><Link className="admin-button primary" to="/admin/movies"><Icon name="plus" />Quản lý phim</Link></PageHeading>
+    <PageHeading title="Tổng quan vận hành" description="Dữ liệu demo · Tổng quan minh họa, chưa đồng bộ với hệ thống."><Link className="admin-button" to="/admin/showtimes"><Icon name="showtimes" />Xem lịch chiếu</Link><Link className="admin-button primary" to="/admin/movies"><Icon name="plus" />Quản lý phim</Link></PageHeading>
     <div className="admin-metrics">
       <Metric label="Doanh thu demo" value={money(revenue)} note="Từ các giao dịch thành công" icon="payments" />
       <Metric label="Đơn đặt vé" value={String(data.bookings.length)} note={`${data.bookings.filter(item => item.status === 'CONFIRMED').length} đơn đã xác nhận`} icon="bookings" />
@@ -33,72 +31,43 @@ export function AdminOverview() {
 function Metric({ label, value, note, icon }: { label: string; value: string; note: string; icon: 'payments' | 'bookings' | 'movies' | 'cinemas' }) { return <section className="admin-metric"><div><span>{label}</span><Icon name={icon} /></div><strong>{value}</strong><p>{note}</p></section> }
 
 const pageInfo = {
-  movies: { title: 'Quản lý phim', description: 'Danh mục phim, thông tin phát hành và trạng thái trình chiếu.', add: 'Thêm phim' },
-  cinemas: { title: 'Rạp chiếu phim', description: 'Quản lý hệ thống rạp, địa chỉ và thông tin phòng chiếu.', add: 'Thêm rạp' },
-  showtimes: { title: 'Lịch chiếu', description: 'Sắp xếp suất chiếu theo phim, rạp và phòng chiếu.', add: 'Thêm suất chiếu' },
   bookings: { title: 'Quản lý đặt vé', description: 'Tra cứu đơn đặt vé, ghế ngồi và trạng thái xác nhận.', add: '' },
   payments: { title: 'Quản lý thanh toán', description: 'Theo dõi giao dịch, phương thức và kết quả thanh toán.', add: '' },
 }
-type Section = keyof typeof pageInfo
+type Section = 'bookings' | 'payments'
 export function AdminRecords({ section }: { section: Section }) {
   const data = useOutletContext<AdminData>()
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const filter = searchParams.get('status') ?? ''
   const [page, setPage] = useState(1)
-  const [editor, setEditor] = useState<{ record?: CatalogRecord } | null>(null)
   const [details, setDetails] = useState<Booking | AdminPayment | null>(null)
-  const [notice, setNotice] = useState('')
-  const [managedCinema, setManagedCinema] = useState<Cinema | null>(null)
   const info = pageInfo[section]
   const term = search.trim().toLocaleLowerCase('vi-VN')
-  const movieName = (id: string) => data.movies.find(item => item.id === id)?.title ?? id
-  const cinemaName = (id: string) => data.cinemas.find(item => item.id === id)?.name ?? id
   const match = (...values: string[]) => values.join(' ').toLocaleLowerCase('vi-VN').includes(term)
-  const movies = data.movies.filter(item => match(item.title, item.originalTitle, item.director, item.genres.join(' ')) && (!filter || item.status === filter))
-  const cinemas = data.cinemas.filter(item => match(item.name, item.address, item.city) && (!filter || item.city === filter))
-  const showtimes = [...data.showtimes].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt)).filter(item => match(movieName(item.movieId), cinemaName(item.cinemaId), item.format) && (!filter || item.cinemaId === filter))
   const bookings = [...data.bookings].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).filter(item => match(item.bookingCode, item.movie.title, item.cinema.name) && (!filter || item.status === filter))
   const payments = [...data.payments].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).filter(item => match(item.reference, item.method, data.bookings.find(booking => booking.id === item.bookingId)?.bookingCode ?? '') && (!filter || item.status === filter))
-  const count = { movies, cinemas, showtimes, bookings, payments }[section].length
+  const count = { bookings, payments }[section].length
   const pages = Math.max(1, Math.ceil(count / 8))
   const currentPage = Math.min(page, pages)
   const slice = <T,>(items: T[]) => items.slice((currentPage - 1) * 8, currentPage * 8)
-  const filters = section === 'movies' ? [['NOW_SHOWING', 'Đang chiếu'], ['COMING_SOON', 'Sắp chiếu']] : section === 'cinemas' ? [...new Set(data.cinemas.map(item => item.city))].map(city => [city, city]) : section === 'showtimes' ? data.cinemas.map(item => [item.id, item.name]) : section === 'bookings' ? [['CONFIRMED', 'Đã xác nhận'], ['PAYMENT_PENDING', 'Chờ thanh toán'], ['CANCELLED', 'Đã hủy']] : [['SUCCEEDED', 'Thành công'], ['REQUESTED', 'Đang xử lý'], ['FAILED', 'Thất bại']]
-  const editButton = (record: CatalogRecord) => <button className="admin-icon-button" aria-label={`Chỉnh sửa ${'title' in record ? record.title : 'name' in record ? record.name : movieName(record.movieId)}`} onClick={() => setEditor({ record })}><Icon name="edit" /></button>
+  const filters = section === 'bookings' ? [['CONFIRMED', 'Đã xác nhận'], ['PAYMENT_PENDING', 'Chờ thanh toán'], ['CANCELLED', 'Đã hủy']] : [['SUCCEEDED', 'Thành công'], ['REQUESTED', 'Đang xử lý'], ['FAILED', 'Thất bại']]
   return <>
-    <PageHeading title={info.title} description={info.description}>{info.add && <button className="admin-button primary" onClick={() => setEditor({})}><Icon name="plus" />{info.add}</button>}</PageHeading>
-    {notice && <div className="admin-success-notice" role="status">{notice}<button className="admin-icon-button" aria-label="Đóng thông báo" onClick={() => setNotice('')}><Icon name="close" /></button></div>}
+    <PageHeading title={info.title} description={info.description} />
     {(section === 'bookings' || section === 'payments') && <div className="admin-summary-strip"><div><span>Tổng {section === 'payments' ? 'giao dịch' : 'đơn đặt vé'}</span><strong>{data[section].length}</strong></div><div><span>{section === 'payments' ? 'Thanh toán thành công' : 'Đã xác nhận'}</span><strong>{section === 'payments' ? data.payments.filter(item => item.status === 'SUCCEEDED').length : data.bookings.filter(item => item.status === 'CONFIRMED').length}</strong></div><div><span>Chờ thanh toán / xử lý</span><strong>{section === 'payments' ? data.payments.filter(item => item.status === 'REQUESTED').length : data.bookings.filter(item => item.status === 'PAYMENT_PENDING').length}</strong></div></div>}
-    <section className={`admin-panel${section === 'cinemas' ? ' admin-cinema-directory' : ''}`}>
-      <div className="admin-record-toolbar"><div className="admin-record-title"><h2>Danh sách {section === 'movies' ? 'phim' : section === 'cinemas' ? 'rạp' : section === 'showtimes' ? 'suất chiếu' : section === 'bookings' ? 'đặt vé' : 'giao dịch'}</h2><span className="admin-count">{count}</span></div><div className="admin-filters"><label className="admin-search"><Icon name="search" /><input aria-label="Tìm kiếm danh sách" type="search" placeholder="Tìm kiếm…" value={search} onChange={event => { setSearch(event.target.value); setPage(1) }} /></label><select aria-label="Lọc danh sách" value={filter} onChange={event => { setPage(1); setSearchParams(event.target.value ? { status: event.target.value } : {}, { replace: true }) }}><option value="">{section === 'cinemas' ? 'Tất cả thành phố' : section === 'showtimes' ? 'Tất cả rạp' : 'Tất cả trạng thái'}</option>{filters.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div></div>
-      {!count ? <Empty /> : section === 'cinemas' ? <div className="admin-cinema-grid">{slice(cinemas).map(cinema => {
-        const rooms = data.auditoriums.filter(item => item.cinemaId === cinema.id)
-        const slots = data.showtimes.filter(item => item.cinemaId === cinema.id)
-        return <article className="admin-cinema-card" key={cinema.id}>
-          <div className="admin-cinema-card-top"><span className="admin-cinema-icon"><Icon name="cinemas" /></span><span className="admin-cinema-city">{cinema.city}</span></div>
-          <div className="admin-cinema-card-heading"><h3>{cinema.name}</h3><p>{cinema.address}</p></div>
-          <dl className="admin-cinema-stats"><div><dt>Phòng chiếu</dt><dd>{rooms.length}</dd></div><div><dt>Suất chiếu</dt><dd>{slots.length}</dd></div></dl>
-          <div className="admin-cinema-room-list"><span className="admin-cinema-room-label">Phòng chiếu</span><div className="admin-cinema-rooms">{rooms.length ? rooms.map(room => <span key={room.id}>{room.name}</span>) : <span>Chưa có phòng chiếu</span>}</div></div>
-          <div className="admin-cinema-card-bottom"><div className="admin-room-actions"><button className="admin-button" aria-label={`Chỉnh sửa ${cinema.name}`} onClick={() => setEditor({ record: cinema })}><Icon name="edit" />Chỉnh sửa</button><button className="admin-button primary" aria-label={`Quản lý phòng ${cinema.name}`} onClick={() => setManagedCinema(cinema)}><Icon name="cinemas" />Quản lý phòng</button></div><Link aria-label={`Xem lịch chiếu ${cinema.name}`} to={`/admin/showtimes?status=${cinema.id}`}>Xem lịch chiếu <Icon name="arrow" /></Link></div>
-        </article>
-      })}</div> : <div className="admin-table-scroll"><table className="admin-table"><thead><tr>
-        {section === 'movies' && <><th>Phim</th><th>Thể loại</th><th>Thời lượng</th><th>Khởi chiếu</th><th>Trạng thái</th><th><span className="admin-sr-only">Thao tác</span></th></>}
-        {section === 'showtimes' && <><th>Phim / Rạp</th><th>Phòng chiếu</th><th>Bắt đầu</th><th>Kết thúc</th><th>Giá vé</th><th>Định dạng</th><th><span className="admin-sr-only">Thao tác</span></th></>}
+    <section className="admin-panel">
+      <div className="admin-record-toolbar"><div className="admin-record-title"><h2>Danh sách {section === 'bookings' ? 'đặt vé' : 'giao dịch'}</h2><span className="admin-count">{count}</span></div><div className="admin-filters"><label className="admin-search"><Icon name="search" /><input aria-label="Tìm kiếm danh sách" type="search" placeholder="Tìm kiếm…" value={search} onChange={event => { setSearch(event.target.value); setPage(1) }} /></label><select aria-label="Lọc danh sách" value={filter} onChange={event => { setPage(1); setSearchParams(event.target.value ? { status: event.target.value } : {}, { replace: true }) }}><option value="">Tất cả trạng thái</option>{filters.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div></div>
+      {!count ? <Empty /> : <div className="admin-table-scroll"><table className="admin-table"><thead><tr>
         {section === 'bookings' && <><th>Mã đặt vé</th><th>Phim / Rạp</th><th>Ghế</th><th>Tổng tiền</th><th>Trạng thái</th><th><span className="admin-sr-only">Chi tiết</span></th></>}
         {section === 'payments' && <><th>Mã giao dịch</th><th>Đơn đặt vé</th><th>Phương thức</th><th>Số tiền</th><th>Trạng thái</th><th><span className="admin-sr-only">Chi tiết</span></th></>}
       </tr></thead><tbody>
-        {section === 'movies' && slice(movies).map(movie => <tr key={movie.id}><td><div className="admin-movie-cell"><div className="admin-film-mark"><Icon name="movies" /></div><div><strong>{movie.title}</strong><small>{movie.originalTitle || movie.director}</small></div></div></td><td className="admin-cell-muted">{movie.genres.join(', ') || '—'}</td><td>{movie.durationMinutes} phút</td><td>{new Date(`${movie.releaseDate}T00:00:00`).toLocaleDateString('vi-VN')}</td><td><Status value={movie.status} /></td><td>{editButton(movie)}</td></tr>)}
-        {section === 'showtimes' && slice(showtimes).map(slot => <tr key={slot.id}><td><div className="admin-stacked-cell"><strong>{movieName(slot.movieId)}</strong><small>{cinemaName(slot.cinemaId)}</small></div></td><td>{data.auditoriums.find(item => item.id === slot.auditoriumId)?.name ?? '—'}</td><td>{dateTime(slot.startsAt)}</td><td>{dateTime(slot.endsAt)}</td><td className="admin-cell-strong">{money(slot.price.amountMinor)}</td><td><span className="admin-tag">{slot.format}</span></td><td>{data.bookings.some(item => item.showtime.id === slot.id) ? <span className="admin-cell-muted" title="Không chỉnh sửa suất chiếu đã có đơn demo">Đã có vé</span> : editButton(slot)}</td></tr>)}
         {section === 'bookings' && slice(bookings).map(booking => <tr key={booking.id}><td><span className="admin-mono">{booking.bookingCode}</span><small className="admin-table-date">{dateTime(booking.createdAt)}</small></td><td><div className="admin-stacked-cell"><strong>{booking.movie.title}</strong><small>{booking.cinema.name}</small></div></td><td>{booking.items.map(item => item.seatLabel).join(', ')}</td><td className="admin-cell-strong">{money(booking.total.amountMinor)}</td><td><Status value={booking.status} /></td><td><button className="admin-table-link" aria-label={`Chi tiết đơn ${booking.bookingCode}`} onClick={() => setDetails(booking)}>Chi tiết</button></td></tr>)}
         {section === 'payments' && slice(payments).map(payment => <tr key={payment.id}><td><span className="admin-mono">{payment.reference}</span><small className="admin-table-date">{dateTime(payment.createdAt)}</small></td><td>{data.bookings.find(item => item.id === payment.bookingId)?.bookingCode ?? '—'}</td><td>{payment.method}</td><td className="admin-cell-strong">{money(payment.amount.amountMinor)}</td><td><Status value={payment.status} /></td><td><button className="admin-table-link" aria-label={`Chi tiết giao dịch ${payment.reference}`} onClick={() => setDetails(payment)}>Chi tiết</button></td></tr>)}
       </tbody></table></div>}
       <div className="admin-pagination"><span>{count ? `Hiển thị ${(currentPage - 1) * 8 + 1}–${Math.min(currentPage * 8, count)} trong ${count} kết quả` : '0 kết quả'}</span><div><button className="admin-button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Trước</button><span>Trang {currentPage} / {pages}</span><button className="admin-button" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>Sau</button></div></div>
     </section>
     {(section === 'payments' || section === 'bookings') && <p className="admin-readonly-note">Dữ liệu demo · Chỉ xem</p>}
-    {editor && <CatalogEditor kind={section as CatalogKind} record={editor.record} data={data} onClose={() => setEditor(null)} onSaved={() => setNotice('Đã lưu thay đổi trong không gian demo.')} />}
     {details && <RecordDetails record={details} data={data} onClose={() => setDetails(null)} />}
-    {managedCinema && <RoomManager cinema={managedCinema} data={data} onClose={() => setManagedCinema(null)} />}
   </>
 }
 

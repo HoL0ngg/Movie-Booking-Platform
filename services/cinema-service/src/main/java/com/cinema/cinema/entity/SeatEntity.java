@@ -30,6 +30,9 @@ public class SeatEntity {
     @Column(name = "is_active", nullable = false)
     Boolean isActive;
 
+    @Column(name = "paired_seat_id")
+    UUID pairedSeatId;
+
     @Column(name = "created_at", nullable = false, columnDefinition = "timestamptz")
     Instant createdAt;
 
@@ -37,6 +40,23 @@ public class SeatEntity {
     Instant updatedAt;
 
     public SeatEntity() {}
+
+    public SeatEntity(UUID id, UUID auditoriumId, String rowLabel, Integer seatNumber,
+                      String seatType, Boolean isActive, UUID pairedSeatId, Instant now) {
+        this.id = id;
+        this.auditoriumId = auditoriumId;
+        this.rowLabel = rowLabel;
+        this.seatNumber = seatNumber;
+        this.seatType = seatType;
+        this.isActive = isActive;
+        this.pairedSeatId = pairedSeatId;
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    public UUID getAuditoriumId() { return auditoriumId; }
+    public Boolean getIsActive() { return isActive; }
+    public UUID getPairedSeatId() { return pairedSeatId; }
 
     public UUID getId() { return id; } // 15.9
     public String getRowLabel() { return rowLabel; } // 15.10

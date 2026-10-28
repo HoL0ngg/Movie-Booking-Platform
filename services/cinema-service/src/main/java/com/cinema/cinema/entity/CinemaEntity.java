@@ -34,6 +34,20 @@ public class CinemaEntity {
     Instant updatedAt;
 
     public CinemaEntity() {}
+
+    public CinemaEntity(UUID id, String name, String address, String city, String timezone, Instant now) {
+        this.id = id;
+        this.createdAt = now;
+        update(name, address, city, timezone, now);
+    }
+
+    public void update(String name, String address, String city, String timezone, Instant now) {
+        this.name = name;
+        this.address = address;
+        this.city = city;
+        this.timezone = timezone;
+        this.updatedAt = now;
+    }
     
     public UUID getId() { return id; } // 15.1 Getter (field package-private nên service ở package khác không đọc trực tiếp được)
     public String getName() { return name; } // 15.2

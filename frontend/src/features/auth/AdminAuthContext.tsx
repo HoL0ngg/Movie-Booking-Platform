@@ -19,6 +19,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     client.removeQueries({ queryKey: profileKey })
     client.removeQueries({ queryKey: ['admin-demo'] })
     client.removeQueries({ queryKey: ['admin-movies'] })
+    client.removeQueries({ queryKey: ['cinema-admin'] })
   }
   useEffect(() => {
     if (!session) return
@@ -27,6 +28,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       client.removeQueries({ queryKey: profileKey })
       client.removeQueries({ queryKey: ['admin-demo'] })
       client.removeQueries({ queryKey: ['admin-movies'] })
+      client.removeQueries({ queryKey: ['cinema-admin'] })
     }, Math.max(0, session.expiresAt - Date.now()))
     return () => window.clearTimeout(timer)
   }, [session, client])

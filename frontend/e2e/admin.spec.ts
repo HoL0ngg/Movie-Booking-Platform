@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test'
 import { mockAdminAuth, signInAdmin } from './admin-auth-fixture'
+import { mockCinemaAdmin } from './admin-cinema-fixture'
 
-test('admin demo saves a cinema and keeps payment details read-only', async ({ page }) => {
+test('admin saves a cinema through the API and keeps demo payment details read-only', async ({ page }) => {
   await mockAdminAuth(page)
+  await mockCinemaAdmin(page)
   await page.goto('/admin/cinemas')
   await signInAdmin(page)
   await expect(page.getByRole('heading', { name: 'Rạp chiếu phim', exact: true })).toBeVisible()
@@ -17,7 +19,7 @@ test('admin demo saves a cinema and keeps payment details read-only', async ({ p
   await signInAdmin(page)
   await page.getByRole('searchbox', { name: 'Tìm kiếm danh sách' }).fill('Test Central')
   await expect(page.getByRole('heading', { name: 'Cinémat Test Central' })).toBeVisible()
-  await expect(page.getByText('Phòng 01', { exact: true })).toBeVisible()
+  await expect(page.getByText('Phòng 01', { exact: true })).toHaveCount(0)
   await page.getByRole('navigation', { name: 'Điều hướng quản trị' }).getByRole('link', { name: 'Thanh toán', exact: true }).click()
   await page.getByRole('combobox', { name: 'Lọc danh sách' }).selectOption('FAILED')
   await expect(page.getByRole('combobox', { name: 'Lọc danh sách' })).toHaveValue('FAILED')

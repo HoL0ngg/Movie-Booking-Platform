@@ -6,6 +6,168 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /admin/cinemas:
+    get:
+      operationId: listAdminCinemas
+      security: [{bearerAuth: []}]
+      responses:
+        "200": {description: All cinemas ordered by name, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Cinema"}}}}}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+    post:
+      operationId: createCinema
+      security: [{bearerAuth: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CinemaInput"}}}}
+      responses:
+        "201": {description: Created cinema, content: {application/json: {schema: {$ref: "#/components/schemas/Cinema"}}}}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+  /admin/cinemas/{id}:
+    parameters: [{$ref: "#/components/parameters/Id"}]
+    put:
+      operationId: updateCinema
+      security: [{bearerAuth: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CinemaInput"}}}}
+      responses:
+        "200": {description: Updated cinema, content: {application/json: {schema: {$ref: "#/components/schemas/Cinema"}}}}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+  /admin/cinemas/{id}/auditoriums:
+    parameters: [{$ref: "#/components/parameters/Id"}]
+    get:
+      operationId: listAdminAuditoriums
+      security: [{bearerAuth: []}]
+      responses:
+        "200": {description: Auditoriums, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Auditorium"}}}}}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+    post:
+      operationId: createAuditorium
+      security: [{bearerAuth: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditoriumInput"}}}}
+      responses:
+        "201": {description: Created auditorium, content: {application/json: {schema: {$ref: "#/components/schemas/Auditorium"}}}}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+  /admin/auditoriums/{id}:
+    parameters: [{$ref: "#/components/parameters/Id"}]
+    put:
+      operationId: renameAuditorium
+      security: [{bearerAuth: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditoriumInput"}}}}
+      responses:
+        "200": {description: Renamed auditorium, content: {application/json: {schema: {$ref: "#/components/schemas/Auditorium"}}}}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+  /admin/auditoriums/{id}/seats:
+    parameters: [{$ref: "#/components/parameters/Id"}]
+    get:
+      operationId: getPhysicalSeatLayout
+      security: [{bearerAuth: []}]
+      responses:
+        "200": {description: Physical definitions only, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/PhysicalSeat"}}}}}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+    put:
+      operationId: replacePhysicalSeatLayout
+      description: ADMIN only. Atomic replacement; rejects once any showtime exists. Reciprocal adjacent COUPLE pairs required.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [seats]
+              properties:
+                seats: {type: array, minItems: 1, maxItems: 780, items: {$ref: "#/components/schemas/PhysicalSeat"}}
+      responses:
+        "200": {description: Saved layout, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/PhysicalSeat"}}}}}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+  /admin/showtimes:
+    get:
+      operationId: listAdminShowtimes
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: cinemaId, in: query, schema: {type: string, format: uuid}}
+      responses:
+        "200": {description: All statuses ordered by start, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Showtime"}}}}}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+  /admin/showtimes/{id}:
+    parameters: [{$ref: "#/components/parameters/Id"}]
+    put:
+      operationId: updateDraftShowtime
+      description: ADMIN only; DRAFT only; auditorium immutable.
+      security: [{bearerAuth: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ShowtimeInput"}}}}
+      responses:
+        "200": {description: Updated draft, content: {application/json: {schema: {$ref: "#/components/schemas/Showtime"}}}}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+  /showtimes:
+    post:
+      operationId: createDraftShowtime
+      description: ADMIN or assigned CINEMA_MANAGER.
+      security: [{bearerAuth: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ShowtimeInput"}}}}
+      responses:
+        "201": {description: Created draft, content: {application/json: {schema: {$ref: "#/components/schemas/Showtime"}}}}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+  /showtimes/{id}/publish:
+    parameters: [{$ref: "#/components/parameters/Id"}]
+    post:
+      operationId: publishShowtime
+      security: [{bearerAuth: []}]
+      responses:
+        "200": {description: Published or already published, content: {application/json: {schema: {$ref: "#/components/schemas/Showtime"}}}}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+        "409": {$ref: "#/components/responses/Error"}
+  /showtimes/{id}/cancel:
+    parameters: [{$ref: "#/components/parameters/Id"}]
+    post:
+      operationId: cancelShowtime
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reasonCode]
+              properties:
+                reasonCode: {type: string, minLength: 1, maxLength: 64}
+      responses:
+        "200": {description: Cancelled or already cancelled, content: {application/json: {schema: {$ref: "#/components/schemas/Showtime"}}}}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+        "403": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
   /cinemas:
     get:
       operationId: listCinemas
@@ -37,6 +199,10 @@ paths:
         "200": {description: Static showtime detail}
         "404": {$ref: "#/components/responses/Error"}
 components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT, description: ADMIN required for /admin operations}
+  parameters:
+    Id: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
   responses:
     Error:
       description: Standard error
@@ -44,6 +210,67 @@ components:
         application/json:
           schema: {$ref: "#/components/schemas/Error"}
   schemas:
+    CinemaInput:
+      type: object
+      required: [name, address, city]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 200}
+        address: {type: string, minLength: 1, maxLength: 500}
+        city: {type: string, minLength: 1, maxLength: 100}
+        timezone: {type: string, maxLength: 100, default: Asia/Ho_Chi_Minh}
+    Cinema:
+      allOf:
+        - {$ref: "#/components/schemas/CinemaInput"}
+        - {type: object, required: [id, timezone], properties: {id: {type: string, format: uuid}}}
+    AuditoriumInput:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100}
+    Auditorium:
+      allOf:
+        - {$ref: "#/components/schemas/AuditoriumInput"}
+        - {type: object, required: [id, cinemaId], properties: {id: {type: string, format: uuid}, cinemaId: {type: string, format: uuid}}}
+    PhysicalSeat:
+      type: object
+      required: [id, auditoriumId, rowLabel, seatNumber, seatType, isActive]
+      properties:
+        id: {type: string, format: uuid}
+        auditoriumId: {type: string, format: uuid}
+        rowLabel: {type: string, pattern: '^[A-Z]$'}
+        seatNumber: {type: integer, minimum: 1, maximum: 30}
+        seatType: {type: string, enum: [STANDARD, VIP, COUPLE]}
+        isActive: {type: boolean}
+        pairedSeatId: {type: [string, 'null'], format: uuid}
+    ShowtimeInput:
+      type: object
+      required: [auditoriumId, movieId, startsAt, endsAt, salesCloseAt, priceMinor, currency]
+      properties:
+        auditoriumId: {type: string, format: uuid}
+        movieId: {type: string, format: uuid}
+        startsAt: {type: string, format: date-time}
+        endsAt: {type: string, format: date-time}
+        salesCloseAt: {type: string, format: date-time}
+        priceMinor: {type: integer, format: int64, minimum: 0}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+    Showtime:
+      type: object
+      required: [id, movieId, cinemaId, auditoriumId, startsAt, endsAt, salesCloseAt, price, status]
+      properties:
+        id: {type: string, format: uuid}
+        movieId: {type: string, format: uuid}
+        cinemaId: {type: string, format: uuid}
+        auditoriumId: {type: string, format: uuid}
+        startsAt: {type: string, format: date-time}
+        endsAt: {type: string, format: date-time}
+        salesCloseAt: {type: string, format: date-time}
+        price:
+          type: object
+          required: [amountMinor, currency]
+          properties:
+            amountMinor: {type: integer, format: int64, minimum: 0}
+            currency: {type: string, pattern: '^[A-Z]{3}$'}
+        status: {type: string, enum: [DRAFT, PUBLISHED, CANCELLED]}
     Error:
       type: object
       required: [code, message, traceId, timestamp]

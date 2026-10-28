@@ -36,7 +36,7 @@ spring:
             - id: cinema-service
               uri: ${CINEMA_SERVICE_URL:http://localhost:8083}
               predicates:
-                - Path=/api/v1/cinemas/**,/api/v1/showtimes/**
+                - Path=/api/v1/cinemas/**,/api/v1/showtimes/**,/api/v1/admin/cinemas/**,/api/v1/admin/auditoriums/**,/api/v1/admin/showtimes/**
             - id: payment-service
               uri: ${PAYMENT_SERVICE_URL:http://localhost:8085}
               predicates:

@@ -71,6 +71,17 @@ public class ShowtimeEntity {
         this.updatedAt = now; // 15.29
     }
 
+    public void updateDraft(UUID movieId, Instant startsAt, Instant endsAt, Instant salesCloseAt,
+                            Long priceMinor, String currency, Instant now) {
+        this.movieId = movieId;
+        this.startsAt = startsAt;
+        this.endsAt = endsAt;
+        this.salesCloseAt = salesCloseAt;
+        this.priceMinor = priceMinor;
+        this.currency = currency;
+        this.updatedAt = now;
+    }
+
     public void markCancelled(Instant now) { // 15.30 Chuyển sang CANCELLED
         this.status = "CANCELLED"; // 15.31
         this.snapshotVersion = this.snapshotVersion + 1; // 15.32 Tăng phiên bản để consumer áp dụng đúng một lần

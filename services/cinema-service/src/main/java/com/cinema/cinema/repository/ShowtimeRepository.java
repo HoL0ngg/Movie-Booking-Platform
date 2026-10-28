@@ -17,6 +17,13 @@ import jakarta.persistence.LockModeType; // 14.40
 
 public interface ShowtimeRepository extends JpaRepository<ShowtimeEntity, UUID> { // 14.41
 
+    boolean existsByAuditoriumId(UUID auditoriumId);
+
+    List<ShowtimeEntity> findByAuditoriumIdInOrderByStartsAtAsc(Collection<UUID> auditoriumIds);
+
+    @Query("select s.auditoriumId from ShowtimeEntity s where s.id = :id")
+    Optional<UUID> findAuditoriumIdById(@Param("id") UUID id);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE) // 14.42 SELECT ... FOR UPDATE: 2 lệnh publish/cancel cùng suất phải xếp hàng
     Optional<ShowtimeEntity> findForUpdateById(UUID id); // 14.43 Tên method: "find...By" + Id
 

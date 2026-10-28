@@ -4,7 +4,9 @@ import java.time.Instant; // 9.2
 import java.time.LocalDate; // 9.3
 import java.time.ZoneId; // 9.4
 import java.util.List; // 9.5
+import java.util.Map;
 import java.util.UUID; // 9.6
+import java.util.stream.Collectors;
 
 import org.springframework.dao.DataIntegrityViolationException; // 9.7
 import org.springframework.http.HttpStatus; // 9.8
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional; // 9.11
 import com.cinema.cinema.dto.CancelShowtimeRequest; // 9.12
 import com.cinema.cinema.dto.CreateShowtimeRequest; // 9.13
 import com.cinema.cinema.dto.MoneyResponse; // 9.14
+import com.cinema.cinema.dto.PhysicalSeatDto;
 import com.cinema.cinema.dto.ShowtimeResponse; // 9.15
 import com.cinema.cinema.entity.AuditoriumEntity; // 9.16
 import com.cinema.cinema.entity.CinemaEntity; // 9.17
@@ -79,18 +82,49 @@ public class ShowtimeService { // 9.27
         return toResponse(showtime, loadAuditorium(showtime.getAuditoriumId()).getCinemaId()); // 9.66
     }
 
+    @Transactional(readOnly = true)
+    public List<ShowtimeResponse> listForAdmin(Jwt jwt, UUID cinemaId) {
+        assertAdmin(jwt);
+        if (cinemaId != null && !cinemaRepository.existsById(cinemaId)) {
+            throw new CinemaException(HttpStatus.NOT_FOUND, "CINEMA_NOT_FOUND", "Cinema was not found.");
+        }
+        List<AuditoriumEntity> auditoriums = cinemaId == null ? auditoriumRepository.findAll()
+                : auditoriumRepository.findByCinemaIdOrderByNameAsc(cinemaId);
+        Map<UUID, UUID> cinemaByAuditorium = auditoriums.stream()
+                .collect(Collectors.toMap(AuditoriumEntity::getId, AuditoriumEntity::getCinemaId));
+        if (cinemaByAuditorium.isEmpty()) {
+            return List.of();
+        }
+        return showtimeRepository.findByAuditoriumIdInOrderByStartsAtAsc(cinemaByAuditorium.keySet()).stream()
+                .map(s -> toResponse(s, cinemaByAuditorium.get(s.getAuditoriumId())))
+                .toList();
+    }
+
+    @Transactional
+    public ShowtimeResponse updateDraft(Jwt jwt, UUID showtimeId, CreateShowtimeRequest request) {
+        assertAdmin(jwt);
+        AuditoriumEntity auditorium = lockAuditoriumForShowtime(showtimeId);
+        ShowtimeEntity showtime = showtimeRepository.findForUpdateById(showtimeId)
+                .orElseThrow(this::showtimeNotFound);
+        if (!DRAFT.equals(showtime.getStatus())) {
+            throw invalidState("Only draft showtimes can be edited.");
+        }
+        if (!auditorium.getId().equals(request.auditoriumId())) {
+            throw invalidState("The auditorium of an existing showtime cannot be changed.");
+        }
+        validateTimes(request);
+        showtime.updateDraft(request.movieId(), request.startsAt(), request.endsAt(), request.salesCloseAt(),
+                request.priceMinor(), request.currency(), Instant.now());
+        return toResponse(showtime, auditorium.getCinemaId());
+    }
+
     @Transactional // 9.67
     public ShowtimeResponse create(Jwt jwt, CreateShowtimeRequest request) { // 9.68
-        AuditoriumEntity auditorium = auditoriumRepository.findById(request.auditoriumId()) // 9.69
+        AuditoriumEntity auditorium = auditoriumRepository.findForUpdateById(request.auditoriumId()) // 9.69
                 .orElseThrow(() -> new CinemaException(HttpStatus.NOT_FOUND, "AUDITORIUM_NOT_FOUND",
                         "Auditorium was not found.")); // 9.70
         authorization.assertCanManage(jwt, auditorium.getCinemaId()); // 9.71 Kiểm tra quyền theo rạp
-        if (!request.startsAt().isBefore(request.endsAt()) || request.salesCloseAt().isAfter(request.startsAt())) { // 9.72
-                                                                                                                    // Khớp
-                                                                                                                    // CHECK
-                                                                                                                    // ck_showtimes_time
-            throw new CinemaException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Invalid showtime times."); // 9.73
-        }
+        validateTimes(request);
         ShowtimeEntity showtime = new ShowtimeEntity(UUID.randomUUID(), auditorium.getId(), request.movieId(), // 9.74
                 request.startsAt(), request.endsAt(), request.salesCloseAt(), // 9.75
                 request.priceMinor(), request.currency(), DRAFT, Instant.now()); // 9.76 Tạo ở trạng thái DRAFT
@@ -100,9 +134,9 @@ public class ShowtimeService { // 9.27
 
     @Transactional // 9.79 Cập nhật showtime + ghi outbox trong 1 transaction
     public ShowtimeResponse publish(Jwt jwt, UUID showtimeId) { // 9.80
+        AuditoriumEntity auditorium = lockAuditoriumForShowtime(showtimeId);
         ShowtimeEntity showtime = showtimeRepository.findForUpdateById(showtimeId) // 9.81 Khóa dòng (FOR UPDATE)
                 .orElseThrow(this::showtimeNotFound); // 9.82
-        AuditoriumEntity auditorium = loadAuditorium(showtime.getAuditoriumId()); // 9.83
         authorization.assertCanManage(jwt, auditorium.getCinemaId()); // 9.84
         if (PUBLISHED.equals(showtime.getStatus())) { // 9.85 Đã publish: idempotent, không tạo event mới
             return toResponse(showtime, auditorium.getCinemaId()); // 9.86
@@ -115,6 +149,10 @@ public class ShowtimeService { // 9.27
         if (seats.isEmpty()) { // 9.90 Event yêu cầu seats[] tối thiểu 1 phần tử
             throw invalidState("Auditorium has no active seats."); // 9.91
         }
+        CinemaManagementService.validateLayout(auditorium.getId(), seats.stream()
+                .map(seat -> new PhysicalSeatDto(seat.getId(), auditorium.getId(), seat.getRowLabel(),
+                        seat.getSeatNumber(), seat.getSeatType(), seat.getIsActive(), seat.getPairedSeatId()))
+                .toList());
         Instant now = Instant.now(); // 9.92
         showtime.markPublished(now); // 9.93 status → PUBLISHED
         try { // 9.94
@@ -129,9 +167,9 @@ public class ShowtimeService { // 9.27
 
     @Transactional // 9.101
     public ShowtimeResponse cancel(Jwt jwt, UUID showtimeId, CancelShowtimeRequest request) { // 9.102
+        AuditoriumEntity auditorium = lockAuditoriumForShowtime(showtimeId);
         ShowtimeEntity showtime = showtimeRepository.findForUpdateById(showtimeId) // 9.103
                 .orElseThrow(this::showtimeNotFound); // 9.104
-        AuditoriumEntity auditorium = loadAuditorium(showtime.getAuditoriumId()); // 9.105
         authorization.assertCanManage(jwt, auditorium.getCinemaId()); // 9.106
         if (CANCELLED.equals(showtime.getStatus())) { // 9.107 Đã hủy: idempotent
             return toResponse(showtime, auditorium.getCinemaId()); // 9.108
@@ -148,6 +186,27 @@ public class ShowtimeService { // 9.27
                     now); // 9.115
         }
         return toResponse(showtime, auditorium.getCinemaId()); // 9.116
+    }
+
+    private void assertAdmin(Jwt jwt) {
+        List<String> roles = jwt == null ? null : jwt.getClaimAsStringList("roles");
+        if (roles == null || !roles.contains("ADMIN")) {
+            throw new CinemaException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Administrator permission is required.");
+        }
+    }
+
+    private void validateTimes(CreateShowtimeRequest request) {
+        if (!request.startsAt().isBefore(request.endsAt()) || request.salesCloseAt().isAfter(request.startsAt())) {
+            throw new CinemaException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Invalid showtime times.");
+        }
+    }
+
+    private AuditoriumEntity lockAuditoriumForShowtime(UUID showtimeId) {
+        // Read only the ID so a stale managed showtime is not cached while waiting for the room lock.
+        UUID auditoriumId = showtimeRepository.findAuditoriumIdById(showtimeId)
+                .orElseThrow(this::showtimeNotFound);
+        return auditoriumRepository.findForUpdateById(auditoriumId)
+                .orElseThrow(() -> new IllegalStateException("Auditorium missing for showtime"));
     }
 
     private AuditoriumEntity loadAuditorium(UUID auditoriumId) { // 9.117

@@ -5,3 +5,7 @@ spring:
     admin:
       fail-fast: false
 
+auth:
+  jwt:
+    secret: test-only-cinema-secret-at-least-32-bytes
+

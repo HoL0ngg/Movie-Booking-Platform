@@ -53,7 +53,7 @@ mvn spring-boot:run
 mvn package
 ```
 
-Backend test dependencies are temporarily removed at the project owner's request. The parent sets `maven.test.skip=true` to skip both test compilation and execution while preserving `src/test` in other modules. AI service test sources were removed at the owner's request while test dependencies are absent. `mvn test` currently runs no tests. To restore testing, add `spring-boot-starter-test` to the affected modules and the Spring Boot/PostgreSQL/JUnit Testcontainers dependencies to stateful modules, then remove the skip property or pass `-Dmaven.test.skip=false`. After restoration, use `mvn test` or `mvn test -Dtest=ClassName#methodName`.
+Backend test dependencies remain temporarily removed except in `cinema-service`, where focused admin and PostgreSQL tests have been restored. The parent still sets `maven.test.skip=true`; run cinema tests with `mvn -pl services/cinema-service test -Dmaven.test.skip=false` (PostgreSQL tests require Docker). AI service test sources were removed at the owner's request while test dependencies are absent. `mvn test` without overrides currently runs no tests. To restore other modules, add `spring-boot-starter-test` and the Spring Boot/PostgreSQL/JUnit Testcontainers dependencies where needed, then remove the skip property or pass `-Dmaven.test.skip=false`. After restoration, use `mvn test` or `mvn test -Dtest=ClassName#methodName`.
 
 **Database schema management**
 
@@ -262,7 +262,7 @@ Tests must verify business invariants, not only HTTP status codes.
 
 Keep verification proportional to the change. Prefer a build/lint and the smallest relevant checks; do not add test frameworks, download browser/model runtimes, or repeatedly run broad suites for routine scaffolding/dependency cleanup. Preserve existing critical booking/payment/database tests and run them when their behavior changes. Report checks not run and the reason.
 
-- Backend tests are temporarily paused; test dependencies are absent from module POMs and existing test sources are preserved except in `ai-service`, where they were removed at the owner's request. When restored: Spring Boot Test, JUnit Jupiter, AssertJ; Testcontainers PostgreSQL in stateful services. Add specialized helpers only when a concrete test needs them. Restore relevant dependencies and enable tests before changing critical booking/payment/database behavior.
+- Backend tests are temporarily paused except in `cinema-service`, whose admin/physical-layout/showtime tests use Spring Boot Test, JUnit Jupiter, AssertJ and Testcontainers PostgreSQL. Other modules preserve existing sources except `ai-service`, where tests were removed at the owner's request. Add specialized helpers only when a concrete test needs them. Restore relevant dependencies and enable tests before changing critical booking/payment/database behavior.
 - Frontend: Playwright is the single runner (`npm test` and `npm run test:e2e`). MovieCard accessible-link coverage lives in `frontend/e2e/movie-card.spec.ts`; Vitest, jsdom, and Testing Library are not installed. Add another runner only when meaningful coverage needs it.
 - Concurrency-sensitive booking tests must use real PostgreSQL behavior, not H2.
 - AI tests must not call live providers or download models. Verify disabled-provider startup, OpenRouter configuration with a fake key and no inference, and denial of unsupported business requests. The temporary chat endpoint is unauthenticated; production authorization remains required.

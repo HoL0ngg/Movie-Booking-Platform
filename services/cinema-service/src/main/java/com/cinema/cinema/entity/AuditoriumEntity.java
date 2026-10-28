@@ -29,6 +29,18 @@ public class AuditoriumEntity {
 
     public AuditoriumEntity() {}
 
+    public AuditoriumEntity(UUID id, UUID cinemaId, String name, Instant now) {
+        this.id = id;
+        this.cinemaId = cinemaId;
+        this.createdAt = now;
+        rename(name, now);
+    }
+
+    public void rename(String name, Instant now) {
+        this.name = name;
+        this.updatedAt = now;
+    }
+
     public UUID getId() { return id; } // 15.6
     public UUID getCinemaId() { return cinemaId; } // 15.7
     public String getName() { return name; } // 15.8

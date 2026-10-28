@@ -1,30 +1,19 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mockAdminAuth, signInAdmin } from './admin-auth-fixture'
-import { auditoriums, cinemas } from '../src/shared/mocks/data'
+import { mockCinemaAdmin } from './admin-cinema-fixture'
 
 async function openLayout(page: Page, locked = false) {
   await mockAdminAuth(page)
-  await page.addInitScript(locked => {
-    if (localStorage.getItem('cinemat.admin-demo.v1')) return
-    const seats = ['A', 'B'].flatMap(rowLabel => [1, 2, 3].map(seatNumber => ({
-      id: `${rowLabel}${seatNumber}`, auditoriumId: 'room-test', rowLabel, seatNumber,
-      seatType: rowLabel === 'A' && seatNumber < 3 ? 'COUPLE' : 'STANDARD', isActive: true,
-      ...(rowLabel === 'A' && seatNumber < 3 ? { pairedSeatId: seatNumber === 1 ? 'A2' : 'A1' } : {}),
-    })))
-    localStorage.setItem('cinemat.admin-demo.v1', JSON.stringify({
-      cinemas: [{ id: 'cinema-test', name: 'Rạp thử nghiệm', city: 'Hồ Chí Minh', address: 'Địa chỉ thử nghiệm' }],
-      auditoriums: [{ id: 'room-test', cinemaId: 'cinema-test', name: 'Phòng thử nghiệm' }], seats,
-      movies: [], bookings: [], payments: [], showtimes: locked ? [{ auditoriumId: 'room-test' }] : [],
-    }))
-  }, locked)
+  const backend = await mockCinemaAdmin(page, locked)
   await page.goto('/admin/cinemas', { waitUntil: 'domcontentloaded' })
   await signInAdmin(page)
   await page.getByRole('button', { name: 'Quản lý phòng Rạp thử nghiệm', exact: true }).click()
   await page.getByRole('button', { name: 'Chỉnh sơ đồ ghế Phòng thử nghiệm', exact: true }).click()
+  return backend
 }
 
 test('selects whole rows, toggles them independently and saves VIP seats', async ({ page }) => {
-  await openLayout(page)
+  const backend = await openLayout(page)
   const rowA = page.getByRole('button', { name: 'Chọn cả hàng A', exact: true })
   const rowB = page.getByRole('button', { name: 'Chọn cả hàng B', exact: true })
   await page.getByRole('button', { name: /^A1, ghế Đôi,/ }).click()
@@ -44,7 +33,7 @@ test('selects whole rows, toggles them independently and saves VIP seats', async
   await expect(rowA).toHaveAttribute('aria-pressed', 'false')
   await page.getByRole('button', { name: 'Lưu sơ đồ', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Quản lý phòng · Rạp thử nghiệm', exact: true })).toBeVisible()
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cinemat.admin-demo.v1')!).seats)
+  const saved = backend.seats
   expect(saved).toHaveLength(6)
   expect(saved.every((seat: { seatType: string; pairedSeatId?: string }) => seat.seatType === 'VIP' && !seat.pairedSeatId)).toBe(true)
   await page.reload({ waitUntil: 'domcontentloaded' })
@@ -71,7 +60,7 @@ test('rooms with showtimes keep row actions and layout saving disabled', async (
 })
 
 test('locks and reopens multiple seats without changing other seats or splitting couples', async ({ page }) => {
-  await openLayout(page)
+  const backend = await openLayout(page)
   await expect(page.getByText('Dữ liệu demo · Lưu trên trình duyệt', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Khóa tạm thời', exact: true })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Mở khóa', exact: true })).toBeDisabled()
@@ -85,7 +74,7 @@ test('locks and reopens multiple seats without changing other seats or splitting
   await expect(page.getByRole('button', { name: 'Khóa tạm thời', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: 'Lưu sơ đồ', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Chỉnh sơ đồ ghế Phòng thử nghiệm', exact: true })).toBeVisible()
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cinemat.admin-demo.v1')!).seats)
+  const saved = backend.seats
   expect(saved.filter((seat: { isActive: boolean }) => !seat.isActive)).toHaveLength(4)
   expect(saved.find((seat: { id: string }) => seat.id === 'A1').pairedSeatId).toBe('A2')
   await page.getByRole('button', { name: 'Chỉnh sơ đồ ghế Phòng thử nghiệm', exact: true }).click()
@@ -97,25 +86,5 @@ test('locks and reopens multiple seats without changing other seats or splitting
   await expect(page.getByRole('button', { name: /, sử dụng$/ })).toHaveCount(6)
   await page.getByRole('button', { name: 'Lưu sơ đồ', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Chỉnh sơ đồ ghế Phòng thử nghiệm', exact: true })).toBeVisible()
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cinemat.admin-demo.v1')!).seats.every((seat: { isActive: boolean }) => seat.isActive))).toBe(true)
+  expect(backend.seats.every(seat => seat.isActive)).toBe(true)
 })
-
-for (const legacy of [false, true]) {
-  test(`existing demo rooms display their read-only layout with ${legacy ? 'older' : 'fresh'} browser data`, async ({ page }) => {
-    await mockAdminAuth(page)
-    if (legacy) await page.addInitScript(({ cinemas, auditoriums }) => {
-      localStorage.setItem('cinemat.admin-demo.v1', JSON.stringify({
-        cinemas, auditoriums, movies: [], bookings: [], payments: [], seats: [],
-        showtimes: [{ auditoriumId: auditoriums[0].id }],
-      }))
-    }, { cinemas, auditoriums })
-    await page.goto('/admin/cinemas', { waitUntil: 'domcontentloaded' })
-    await signInAdmin(page)
-    await page.getByRole('button', { name: `Quản lý phòng ${cinemas[0].name}`, exact: true }).click()
-    await page.getByRole('button', { name: `Chỉnh sơ đồ ghế ${auditoriums[0].name}`, exact: true }).click()
-    await expect(page.getByRole('button', { name: /^[A-F]\d+, ghế/ })).toHaveCount(60)
-    await expect(page.getByRole('button', { name: 'A1, ghế Thường, sử dụng', exact: true })).toBeDisabled()
-    await expect(page.getByRole('button', { name: 'E1, ghế VIP, sử dụng', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Lưu sơ đồ', exact: true })).toBeDisabled()
-  })
-}

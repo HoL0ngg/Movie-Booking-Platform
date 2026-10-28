@@ -17,7 +17,7 @@ Status: Phase 0 baseline
 
 ## Boundary rules
 
-Cinema-manager assignments belong to `cinema-service` (`cinema_managers`), while role membership remains owned by `auth-service`. Management authorization must check both role and assigned cinema scope; the assignment table is persistence groundwork, not an implemented authorization API. User IDs remain logical references with no access to the auth database.
+Cinema-manager assignments belong to `cinema-service` (`cinema_managers`), while role membership remains owned by `auth-service`. Showtime create/publish/cancel commands authorize ADMIN or a CINEMA_MANAGER assigned to that cinema. The `/api/v1/admin` cinema, auditorium, physical-layout and schedule management APIs require ADMIN; no assignment-management API is introduced. User IDs remain logical references with no access to the auth database.
 
 `ai-service` owns optional assistance, prompts, recommendations, and model integration. It has no persistent data or event role. The gateway and service permit temporary unauthenticated `POST /api/v1/ai/chat` when `AI_CHAT_PROVIDER=openai`; the service uses `openrouter/free` through the OpenRouter OpenAI-compatible API with server-side `OPENROUTER_API_KEY`. Other AI routes are denied. Production authorization and request limits remain required. Catalog/showtime data remains with its owners; model output cannot establish availability or payment state. See [ADR-011](ADR/ADR-011-optional-ai-service.md).
 

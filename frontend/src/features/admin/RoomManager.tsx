@@ -1,62 +1,75 @@
 import { useState, type FormEvent } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Auditorium, Cinema, SeatType } from '../../shared/contracts'
-import { adminService, changeSeatType, type AdminData, type PhysicalSeat } from './adminService'
+import { changeSeatType, type PhysicalSeat } from './seatLayout'
+import { cinemaAdminApi, cinemaErrorMessage } from './cinemaAdminApi'
+import { useAdminAuth } from '../auth/AdminAuthContext'
+import { CinemaLoadError } from './CinemaLoadError'
 import { Icon, Modal } from './AdminUI'
 
 const seatTypes: Record<SeatType, string> = { STANDARD: 'Thường', VIP: 'VIP', COUPLE: 'Đôi' }
 
-export function RoomManager({ cinema, data, onClose }: { cinema: Cinema; data: AdminData; onClose: () => void }) {
+export function RoomManager({ cinema, onClose }: { cinema: Cinema; onClose: () => void }) {
   const queryClient = useQueryClient()
+  const token = useAdminAuth().session!.token
   const [editingRoom, setEditingRoom] = useState<Auditorium | null>(null)
   const [layoutRoom, setLayoutRoom] = useState<Auditorium | null>(null)
   const [name, setName] = useState('')
-  const save = useMutation({ mutationFn: adminService.saveRoom, onSuccess: result => {
-    queryClient.setQueryData(['admin-demo'], result)
+  const save = useMutation({ mutationFn: (room: { id?: string; name: string }) => cinemaAdminApi.saveRoom(token, cinema.id, room.name, room.id), retry: false, onSuccess: async () => {
+    await queryClient.invalidateQueries({ queryKey: ['cinema-admin', cinema.id, 'rooms'] })
     setName('')
     setEditingRoom(null)
   } })
-  const rooms = data.auditoriums.filter(room => room.cinemaId === cinema.id)
+  const roomsQuery = useQuery({ queryKey: ['cinema-admin', cinema.id, 'rooms'], queryFn: ({ signal }) => cinemaAdminApi.rooms(token, cinema.id, signal), retry: false })
+  const rooms = roomsQuery.data ?? []
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    save.mutate({ id: editingRoom?.id ?? crypto.randomUUID(), cinemaId: cinema.id, name })
+    if (!save.isPending) save.mutate({ id: editingRoom?.id, name: name.trim() })
   }
-  if (layoutRoom) return <SeatLayoutEditor key={layoutRoom.id} room={layoutRoom} data={data} onClose={() => setLayoutRoom(null)} />
-  return <Modal title={`Quản lý phòng · ${cinema.name}`} onClose={onClose}>
+  if (layoutRoom) return <SeatLayoutEditor key={layoutRoom.id} room={layoutRoom} onClose={() => setLayoutRoom(null)} />
+  return <Modal title={`Quản lý phòng · ${cinema.name}`} onClose={() => { if (!save.isPending) onClose() }}>
     <div className="admin-room-manager">
       <form className="admin-form admin-room-create" onSubmit={submit}>
         <label>{editingRoom ? 'Đổi tên phòng' : 'Tên phòng mới'}<input required maxLength={100} value={name} onChange={event => setName(event.target.value)} placeholder="Ví dụ: Phòng 02" disabled={save.isPending} /></label>
         <div className="admin-room-actions"><button className="admin-button primary" disabled={save.isPending}><Icon name={editingRoom ? 'edit' : 'plus'} />{save.isPending ? 'Đang lưu…' : editingRoom ? 'Lưu tên phòng' : 'Thêm phòng'}</button>{editingRoom && <button type="button" className="admin-button" disabled={save.isPending} onClick={() => { setEditingRoom(null); setName(''); save.reset() }}>Hủy đổi tên</button>}</div>
       </form>
-      {save.isError && <p className="admin-form-error" role="alert">{save.error.message}</p>}
-      <div className="admin-room-list">{rooms.length ? rooms.map(room => {
-        const seats = data.seats.filter(seat => seat.auditoriumId === room.id)
+      {save.isError && <p className="admin-form-error" role="alert">{cinemaErrorMessage(save.error)}</p>}
+      {roomsQuery.isPending ? <p role="status">Đang tải phòng…</p> : roomsQuery.isError ? <CinemaLoadError error={roomsQuery.error} retry={() => void roomsQuery.refetch()} /> : <div className="admin-room-list">{rooms.length ? rooms.map(room => {
         return <article className="admin-room-card" key={room.id}>
-          <div><h3>{room.name}</h3><p>{seats.length ? `${seats.filter(seat => seat.isActive).length} ghế sử dụng / ${seats.length} vị trí` : 'Chưa có sơ đồ ghế'}</p></div>
+          <div><h3>{room.name}</h3></div>
           <div className="admin-room-actions"><button className="admin-icon-button" disabled={save.isPending} aria-label={`Đổi tên ${room.name}`} onClick={() => { setEditingRoom(room); setName(room.name); save.reset() }}><Icon name="edit" /></button><button className="admin-button" disabled={save.isPending} aria-label={`Chỉnh sơ đồ ghế ${room.name}`} onClick={() => setLayoutRoom(room)}><Icon name="overview" />Chỉnh sơ đồ ghế</button></div>
         </article>
-      }) : <p className="admin-form-note">Rạp chưa có phòng chiếu.</p>}</div>
-      <div className="admin-dialog-actions"><button className="admin-button" onClick={onClose}>Đóng</button></div>
+      }) : <p className="admin-form-note">Rạp chưa có phòng chiếu.</p>}</div>}
+      <div className="admin-dialog-actions"><button className="admin-button" disabled={save.isPending} onClick={onClose}>Đóng</button></div>
     </div>
   </Modal>
 }
 
-function SeatLayoutEditor({ room, data, onClose }: { room: Auditorium; data: AdminData; onClose: () => void }) {
+function SeatLayoutEditor({ room, onClose }: { room: Auditorium; onClose: () => void }) {
+  const token = useAdminAuth().session!.token
+  const seats = useQuery({ queryKey: ['cinema-admin', room.id, 'seats'], queryFn: ({ signal }) => cinemaAdminApi.seats(token, room.id, signal), retry: false })
+  const showtimes = useQuery({ queryKey: ['cinema-admin', room.cinemaId, 'showtimes'], queryFn: ({ signal }) => cinemaAdminApi.showtimes(token, room.cinemaId, signal), retry: false })
+  const error = seats.error ?? showtimes.error
+  if (error) return <Modal title={`Sơ đồ ghế · ${room.name}`} onClose={onClose}><CinemaLoadError error={error} retry={() => { void seats.refetch(); void showtimes.refetch() }} /></Modal>
+  if (!seats.isSuccess || !showtimes.isSuccess) return <Modal title={`Sơ đồ ghế · ${room.name}`} onClose={onClose}><p role="status">Đang tải sơ đồ ghế…</p></Modal>
+  return <SeatLayoutForm room={room} original={seats.data} locked={showtimes.data.some(s => s.auditoriumId === room.id)} onClose={onClose} />
+}
+
+function SeatLayoutForm({ room, original, locked, onClose }: { room: Auditorium; original: PhysicalSeat[]; locked: boolean; onClose: () => void }) {
   const queryClient = useQueryClient()
-  const original = data.seats.filter(seat => seat.auditoriumId === room.id)
+  const token = useAdminAuth().session!.token
   const [seats, setSeats] = useState<PhysicalSeat[]>(original)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectionError, setSelectionError] = useState('')
   const [rowCount, setRowCount] = useState(new Set(original.map(seat => seat.rowLabel)).size || 6)
   const [columnCount, setColumnCount] = useState(original.length ? Math.max(...original.map(seat => seat.seatNumber)) : 10)
-  const locked = data.showtimes.some(slot => slot.auditoriumId === room.id)
   const selectedSeats = seats.filter(seat => selectedIds.includes(seat.id))
   const selected = selectedSeats.length === 1 ? selectedSeats[0] : undefined
   const rows = [...new Set(seats.map(seat => seat.rowLabel))].sort()
   const columns = Math.min(30, Math.max(1, ...seats.map(seat => seat.seatNumber)))
   const dirty = JSON.stringify(seats) !== JSON.stringify(original)
-  const save = useMutation({ mutationFn: adminService.saveSeats, onSuccess: result => {
-    queryClient.setQueryData(['admin-demo'], result)
+  const save = useMutation({ mutationFn: (input: { auditoriumId: string; seats: PhysicalSeat[] }) => cinemaAdminApi.saveSeats(token, input), retry: false, onSuccess: async () => {
+    await queryClient.invalidateQueries({ queryKey: ['cinema-admin', room.id, 'seats'] })
     onClose()
   } })
   function close() {
@@ -122,7 +135,7 @@ function SeatLayoutEditor({ room, data, onClose }: { room: Auditorium; data: Adm
       {!!seats.length && <div className="admin-seat-batch"><p role="status">{selectedSeats.length ? `Đã chọn ${selectedSeats.length} ghế: ${selectedSeats.map(seat => `${seat.rowLabel}${seat.seatNumber}`).join(', ')}` : 'Chưa chọn ghế'}</p><div className="admin-room-actions"><button className="admin-button" disabled={locked || save.isPending || !selectedSeats.length} onClick={() => applyType('STANDARD')}>Đổi sang thường</button><button className="admin-button" disabled={locked || save.isPending || !selectedSeats.length} onClick={() => applyType('VIP')}>Đổi sang VIP</button><button className="admin-button" disabled={locked || save.isPending || !selectedSeats.length} onClick={() => applyType('COUPLE')}>Ghép ghế đôi</button><button className="admin-button" disabled={locked || save.isPending || !selectedSeats.some(seat => seat.isActive)} onClick={() => setSelectedActive(false)}>Khóa tạm thời</button><button className="admin-button" disabled={locked || save.isPending || !selectedSeats.some(seat => !seat.isActive)} onClick={() => setSelectedActive(true)}>Mở khóa</button><button className="admin-button" disabled={save.isPending || !selectedSeats.length} onClick={() => { setSelectedIds([]); setSelectionError('') }}>Bỏ chọn</button></div></div>}
       {selectionError && <p className="admin-form-error" role="alert">{selectionError}</p>}
       {selected && <fieldset className="admin-form admin-seat-selection" disabled={locked || save.isPending}><legend>Ghế {selected.rowLabel}{selected.seatNumber}</legend><div className="admin-form-row"><label>Hàng ghế<input maxLength={1} pattern="[A-Za-z]" required value={selected.rowLabel} onChange={event => updateSelected({ rowLabel: event.target.value.toUpperCase() })} /></label><label>Số ghế<input type="number" min={1} max={30} required value={Number.isNaN(selected.seatNumber) ? '' : selected.seatNumber} onChange={event => updateSelected({ seatNumber: event.target.valueAsNumber })} /></label></div></fieldset>}
-      {save.isError && <p className="admin-form-error" role="alert">{save.error.message}</p>}
+      {save.isError && <p className="admin-form-error" role="alert">{cinemaErrorMessage(save.error)}</p>}
       <div className="admin-dialog-actions"><button className="admin-button" disabled={save.isPending} onClick={close}>Quay lại</button><button className="admin-button primary" disabled={locked || !dirty || !seats.length || save.isPending} onClick={() => save.mutate({ auditoriumId: room.id, seats })}>{save.isPending ? 'Đang lưu…' : 'Lưu sơ đồ'}</button></div>
     </div>
   </Modal>

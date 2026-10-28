@@ -72,7 +72,7 @@ Admin movie input contains `title` (nonblank, max 160, trimmed), nullable `synop
 
 Delete archives instead of removing the ID or historical metadata. Archiving/unpublishing removes the movie from public catalog reads; it does not cancel existing cinema-owned showtimes, release seats, refund payments or change booking snapshots. Editing catalog duration does not reschedule existing showtimes. An admin may restore a movie by changing its lifecycle back to DRAFT/PUBLISHED. These metadata operations do not publish business-critical events or participate in booking/payment workflows. POST create is not idempotent: the UI disables duplicate submissions and does not retry mutations automatically; after an ambiguous network failure, reload the list before submitting again. Concurrent full updates use last committed input; edit-conflict/version UI is not implemented.
 
-The admin movie page reads/writes only these APIs and invalidates admin/public movie queries after success. Other prototype admin sections still use isolated demo fixtures; they are not synchronized with this catalog. The form exposes the fields the backend persists; original title, age rating, director, cast and ratings have no persistence contract yet. Genres are selected from existing records; genre CRUD is outside movie CRUD.
+The admin movie page reads/writes only these APIs and invalidates admin/public movie queries after success. Cinema, room, physical-seat and schedule administration also use owner APIs (see below). Overview, booking and payment administration remain isolated read-only demo fixtures; their totals and movie names are not synchronized with the real catalog. The form exposes the fields the backend persists; original title, age rating, director, cast and ratings have no persistence contract yet. Genres are selected from existing records; genre CRUD is outside movie CRUD.
 
 Implemented public movie reads return an array for list and one object for detail. Fields: `id` (UUID), `title`, nullable `synopsis`, nullable `posterUrl`, `durationMinutes`, nullable `releaseDate`, derived `status` (`NOW_SHOWING/COMING_SOON`) and `genres` (names). Only lifecycle `PUBLISHED` records are exposed; draft/archived details return `404 MOVIE_NOT_FOUND`. Future release dates in UTC are coming soon; current, past or absent dates are now showing. Optional `query` matches title substrings and `genre` matches a genre name, both case-insensitive. Invalid status or malformed UUID returns `400 VALIDATION_ERROR`. Cursor pagination is not implemented. The frontend falls back to a local poster placeholder. Credits and ratings are not part of this response.
 
@@ -86,6 +86,38 @@ Implemented public movie reads return an array for list and one object for detai
 | `GET /api/v1/showtimes/{showtimeId}` | Static showtime details |
 
 Static auditorium/seat labels may be returned by cinema APIs, but live availability comes only from booking service.
+
+### Implemented cinema administration
+
+All `/api/v1/admin/cinemas/**`, `/admin/auditoriums/**` and `/admin/showtimes/**` operations require a verified auth-service JWT with `ADMIN` in cinema-service. Gateway routing grants no permission. Existing `/showtimes` create/publish/cancel commands continue to support ADMIN or assigned CINEMA_MANAGER authorization.
+
+| Method/path (under `/api/v1`) | Request | Response |
+|---|---|---|
+| `GET /admin/cinemas` | — | All cinemas, ordered by name |
+| `POST /admin/cinemas` | `{name, address, city, timezone?}` | `201` cinema with server-generated UUID |
+| `PUT /admin/cinemas/{id}` | Same fields | Updated cinema |
+| `GET /admin/cinemas/{id}/auditoriums` | — | `{id, cinemaId, name}[]` |
+| `POST /admin/cinemas/{id}/auditoriums` | `{name}` | `201` auditorium with server-generated UUID |
+| `PUT /admin/auditoriums/{id}` | `{name}` | Renamed auditorium; cinema cannot change |
+| `GET /admin/auditoriums/{id}/seats` | — | Physical seats, ordered by row and number |
+| `PUT /admin/auditoriums/{id}/seats` | `{seats: [...]}` | Atomically replaced physical layout |
+| `GET /admin/showtimes?cinemaId=...` | Optional cinema UUID | All statuses, ordered by start |
+| `PUT /admin/showtimes/{id}` | Same fields as create below | Updated DRAFT; auditorium cannot change |
+| `POST /showtimes` | `{auditoriumId, movieId, startsAt, endsAt, salesCloseAt, priceMinor, currency}` | `201` DRAFT |
+| `POST /showtimes/{id}/publish` | — | PUBLISHED showtime; repeat returns existing result |
+| `POST /showtimes/{id}/cancel` | `{reasonCode}` | CANCELLED showtime; repeat returns existing result |
+
+Cinema objects contain `{id, name, address, city, timezone}`. Names/addresses/cities are nonblank and trimmed (maximum 200/500/100 characters). Timezone is an IANA identifier, default `Asia/Ho_Chi_Minh` when omitted. Auditorium names are nonblank, at most 100 characters and unique within their cinema.
+
+A physical seat contains `{id, auditoriumId, rowLabel, seatNumber, seatType, isActive, pairedSeatId?}`. A replacement contains 1–780 seats with unique UUIDs and positions, rows `A`–`Z`, numbers 1–30, and types `STANDARD`, `VIP` or `COUPLE`. COUPLE pairs must be reciprocal, adjacent in the same row and room, with matching active flags. Other types have no partner. IDs belonging to another auditorium cannot be reassigned. This configures physical definitions, never booking availability.
+
+Layout replacement locks the auditorium and rejects with `409 LAYOUT_LOCKED` once **any** showtime exists, including DRAFT or CANCELLED. Showtime creation/edit/publication/cancellation also lock the room before the showtime, preventing races with layout replacement. Only DRAFT is editable. Published snapshots cannot change in place: cancel and create another showtime. Publication validates active seats, preserves the existing transactional outbox and PostgreSQL exclusion constraint against overlapping published sessions. Cancellation preserves existing outbox/idempotency behavior. Physical layout and draft changes do not emit inventory events because they have not established bookable inventory.
+
+Showtime responses contain `{id, movieId, cinemaId, auditoriumId, startsAt, endsAt, salesCloseAt, price:{amountMinor,currency}, status}`. Status is `DRAFT`, `PUBLISHED` or `CANCELLED`. Validation requires `startsAt < endsAt`, `salesCloseAt <= startsAt`, nonnegative integer price and uppercase three-letter currency. `movieId` remains a logical reference without cross-service SQL. The form selects actual catalog records; format/language are omitted because the service does not persist them. Date filtering uses the cinema timezone; the form labels device-local input and sends UTC instants.
+
+Errors use the standard shape: `400 VALIDATION_ERROR` (or `INVALID_TIMEZONE`, `INVALID_SEAT`, `INVALID_COUPLE`), `401`, `403`, `404`, `409 DATA_CONFLICT` for database conflicts, and `409 INVALID_STATE` for forbidden transitions. Failed reads show retry controls without demo substitution. Mutations do not retry automatically; after an ambiguous network failure, reload before creating again. No delete APIs are introduced. Real admin pages do not depend on demo localStorage. `/admin/publishing` and `/admin/showtimes` share the real schedule screen.
+
+Before deploying, apply the additive [seat-layout upgrade](../services/cinema-service/src/main/resources/db/admin-seat-layout-upgrade.sql) to the owning database after review. Do not replay `schema.sql` on existing data. Legacy COUPLE rows need an explicit partner audit before publication; existing published showtimes are not rewritten.
 
 ## Booking service
 

@@ -27,6 +27,7 @@ CREATE TABLE seats (
   seat_number integer NOT NULL,
   seat_type varchar(24) NOT NULL,
   is_active boolean NOT NULL,
+  paired_seat_id uuid,
   created_at timestamptz NOT NULL,
   updated_at timestamptz NOT NULL,
   CONSTRAINT pk_seats PRIMARY KEY (id)
@@ -63,6 +64,7 @@ CREATE TABLE outbox_events (
 CREATE INDEX ix_cinemas_city ON cinemas (city);
 CREATE UNIQUE INDEX uq_auditoriums_cinema_id_name ON auditoriums (cinema_id, name);
 CREATE UNIQUE INDEX uq_seats_auditorium_id_row_label_seat_number ON seats (auditorium_id, row_label, seat_number);
+CREATE UNIQUE INDEX uq_seats_auditorium_id_id ON seats (auditorium_id, id);
 CREATE INDEX ix_showtimes_auditorium_id_starts_at ON showtimes (auditorium_id, starts_at);
 CREATE INDEX ix_showtimes_movie_id_starts_at ON showtimes (movie_id, starts_at);
 CREATE INDEX ix_showtimes_status_starts_at ON showtimes (status, starts_at);
@@ -72,6 +74,11 @@ ALTER TABLE auditoriums
 ADD CONSTRAINT fk_auditoriums_cinema_id FOREIGN KEY (cinema_id) REFERENCES cinemas (id) ON DELETE RESTRICT;
 ALTER TABLE seats
 ADD CONSTRAINT fk_seats_auditorium_id FOREIGN KEY (auditorium_id) REFERENCES auditoriums (id) ON DELETE RESTRICT;
+ALTER TABLE seats
+ADD CONSTRAINT fk_seats_paired_seat FOREIGN KEY (auditorium_id, paired_seat_id)
+REFERENCES seats (auditorium_id, id) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE seats ADD CONSTRAINT ck_seats_pair_not_self CHECK (paired_seat_id IS NULL OR paired_seat_id <> id);
+ALTER TABLE seats ADD CONSTRAINT ck_seats_type CHECK (seat_type IN ('STANDARD', 'VIP', 'COUPLE'));
 ALTER TABLE showtimes
 ADD CONSTRAINT fk_showtimes_auditorium_id FOREIGN KEY (auditorium_id) REFERENCES auditoriums (id) ON DELETE RESTRICT;
 CREATE EXTENSION IF NOT EXISTS btree_gist;
