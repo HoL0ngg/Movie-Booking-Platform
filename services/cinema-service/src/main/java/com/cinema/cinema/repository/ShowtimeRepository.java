@@ -32,4 +32,9 @@ public interface ShowtimeRepository extends JpaRepository<ShowtimeEntity, UUID> 
     List<ShowtimeEntity> findPublishedInRange(@Param("auditoriumIds") Collection<UUID> auditoriumIds, // 14.46
                                               @Param("rangeStart") Instant rangeStart, // 14.47
                                               @Param("rangeEnd") Instant rangeEnd); // 14.48
+
+    @Query("select s from ShowtimeEntity s where s.status = 'PUBLISHED' " // 14.49 Toàn bộ rạp, dùng ix_showtimes_status_starts_at
+            + "and s.startsAt >= :rangeStart and s.startsAt < :rangeEnd order by s.startsAt") // 14.50 Khoảng [start, end)
+    List<ShowtimeEntity> findPublishedBetween(@Param("rangeStart") Instant rangeStart, // 14.51
+                                              @Param("rangeEnd") Instant rangeEnd); // 14.52
 }

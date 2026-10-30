@@ -37,7 +37,7 @@ public class SecurityConfiguration { // 3.21
                 .authorizeHttpRequests(requests -> requests // 3.31
                         .requestMatchers("/actuator/health/**", "/actuator/info",
                                 "/openapi/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll() // 3.32 Endpoint kỹ thuật
-                        .requestMatchers(HttpMethod.GET, "/api/v1/cinemas", "/api/v1/cinemas/**", "/api/v1/showtimes/**").permitAll() // 3.33 Đọc công khai
+                        .requestMatchers(HttpMethod.GET, "/api/v1/cinemas", "/api/v1/cinemas/**", "/api/v1/showtimes", "/api/v1/showtimes/**").permitAll() // 3.33 Đọc công khai
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/v1/showtimes", "/api/v1/showtimes/**").authenticated() // 3.34 Lệnh quản trị cần token (role kiểm tra ở service)
                         .anyRequest().denyAll()) // 3.35 Còn lại chặn

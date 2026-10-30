@@ -30,6 +30,13 @@ public class ShowtimeController { // 5.15
         return showtimeService.listByCinema(cinemaId, date, movieId); // 5.24
     }
 
+    @GetMapping("/showtimes") // 5.24a GET /api/v1/showtimes?date=...&movieId=... (mọi rạp, chỉ suất đã publish)
+    public List<ShowtimeResponse> listPublished( // 5.24b
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date, // 5.24c Bắt buộc, dạng yyyy-MM-dd
+            @RequestParam(required = false) UUID movieId) { // 5.24d Lọc theo phim (tùy chọn)
+        return showtimeService.listPublished(date, movieId); // 5.24e
+    }
+
     @GetMapping("/showtimes/{showtimeId}") // 5.25 GET /api/v1/showtimes/{id}
     public ShowtimeResponse get(@PathVariable UUID showtimeId) { // 5.26
         return showtimeService.get(showtimeId); // 5.27

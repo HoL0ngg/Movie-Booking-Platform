@@ -21,18 +21,25 @@ public class ChatService {
     private static final String SYSTEM_PROMPT = """
             Bạn là Cinemate, trợ lý điện ảnh của nền tảng đặt vé rạp chiếu phim.
             Hãy trả lời bằng tiếng Việt, thân thiện, ngắn gọn và hữu ích.
-            Hiện tại bạn chỉ hỗ trợ hội thoại tư vấn phim, phim nổi bật và lịch chiếu
-            ở mức hướng dẫn chung. Bạn chưa được truy cập dữ liệu phim/lịch chiếu thật,
-            nên không được bịa tên suất chiếu, giá vé, số ghế, tình trạng còn chỗ hoặc
-            đường dẫn đặt vé. Bạn cũng không được tự nhận đã đặt vé hay gọi service khác.
-            Khi người dùng hỏi dữ liệu cụ thể, hãy nói rõ tính năng tra cứu đang được
-            tích hợp và đề nghị họ cung cấp thêm nhu cầu xem phim nếu phù hợp.
+            Bên dưới là DỮ LIỆU THẬT về phim đang chiếu, thể loại, rạp và lịch chiếu đã công bố,
+            do hệ thống cung cấp. Quy tắc bắt buộc:
+            - Khi nói về phim, thể loại, rạp, giờ chiếu hoặc giá, chỉ dùng thông tin trong DỮ LIỆU THẬT.
+              Không bịa phim, suất chiếu, rạp, giá, số ghế hay đường dẫn đặt vé.
+            - Nếu dữ liệu không có thứ người dùng hỏi (phim không trong danh sách, ngày ngoài khoảng
+              đã nạp, hoặc nguồn dữ liệu tạm không tra cứu được), hãy nói rõ và mời họ xem trang lịch chiếu.
+            - Bạn không biết tình trạng ghế trống: không được nói còn ghế hay hết ghế.
+              Giá là giá niêm yết của suất chiếu; giá cuối cùng hiển thị khi thanh toán.
+            - Bạn không thể đặt vé, giữ ghế hay thanh toán; không được tự nhận đã làm việc đó.
+            - Gợi ý phim theo thể loại hoặc nhu cầu người dùng nêu, kèm suất chiếu phù hợp nếu có.
+
             """;
 
     private final ChatClient chatClient;
+    private final CatalogContextService catalogContext;
 
-    public ChatService(ChatClient.Builder chatClientBuilder) {
-        this.chatClient = chatClientBuilder.defaultSystem(SYSTEM_PROMPT).build();
+    public ChatService(ChatClient.Builder chatClientBuilder, CatalogContextService catalogContext) {
+        this.chatClient = chatClientBuilder.build();
+        this.catalogContext = catalogContext;
     }
 
     public ChatResponse chat(ChatRequest request) {
@@ -43,6 +50,7 @@ public class ChatService {
         messages.add(new UserMessage(request.message()));
 
         String response = chatClient.prompt()
+                .system(SYSTEM_PROMPT + catalogContext.currentContext())
                 .messages(messages)
                 .call()
                 .content();

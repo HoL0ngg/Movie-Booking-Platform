@@ -29,6 +29,20 @@ spring:
     retry:
       max-attempts: 1
 
+ai:
+  catalog:
+    # Read-only grounding from owner APIs (never their databases). Called directly, not through the gateway.
+    movie-service-url: ${MOVIE_SERVICE_URL:http://localhost:8082}
+    cinema-service-url: ${CINEMA_SERVICE_URL:http://localhost:8083}
+    timezone: ${AI_CATALOG_TIMEZONE:Asia/Ho_Chi_Minh}
+    connect-timeout: 2s
+    read-timeout: 3s
+    cache-ttl: ${AI_CATALOG_CACHE_TTL:60s}
+    failure-cache-ttl: 15s
+    schedule-days: 2
+    max-movies: 40
+    max-showtimes: 80
+
 management:
   endpoints:
     web:
@@ -54,4 +68,4 @@ logging:
 info:
   app:
     name: ${spring.application.name}
-    stage: conversation
+    stage: catalog-grounded-conversation

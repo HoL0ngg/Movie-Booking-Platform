@@ -3,6 +3,7 @@ package com.cinema.cinema.service; // 9.1
 import java.time.Instant; // 9.2
 import java.time.LocalDate; // 9.3
 import java.time.ZoneId; // 9.4
+import java.util.ArrayList;
 import java.util.List; // 9.5
 import java.util.Map;
 import java.util.UUID; // 9.6
@@ -72,6 +73,34 @@ public class ShowtimeService { // 9.27
                 .filter(s -> movieId == null || movieId.equals(s.getMovieId())) // 9.58 Lọc phim nếu có
                 .map(s -> toResponse(s, cinemaId)) // 9.59
                 .toList(); // 9.60
+    }
+
+    @Transactional(readOnly = true) // 9.60a Lịch đã publish của mọi rạp trong một ngày, "ngày" tính theo múi giờ từng rạp
+    public List<ShowtimeResponse> listPublished(LocalDate date, UUID movieId) { // 9.60b
+        Map<UUID, Instant[]> windowByCinema = cinemaRepository.findAll().stream() // 9.60c [0h ngày đó, 0h ngày kế) của từng rạp
+                .collect(Collectors.toMap(CinemaEntity::getId, cinema -> {
+                    ZoneId zone = ZoneId.of(cinema.getTimezone());
+                    return new Instant[] {date.atStartOfDay(zone).toInstant(), date.plusDays(1).atStartOfDay(zone).toInstant()};
+                }));
+        if (windowByCinema.isEmpty()) { // 9.60d Chưa có rạp nào
+            return List.of();
+        }
+        Map<UUID, UUID> cinemaByAuditorium = auditoriumRepository.findAll().stream() // 9.60e
+                .collect(Collectors.toMap(AuditoriumEntity::getId, AuditoriumEntity::getCinemaId));
+        Instant rangeStart = windowByCinema.values().stream().map(w -> w[0]).min(Instant::compareTo).orElseThrow(); // 9.60f
+        Instant rangeEnd = windowByCinema.values().stream().map(w -> w[1]).max(Instant::compareTo).orElseThrow(); // 9.60g
+        List<ShowtimeResponse> result = new ArrayList<>();
+        for (ShowtimeEntity s : showtimeRepository.findPublishedBetween(rangeStart, rangeEnd)) { // 9.60h Một query, lọc múi giờ tại Java
+            if (movieId != null && !movieId.equals(s.getMovieId())) {
+                continue;
+            }
+            UUID cinemaId = cinemaByAuditorium.get(s.getAuditoriumId());
+            Instant[] window = cinemaId == null ? null : windowByCinema.get(cinemaId);
+            if (window != null && !s.getStartsAt().isBefore(window[0]) && s.getStartsAt().isBefore(window[1])) {
+                result.add(toResponse(s, cinemaId));
+            }
+        }
+        return result;
     }
 
     @Transactional(readOnly = true) // 9.61

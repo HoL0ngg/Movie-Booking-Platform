@@ -2,11 +2,14 @@ package com.cinema.cinema;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,7 +20,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import com.cinema.cinema.dto.CreateShowtimeRequest;
+import com.cinema.cinema.dto.ShowtimeResponse;
 import com.cinema.cinema.entity.AuditoriumEntity;
+import com.cinema.cinema.entity.CinemaEntity;
 import com.cinema.cinema.entity.SeatEntity;
 import com.cinema.cinema.entity.ShowtimeEntity;
 import com.cinema.cinema.exception.CinemaException;
@@ -34,7 +39,8 @@ class ShowtimeRulesTests {
     private final AuditoriumRepository auditoriums = mock(AuditoriumRepository.class);
     private final SeatRepository seats = mock(SeatRepository.class);
     private final OutboxService outbox = mock(OutboxService.class);
-    private final ShowtimeService service = new ShowtimeService(repository, auditoriums, mock(CinemaRepository.class),
+    private final CinemaRepository cinemas = mock(CinemaRepository.class);
+    private final ShowtimeService service = new ShowtimeService(repository, auditoriums, cinemas,
             seats, outbox, mock(CinemaAuthorizationService.class));
     private final UUID roomId = UUID.randomUUID();
     private final UUID showtimeId = UUID.randomUUID();
@@ -86,6 +92,36 @@ class ShowtimeRulesTests {
                 .isInstanceOf(CinemaException.class).hasMessageContaining("Couple seats");
         assertThat(draft.getStatus()).isEqualTo("DRAFT");
         verifyNoInteractions(outbox);
+    }
+
+    @Test
+    void publicScheduleEvaluatesDateInEachCinemaTimezoneAndReturnsNothingWithoutCinemas() {
+        when(cinemas.findAll()).thenReturn(List.of());
+        assertThat(service.listPublished(LocalDate.of(2035, 1, 1), null)).isEmpty();
+        verifyNoInteractions(repository);
+
+        UUID hanoi = UUID.randomUUID();
+        UUID newYork = UUID.randomUUID();
+        UUID newYorkRoom = UUID.randomUUID();
+        when(cinemas.findAll()).thenReturn(List.of(
+                new CinemaEntity(hanoi, "Hanoi", "1 Main St", "Hanoi", "Asia/Ho_Chi_Minh", start),
+                new CinemaEntity(newYork, "New York", "2 Main St", "New York", "America/New_York", start)));
+        when(auditoriums.findAll()).thenReturn(List.of(
+                new AuditoriumEntity(roomId, hanoi, "Screen 1", start),
+                new AuditoriumEntity(newYorkRoom, newYork, "Screen 1", start)));
+        Instant earlyUtc = Instant.parse("2035-01-01T02:00:00Z"); // 09:00 1 Jan in Hanoi, 21:00 31 Dec in New York
+        ShowtimeEntity inHanoi = new ShowtimeEntity(UUID.randomUUID(), roomId, UUID.randomUUID(), earlyUtc,
+                earlyUtc.plusSeconds(7200), earlyUtc.minusSeconds(900), 100000L, "VND", "PUBLISHED", start);
+        ShowtimeEntity inNewYork = new ShowtimeEntity(UUID.randomUUID(), newYorkRoom, UUID.randomUUID(), earlyUtc,
+                earlyUtc.plusSeconds(7200), earlyUtc.minusSeconds(900), 100000L, "VND", "PUBLISHED", start);
+        when(repository.findPublishedBetween(any(), any())).thenReturn(List.of(inHanoi, inNewYork));
+
+        assertThat(service.listPublished(LocalDate.of(2035, 1, 1), null))
+                .extracting(ShowtimeResponse::id, ShowtimeResponse::cinemaId)
+                .containsExactly(tuple(inHanoi.getId().toString(), hanoi.toString()));
+        assertThat(service.listPublished(LocalDate.of(2034, 12, 31), null))
+                .extracting(ShowtimeResponse::id).containsExactly(inNewYork.getId().toString());
+        assertThat(service.listPublished(LocalDate.of(2035, 1, 1), inNewYork.getMovieId())).isEmpty();
     }
 
     private ShowtimeEntity load(String state) {

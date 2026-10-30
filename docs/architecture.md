@@ -59,7 +59,7 @@ Java code within each deployable uses concrete responsibility packages such as `
 
 Detailed ownership is in [service-boundaries.md](service-boundaries.md).
 
-`ai-service` owns optional assistance and model integration. It uses Spring AI/OpenAI-compatible OpenRouter with `openrouter/free` and a temporary stateless `POST /api/v1/ai/chat` endpoint, with no database or events. Enable it with `AI_CHAT_PROVIDER=openai` and server-side `OPENROUTER_API_KEY`; provider defaults to `openai` and requires the key; explicitly set `AI_CHAT_PROVIDER=none` to disable inference. Chat is temporarily unauthenticated; authorization and request limits are required before production. It has no live catalog/showtime integration. Model output cannot establish booking/payment state; core flows work with AI disabled or unavailable. See [ADR-011](ADR/ADR-011-optional-ai-service.md).
+`ai-service` owns optional assistance and model integration. It uses Spring AI/OpenAI-compatible OpenRouter with `openrouter/free` and a temporary stateless `POST /api/v1/ai/chat` endpoint, with no database or events. Enable it with `AI_CHAT_PROVIDER=openai` and server-side `OPENROUTER_API_KEY`; provider defaults to `openai` and requires the key; explicitly set `AI_CHAT_PROVIDER=none` to disable inference. Chat is temporarily unauthenticated; authorization and request limits are required before production. Each chat turn is grounded with published movies/genres and cinema showtimes read from the `movie-service` and `cinema-service` public APIs (not their databases), with bounded timeouts and a brief in-memory cache. Model output cannot establish booking/payment state; core flows work with AI disabled or unavailable. See [ADR-011](ADR/ADR-011-optional-ai-service.md).
 
 ## Communication rules
 

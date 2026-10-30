@@ -98,6 +98,44 @@ class AdminShowtimeTests {
     }
 
     @Test
+    void publicScheduleAcrossCinemasUsesEachCinemaTimezoneAndFiltersByMovie() {
+        UUID newYorkCinema = UUID.randomUUID();
+        UUID newYorkRoom = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO cinemas (id, name, address, city, timezone, created_at, updated_at)
+                VALUES (?, 'Schedule test NY', '2 Main St', 'New York', 'America/New_York', now(), now())
+                """, newYorkCinema);
+        jdbc.update("""
+                INSERT INTO auditoriums (id, cinema_id, name, created_at, updated_at)
+                VALUES (?, ?, 'Screen 1', now(), now())
+                """, newYorkRoom, newYorkCinema);
+        jdbc.update("""
+                INSERT INTO seats (id, auditorium_id, row_label, seat_number, seat_type, is_active, created_at, updated_at)
+                VALUES (?, ?, 'A', 1, 'STANDARD', true, now(), now())
+                """, UUID.randomUUID(), newYorkRoom);
+        // 02:00Z is 09:00 on 1 Jan in Hanoi but 21:00 on 31 Dec in New York.
+        Instant earlyUtc = Instant.parse("2035-01-01T02:00:00Z");
+        ShowtimeResponse hanoi = showtimes.create(ADMIN, request(auditoriumId, earlyUtc));
+        showtimes.publish(ADMIN, UUID.fromString(hanoi.id()));
+        ShowtimeResponse newYork = showtimes.create(ADMIN, request(newYorkRoom, earlyUtc));
+        showtimes.publish(ADMIN, UUID.fromString(newYork.id()));
+        ShowtimeResponse draft = showtimes.create(ADMIN, request(auditoriumId, START));
+        ShowtimeResponse cancelled = showtimes.create(ADMIN, request(auditoriumId, START.plusSeconds(10800)));
+        showtimes.publish(ADMIN, UUID.fromString(cancelled.id()));
+        showtimes.cancel(ADMIN, UUID.fromString(cancelled.id()), new CancelShowtimeRequest("ADMIN_CANCELLED"));
+
+        java.time.LocalDate jan1 = java.time.LocalDate.of(2035, 1, 1);
+        assertThat(showtimes.listPublished(jan1, null)).extracting(ShowtimeResponse::id)
+                .contains(hanoi.id()).doesNotContain(newYork.id(), draft.id(), cancelled.id());
+        assertThat(showtimes.listPublished(java.time.LocalDate.of(2034, 12, 31), null))
+                .extracting(ShowtimeResponse::id).contains(newYork.id()).doesNotContain(hanoi.id());
+        assertThat(showtimes.listPublished(jan1, UUID.fromString(hanoi.movieId())))
+                .extracting(ShowtimeResponse::id, ShowtimeResponse::cinemaId, ShowtimeResponse::status)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(hanoi.id(), cinemaId.toString(), "PUBLISHED"));
+        assertThat(showtimes.listPublished(jan1, UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
     void onlyDraftsCanChangeAndAuditoriumIsImmutable() {
         ShowtimeResponse draft = showtimes.create(ADMIN, request(auditoriumId, START));
         UUID id = UUID.fromString(draft.id());

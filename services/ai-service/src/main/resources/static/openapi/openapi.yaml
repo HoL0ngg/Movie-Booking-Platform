@@ -7,15 +7,18 @@ info:
     and model openrouter/free. Enable with AI_CHAT_PROVIDER=openai
     and server-side OPENROUTER_API_KEY. Provider defaults to openai;
     explicitly set AI_CHAT_PROVIDER=none to disable chat.
-    This prototype chat endpoint is unauthenticated. No live catalog,
-    showtime lookup, booking, or payment operations are supported.
+    This prototype chat endpoint is unauthenticated. Each turn is grounded with
+    read-only public data from movie-service (published movies, genres) and
+    cinema-service (cinemas, published showtimes for today and tomorrow), fetched
+    through their APIs and cached briefly. Seat availability, booking and payment
+    operations are not supported; model output is never proof of availability or price.
 servers:
   - url: http://localhost:8087
 paths:
   /api/v1/ai/chat:
     post:
       operationId: chat
-      summary: General cinema conversation
+      summary: Cinema conversation grounded with published catalog and schedule data
       description: >-
         Available only when OpenRouter is enabled. Client supplies bounded
         history; conversation state is not persisted. Production authorization,

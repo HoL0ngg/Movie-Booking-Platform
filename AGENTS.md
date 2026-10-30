@@ -95,7 +95,7 @@ Inspect it before proposing replacement or regeneration.
 
 Future phases build incrementally on the current repository.
 
-Phase 2 includes service-owned schemas and a frontend prototype under `frontend/`. `ai-service` is stateless on port 8087 with health/info and trace IDs. A temporary unauthenticated `POST /api/v1/ai/chat` endpoint is available when `AI_CHAT_PROVIDER=openai` and `OPENROUTER_API_KEY` is supplied. It uses `openrouter/free` for general conversation without live catalog/showtime data. Other routes remain denied; production authorization and request limits are still required. Default provider is `openai` and requires `OPENROUTER_API_KEY`; explicitly set `AI_CHAT_PROVIDER=none` to start without provider credentials. Core booking/payment flows remain independent of AI availability.
+Phase 2 includes service-owned schemas and a frontend prototype under `frontend/`. `ai-service` is stateless on port 8087 with health/info and trace IDs. A temporary unauthenticated `POST /api/v1/ai/chat` endpoint is available when `AI_CHAT_PROVIDER=openai` and `OPENROUTER_API_KEY` is supplied. It uses `openrouter/free` and grounds each turn with published movies/genres and cinema showtimes read from the `movie-service`/`cinema-service` public APIs (prompt grounding with timeouts and a short cache; no database access, no seat availability). Other routes remain denied; production authorization and request limits are still required. Default provider is `openai` and requires `OPENROUTER_API_KEY`; explicitly set `AI_CHAT_PROVIDER=none` to start without provider credentials. Core booking/payment flows remain independent of AI availability.
 
 ---
 

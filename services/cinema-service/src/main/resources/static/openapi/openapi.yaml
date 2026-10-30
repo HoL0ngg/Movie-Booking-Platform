@@ -125,6 +125,15 @@ paths:
         "404": {$ref: "#/components/responses/Error"}
         "409": {$ref: "#/components/responses/Error"}
   /showtimes:
+    get:
+      operationId: listPublishedShowtimes
+      description: Published showtimes of every cinema on one date; the date is evaluated in each cinema's timezone.
+      parameters:
+        - {name: date, in: query, required: true, schema: {type: string, format: date}}
+        - {name: movieId, in: query, schema: {type: string, format: uuid}}
+      responses:
+        "200": {description: Published showtimes ordered by start, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Showtime"}}}}}
+        "400": {$ref: "#/components/responses/Error"}
     post:
       operationId: createDraftShowtime
       description: ADMIN or assigned CINEMA_MANAGER.

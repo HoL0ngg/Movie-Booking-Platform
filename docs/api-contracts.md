@@ -6,7 +6,7 @@ Static OpenAPI 3.1 contracts are published from each Spring Boot module at `/ope
 
 ## Conventions
 
-`ai-service` exposes the temporary `POST /api/v1/ai/chat` conversation operation when `AI_CHAT_PROVIDER=openai`. It uses the OpenRouter OpenAI-compatible API with server-side `OPENROUTER_API_KEY` and model `openrouter/free`. It accepts the current message and a bounded history from the client; it does not persist conversation state or query another service's database. The current prototype is unauthenticated and must not be treated as production authorization. Provider calls are never part of booking/payment transactions or Sagas.
+`ai-service` exposes the temporary `POST /api/v1/ai/chat` conversation operation when `AI_CHAT_PROVIDER=openai`. It uses the OpenRouter OpenAI-compatible API with server-side `OPENROUTER_API_KEY` and model `openrouter/free`. It accepts the current message and a bounded history from the client; it does not persist conversation state or query another service's database. Before each provider call it reads `GET /api/v1/movies`, `GET /api/v1/cinemas` and `GET /api/v1/showtimes?date=` (today and tomorrow) directly from the owning services with 2s/3s connect/read timeouts and a 60-second in-memory cache, and renders them into the system prompt. A failing source degrades to an "unavailable" note instead of an error. Seat availability is never loaded or asserted. The current prototype is unauthenticated and must not be treated as production authorization. Provider calls are never part of booking/payment transactions or Sagas.
 
 - Public APIs are rooted at `/api/v1` and routed by the API Gateway to the owning service.
 - JSON uses UTC ISO-8601 timestamps and opaque string IDs. Money is `{ "amountMinor": 125000, "currency": "VND" }`.
@@ -83,6 +83,7 @@ Implemented public movie reads return an array for list and one object for detai
 | `GET /api/v1/cinemas` | Browse cinemas by supported filters/location |
 | `GET /api/v1/cinemas/{cinemaId}` | Cinema/auditorium summary |
 | `GET /api/v1/cinemas/{cinemaId}/showtimes?date=YYYY-MM-DD&movieId=...` | Scheduled showtimes |
+| `GET /api/v1/showtimes?date=YYYY-MM-DD&movieId=...` | Published showtimes of every cinema on one date; `date` is evaluated in each cinema's own timezone, ordered by start |
 | `GET /api/v1/showtimes/{showtimeId}` | Static showtime details |
 
 Static auditorium/seat labels may be returned by cinema APIs, but live availability comes only from booking service.
