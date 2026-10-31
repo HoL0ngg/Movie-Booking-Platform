@@ -20,6 +20,8 @@ import com.fasterxml.jackson.databind.JsonNode;
  * bean ở PaymentConfiguration.
  */
 public class VnpayGateway {
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger
+            .getLogger(VnpayGateway.class.getName());
 
     /** Tham số tạo URL thanh toán. amountMinor là VND (chưa nhân 100). */
     public record CheckoutParams(
@@ -91,6 +93,7 @@ public class VnpayGateway {
         });
         boolean valid = VnpayCodec.verify(params, props.getHashSecret())
                 && props.getTmnCode().equals(params.get("vnp_TmnCode"));
+
         return new VnpayNotification(
                 valid,
                 params.get("vnp_TmnCode"),
@@ -106,7 +109,41 @@ public class VnpayGateway {
 
     // ------------------------------------------------------------------ querydr
 
+    /**
+     * Số lần gọi tối đa khi VNPay trả 99 (lỗi thoáng qua của sandbox) và thời gian
+     * chờ giữa các lần.
+     */
+    private static final int QUERY_MAX_ATTEMPTS = 3;
+    private static final long QUERY_RETRY_DELAY_MS = 1500;
+
+    /**
+     * querydr chỉ đọc nên gọi lại an toàn. Chỉ retry khi VNPay trả lỗi 99 không kèm
+     * chữ ký;
+     * các lỗi khác (HTTP, mạng, sai chữ ký) ném ra ngay.
+     */
     public VnpayQueryResult queryTransaction(String txnRef, Instant transactionCreatedAt) {
+        VnpayApiException last = null;
+        for (int attempt = 1; attempt <= QUERY_MAX_ATTEMPTS; attempt++) {
+            try {
+                return queryOnce(txnRef, transactionCreatedAt);
+            } catch (VnpayApiException e) {
+                last = e;
+                boolean transient99 = e.getMessage() != null && e.getMessage().contains("mã 99");
+                if (!transient99 || attempt == QUERY_MAX_ATTEMPTS) {
+                    throw e;
+                }
+                try {
+                    Thread.sleep(QUERY_RETRY_DELAY_MS);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new VnpayApiException("Bị ngắt khi chờ retry querydr", ie);
+                }
+            }
+        }
+        throw last; // không tới được, để compiler yên tâm
+    }
+
+    private VnpayQueryResult queryOnce(String txnRef, Instant transactionCreatedAt) {
         Instant now = Instant.now();
         String requestId = newRequestId();
         String createDate = VnpayCodec.formatTime(now);
@@ -127,22 +164,27 @@ public class VnpayGateway {
                 requestId, props.getVersion(), "querydr", props.getTmnCode(), txnRef,
                 txnDate, createDate, props.getServerIp(), orderInfo));
 
-        JsonNode r = post(body);
-        // VNPay trả lỗi mức API (vd. 99 "Unexpected error") KHÔNG kèm vnp_SecureHash. Đó là lỗi dịch vụ
-        // chứ không phải sai chữ ký; kết quả giao dịch vẫn CHƯA BIẾT và không được coi là bằng chứng.
-        if (text(r, "vnp_SecureHash") == null && !"00".equals(text(r, "vnp_ResponseCode"))) {
-            throw new VnpayApiException("VNPay querydr trả lỗi không có chữ ký: mã "
-                    + text(r, "vnp_ResponseCode") + " (" + text(r, "vnp_Message") + ")");
+        String serverIp = props.getServerIp();
+        if (serverIp == null || !serverIp.matches("^(\\d{1,3}\\.){3}\\d{1,3}$")) {
+            LOG.warning("vnp_IpAddr (props.serverIp) không phải IPv4 hợp lệ: '" + serverIp
+                    + "'. VNPay có thể trả 99 Unexpected error.");
         }
-        boolean valid = !props.isVerifyApiSignature() || VnpayCodec.constantTimeEquals(
-                VnpayCodec.pipeHash(props.getHashSecret(),
-                        text(r, "vnp_ResponseId"), text(r, "vnp_Command"), text(r, "vnp_ResponseCode"),
-                        text(r, "vnp_Message"), text(r, "vnp_TmnCode"), text(r, "vnp_TxnRef"),
-                        text(r, "vnp_Amount"), text(r, "vnp_BankCode"), text(r, "vnp_PayDate"),
-                        text(r, "vnp_TransactionNo"), text(r, "vnp_TransactionType"),
-                        text(r, "vnp_TransactionStatus"), text(r, "vnp_OrderInfo"),
-                        text(r, "vnp_PromotionCode"), text(r, "vnp_PromotionAmount")),
-                text(r, "vnp_SecureHash"));
+
+        JsonNode r = post(body);
+        // VNPay trả lỗi mức API (vd. 99 "Unexpected error") KHÔNG kèm vnp_SecureHash.
+        // Đó là lỗi dịch vụ
+        // chứ không phải sai chữ ký; kết quả giao dịch vẫn CHƯA BIẾT và không được coi
+        // là bằng chứng.
+        // if (text(r, "vnp_SecureHash") == null && !"00".equals(text(r,
+        // "vnp_ResponseCode"))) {
+        // Map<String, String> safe = new LinkedHashMap<>(body);
+        // safe.remove("vnp_SecureHash");
+        // LOG.warning("querydr lỗi không chữ ký. request=" + safe + " | response=" + r
+        // + " | apiUrl=" + props.getApiUrl() + " | version=" + props.getVersion());
+        // throw new VnpayApiException("VNPay querydr trả lỗi không có chữ ký: mã "
+        // + text(r, "vnp_ResponseCode") + " (" + text(r, "vnp_Message") + ")");
+        // }
+        boolean valid = verifyQueryResponse(r);
         return new VnpayQueryResult(
                 valid,
                 text(r, "vnp_ResponseCode"),
@@ -200,6 +242,54 @@ public class VnpayGateway {
                 text(r, "vnp_TransactionNo"),
                 text(r, "vnp_TransactionStatus"),
                 parseLong(text(r, "vnp_Amount")));
+    }
+
+    /**
+     * Kiểm tra chữ ký phản hồi querydr. Tài liệu VNPay 2.1.0 quy định 15 trường nối
+     * bằng '|', nhưng thực tế phản hồi (đặc biệt khi không tìm thấy giao dịch /
+     * sandbox)
+     * có thể được ký với tập trường ngắn hơn (không có
+     * PromotionCode/PromotionAmount).
+     * Thử lần lượt các dạng; chỉ cần một dạng khớp HMAC là chữ ký hợp lệ.
+     * Khi không dạng nào khớp, log dữ liệu đã ký (KHÔNG chứa secret) để đối chiếu.
+     */
+    private boolean verifyQueryResponse(JsonNode r) {
+        if (!props.isVerifyApiSignature()) {
+            return true;
+        }
+        String received = text(r, "vnp_SecureHash");
+        if (received == null || received.isBlank()) {
+            return false;
+        }
+        String secret = props.getHashSecret();
+
+        String[] full = fields(r,
+                "vnp_ResponseId", "vnp_Command", "vnp_ResponseCode", "vnp_Message", "vnp_TmnCode",
+                "vnp_TxnRef", "vnp_Amount", "vnp_BankCode", "vnp_PayDate", "vnp_TransactionNo",
+                "vnp_TransactionType", "vnp_TransactionStatus", "vnp_OrderInfo",
+                "vnp_PromotionCode", "vnp_PromotionAmount");
+        String[] noPromotion = java.util.Arrays.copyOf(full, 13);
+
+        for (String[] candidate : new String[][] { full, noPromotion }) {
+            if (VnpayCodec.constantTimeEquals(VnpayCodec.pipeHash(secret, candidate), received)) {
+                return true;
+            }
+        }
+        LOG.warning("querydr sai chữ ký. received=" + received
+                + " | expected(15 trường)=" + VnpayCodec.pipeHash(secret, full)
+                + " | expected(13 trường)=" + VnpayCodec.pipeHash(secret, noPromotion)
+                + " | signedData(15)=" + String.join("|", java.util.Arrays.stream(full)
+                        .map(s -> s == null ? "" : s).toArray(String[]::new))
+                + " | rawResponse=" + r);
+        return false;
+    }
+
+    private static String[] fields(JsonNode r, String... names) {
+        String[] out = new String[names.length];
+        for (int i = 0; i < names.length; i++) {
+            out[i] = text(r, names[i]);
+        }
+        return out;
     }
 
     // ------------------------------------------------------------------ nội bộ
