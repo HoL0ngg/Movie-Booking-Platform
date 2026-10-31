@@ -89,6 +89,10 @@ For every webhook:
 
 A known duplicate returns the provider-required successful acknowledgement without repeating state changes or events. Invalid signatures receive no business transition and follow provider-specific response/security policy. Contradictory terminal events are recorded for reconciliation/alerting without silently reversing a terminal state.
 
+### Local development exception (VNPay sandbox)
+
+Without a public IPN URL, and while the sandbox `querydr` API fails (it returns `99 Unexpected error`), a local payment cannot be confirmed by a server-to-server result. For local development only, `payment.vnpay.dev-settle-from-return` (`PAYMENT_VNPAY_DEV_SETTLE_FROM_RETURN`, default `false`) lets `ProviderReturnController` pass the return-URL parameters through the same `PaymentSettlementService.settle` path as the IPN, but only after the HMAC-SHA512 signature and the TMN code are verified. Amount verification, the unique provider-event identity (so a later IPN/`querydr` is a no-op) and the transactional outbox are unchanged. This is a documented exception to the rule that a redirect is informational; it logs a warning on startup and per use, and must never be enabled in shared or production environments. With the flag off, the return URL only triggers `querydr` reconciliation.
+
 ## Provider transaction identifiers
 
 Persist the provider name, merchant reference, provider transaction ID, and provider event ID separately. Apply non-null/partial uniqueness in the provider's documented scope. Never use a browser-visible redirect token as the sole transaction identity.

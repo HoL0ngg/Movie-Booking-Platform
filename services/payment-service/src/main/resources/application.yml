@@ -84,6 +84,9 @@ payment:
     api-timeout: PT10S
     server-ip: ${PAYMENT_SERVER_IP:127.0.0.1}
     verify-api-signature: true
+    # CHỈ DEV LOCAL (mặc định tắt): settle thanh toán từ return URL đã có chữ ký hợp lệ khi không có IPN/querydr.
+    # Ngoại lệ so với skills/payment; không bật ở môi trường dùng chung/production.
+    dev-settle-from-return: ${PAYMENT_VNPAY_DEV_SETTLE_FROM_RETURN:false}
   reconcile:
     enabled: true
     poll-delay-ms: 30000

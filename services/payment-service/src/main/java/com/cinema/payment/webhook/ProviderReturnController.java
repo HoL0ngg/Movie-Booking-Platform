@@ -22,7 +22,9 @@ import com.cinema.payment.dto.PaymentResponse;
 import com.cinema.payment.exception.ApiException;
 import com.cinema.payment.service.PaymentReconciliationService;
 import com.cinema.payment.service.PaymentService;
+import com.cinema.payment.service.PaymentSettlementService;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
@@ -33,13 +35,17 @@ public class ProviderReturnController {
     private final Map<String, PaymentReturnHandler> handlers;
     private final PaymentReconciliationService reconciliation;
     private final PaymentService paymentService;
+    private final PaymentSettlementService settlement;
     private final String frontendResultUrl;
+    private final boolean devSettleFromReturn;
 
     public ProviderReturnController(
             List<PaymentReturnHandler> handlerList,
             PaymentReconciliationService reconciliation,
             PaymentService paymentService,
-            @Value("${payment.frontend-result-url}") String frontendResultUrl) {
+            PaymentSettlementService settlement,
+            @Value("${payment.frontend-result-url}") String frontendResultUrl,
+            @Value("${payment.vnpay.dev-settle-from-return:false}") boolean devSettleFromReturn) {
         // Spring tự inject các handler: VNPay, MoMo, ...
         this.handlers = handlerList.stream()
                 .collect(Collectors.toUnmodifiableMap(
@@ -48,7 +54,17 @@ public class ProviderReturnController {
 
         this.reconciliation = reconciliation;
         this.paymentService = paymentService;
+        this.settlement = settlement;
         this.frontendResultUrl = frontendResultUrl;
+        this.devSettleFromReturn = devSettleFromReturn;
+    }
+
+    @PostConstruct
+    void warnIfDevSettleEnabled() {
+        if (devSettleFromReturn) {
+            LOG.warning("payment.vnpay.dev-settle-from-return=true: return URL được dùng để settle thanh toán. "
+                    + "CHỈ dành cho môi trường dev local; phải tắt ở mọi môi trường dùng chung/production.");
+        }
     }
 
     @GetMapping
@@ -87,7 +103,14 @@ public class ProviderReturnController {
         String txnRef = notification.transactionRef();
         // Cố gắng đối soát nhưng không chặn việc đưa người dùng về frontend
         try {
-            reconciliation.reconcileByTxnRef(txnRef);
+            if (devSettleFromReturn && notification.settlement() != null) {
+                // Chế độ dev: tham số return đã qua kiểm tra chữ ký HMAC + TMN code được xử lý như IPN
+                // (cùng settle(): kiểm tra amount, idempotent theo eventIdentity, ghi outbox cùng transaction).
+                LOG.warning("DEV: settle thanh toán từ return URL cho " + txnRef);
+                settlement.settle(notification.settlement(), provider);
+            } else {
+                reconciliation.reconcileByTxnRef(txnRef);
+            }
         } catch (Exception e) {
             LOG.log(
                     Level.WARNING,

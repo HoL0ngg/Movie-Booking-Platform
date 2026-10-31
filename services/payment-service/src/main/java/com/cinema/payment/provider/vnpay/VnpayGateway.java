@@ -128,6 +128,12 @@ public class VnpayGateway {
                 txnDate, createDate, props.getServerIp(), orderInfo));
 
         JsonNode r = post(body);
+        // VNPay trả lỗi mức API (vd. 99 "Unexpected error") KHÔNG kèm vnp_SecureHash. Đó là lỗi dịch vụ
+        // chứ không phải sai chữ ký; kết quả giao dịch vẫn CHƯA BIẾT và không được coi là bằng chứng.
+        if (text(r, "vnp_SecureHash") == null && !"00".equals(text(r, "vnp_ResponseCode"))) {
+            throw new VnpayApiException("VNPay querydr trả lỗi không có chữ ký: mã "
+                    + text(r, "vnp_ResponseCode") + " (" + text(r, "vnp_Message") + ")");
+        }
         boolean valid = !props.isVerifyApiSignature() || VnpayCodec.constantTimeEquals(
                 VnpayCodec.pipeHash(props.getHashSecret(),
                         text(r, "vnp_ResponseId"), text(r, "vnp_Command"), text(r, "vnp_ResponseCode"),

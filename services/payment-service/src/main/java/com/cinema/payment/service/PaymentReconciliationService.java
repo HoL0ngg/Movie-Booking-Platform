@@ -67,7 +67,9 @@ public class PaymentReconciliationService {
         try {
             q = gateway.queryTransaction(txnRef, attempt.getCreatedAt());
         } catch (VnpayApiException e) {
-            LOG.log(Level.WARNING, "querydr lỗi cho " + txnRef + ", thử lại ở vòng sau", e);
+            // Không in stack trace: đây là lỗi lặp lại mỗi vòng đối soát, thông điệp đã đủ để chẩn đoán.
+            LOG.log(Level.WARNING, "querydr lỗi cho {0}, thử lại ở vòng sau: {1}",
+                    new Object[] { txnRef, e.getMessage() });
             return;
         }
         if (!q.signatureValid()) {
