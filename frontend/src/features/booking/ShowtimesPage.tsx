@@ -6,8 +6,8 @@ import { useMovie, useMovies } from '../movies/hooks'
 import { MovieCard } from '../movies/MovieCard'
 import { ErrorState, LoadingState } from '../../shared/LoadingState'
 import './showtime-filters.css'
+import { cinemaTimeZone, showtimeDays, showtimeDayKey as dayKey } from './format'
 
-const dayKey = (date: Date) => date.toISOString().slice(0, 10)
 
 function MovieSelection() {
   const movies = useMovies('NOW_SHOWING')
@@ -22,7 +22,7 @@ function MovieShowtimes({ movieId }: { movieId: string }) {
   const movie = useMovie(movieId)
   const cinemas = useCinemas()
   const showtimes = useShowtimes(movieId)
-  const [days] = useState(() => Array.from({ length: 3 }, (_, index) => { const date = new Date(); date.setDate(date.getDate() + index); return date }))
+  const [days] = useState(showtimeDays)
   const [date, setDate] = useState(dayKey(days[0]))
   const filtered = useMemo(() => showtimes.data?.filter(item => dayKey(new Date(item.startsAt)) === date) ?? [], [showtimes.data, date])
 
@@ -50,13 +50,13 @@ function MovieShowtimes({ movieId }: { movieId: string }) {
       <div className="showtime-filter-dates">
         <h2 id="showtime-date-label">Lịch chiếu</h2>
         <div className="showtime-date-strip" role="group" aria-labelledby="showtime-date-label">{days.map((item, index) => <button type="button" key={dayKey(item)} aria-pressed={date === dayKey(item)} onClick={() => setDate(dayKey(item))}>
-          <span>{index === 0 ? 'Hôm nay' : index === 1 ? 'Ngày mai' : new Intl.DateTimeFormat('vi-VN', { weekday: 'long' }).format(item)}</span>
-          <strong>{new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(item)}</strong>
+          <span>{index === 0 ? 'Hôm nay' : index === 1 ? 'Ngày mai' : new Intl.DateTimeFormat('vi-VN', { weekday: 'long', timeZone: cinemaTimeZone }).format(item)}</span>
+          <strong>{new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', timeZone: cinemaTimeZone }).format(item)}</strong>
         </button>)}</div>
       </div>
     </section>
     {cinemas.isPending || showtimes.isPending ? <LoadingState label="Đang tải lịch chiếu…" /> : cinemas.isError || showtimes.isError ? <><ErrorState message="Không thể tải lịch chiếu." /><button className="secondary-button" onClick={() => { void cinemas.refetch(); void showtimes.refetch() }}>Thử lại</button></> : !cinemas.data.length ? <p role="status">Chưa có rạp chiếu phim.</p> :
-      <div className="cinema-list">{cinemas.data.map(cinema => { const times = filtered.filter(item => item.cinemaId === cinema.id); return <article className="cinema-row" key={cinema.id}><div><span className="cinema-dot" /><h2>{cinema.name}</h2><p>{cinema.address}</p></div><div className="time-grid">{times.length ? times.map(showtime => <Link key={showtime.id} to={`/showtimes/${showtime.id}/seats`} onClick={() => { setMovieId(showtime.movieId); setShowtimeId(showtime.id) }}><strong>{new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date(showtime.startsAt))}</strong><span>{showtime.format}</span></Link>) : <p className="muted">Không có suất chiếu trong ngày này.</p>}</div></article> })}</div>}
+      <div className="cinema-list">{cinemas.data.map(cinema => { const times = filtered.filter(item => item.cinemaId === cinema.id); return <article className="cinema-row" key={cinema.id}><div><span className="cinema-dot" /><h2>{cinema.name}</h2><p>{cinema.address}</p></div><div className="time-grid">{times.length ? times.map(showtime => <Link key={showtime.id} to={`/showtimes/${showtime.id}/seats`} onClick={() => { setMovieId(showtime.movieId); setShowtimeId(showtime.id) }}><strong>{new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: cinemaTimeZone }).format(new Date(showtime.startsAt))}</strong><span>{showtime.format}</span></Link>) : <p className="muted">Không có suất chiếu trong ngày này.</p>}</div></article> })}</div>}
   </div>
 }
 

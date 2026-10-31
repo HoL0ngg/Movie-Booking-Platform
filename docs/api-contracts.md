@@ -92,6 +92,8 @@ Static auditorium/seat labels may be returned by cinema APIs, but live availabil
 
 All `/api/v1/admin/cinemas/**`, `/admin/auditoriums/**` and `/admin/showtimes/**` operations require a verified auth-service JWT with `ADMIN` in cinema-service. Gateway routing grants no permission. Existing `/showtimes` create/publish/cancel commands continue to support ADMIN or assigned CINEMA_MANAGER authorization.
 
+Gateway security forwards these cinema admin paths and preserves the bearer header for cinema-service authorization, just as it does for movie administration. An edge rejection must not prevent a valid admin token from reaching its owning service. The public frontend loads the eight-day schedule using one `GET /showtimes?date=...&movieId=...` request per day, independent of the number of cinemas, rather than issuing a separate request for every cinema and day.
+
 | Method/path (under `/api/v1`) | Request | Response |
 |---|---|---|
 | `GET /admin/cinemas` | — | All cinemas, ordered by name |

@@ -11,8 +11,17 @@ spring:
     username: ${DB_USER:cinema_cinema_app}
     password: ${DB_PASSWORD:}
     hikari:
-      connection-timeout: 3000
-      maximum-pool-size: 10
+      # Supabase (remote, max_connections 60 shared by all services): keep a small warm pool,
+      # ping idle connections so the pooler/NAT does not drop them, and never hang on a dead socket.
+      maximum-pool-size: 3
+      minimum-idle: 3
+      connection-timeout: 5000
+      keepalive-time: 30000
+      max-lifetime: 600000
+      data-source-properties:
+        tcpKeepAlive: true
+        socketTimeout: 30
+        connectTimeout: 10
   jpa:
     open-in-view: false
     hibernate:

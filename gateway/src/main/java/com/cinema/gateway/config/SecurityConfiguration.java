@@ -33,9 +33,10 @@ public class SecurityConfiguration {
                                                 .pathMatchers(HttpMethod.GET, "/api/v1/movies", "/api/v1/movies/*")
                                                 .permitAll()
                                                 // Bearer verification and ADMIN authorization are enforced by
-                                                // movie-service.
-                                                .pathMatchers("/api/v1/admin/movies", "/api/v1/admin/movies/*",
-                                                                "/api/v1/admin/genres")
+                                                // cinema-service.
+                                                .pathMatchers("/api/v1/admin/cinemas", "/api/v1/admin/cinemas/**",
+                                                                "/api/v1/admin/auditoriums/**",
+                                                                "/api/v1/admin/showtimes", "/api/v1/admin/showtimes/**")
                                                 .permitAll()
                                                 // Bearer verification and ADMIN authorization are enforced by
                                                 // movie-service.

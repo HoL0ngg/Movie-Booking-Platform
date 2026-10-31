@@ -1,5 +1,6 @@
 import { getJson, HttpApiError } from '../../shared/apiClient'
 import type { Cinema, Showtime } from '../../shared/contracts'
+import { showtimeDays, showtimeDayKey } from './format'
 
 // Dữ liệu thật từ cinema-service (qua gateway /api/v1).
 interface CinemaDto { id: string; name: string; address: string; city: string; timezone: string }
@@ -20,14 +21,6 @@ const toShowtime = (s: ShowtimeDto): Showtime => ({
   format: '2D', language: '',
 })
 
-// Trang Lịch chiếu hiển thị 3 ngày (theo ngày UTC). Rạp ở UTC+7 nên suất 00:00–06:59 sáng
-// rơi sang ngày UTC trước đó → lấy dư 1 ngày (4 ngày) để không sót.
-const dateKey = (offset: number) => {
-  const d = new Date()
-  d.setUTCDate(d.getUTCDate() + offset)
-  return d.toISOString().slice(0, 10)
-}
-
 async function listCinemas(signal?: AbortSignal) {
   return (await getJson<CinemaDto[]>('/cinemas', signal)).map(toCinema)
 }
@@ -35,11 +28,11 @@ async function listCinemas(signal?: AbortSignal) {
 export const cinemaService = {
   list: () => listCinemas(),
 
-  // Backend không có "suất theo phim" → gọi từng rạp × từng ngày (đã lọc phim ở server).
+  // Một request mỗi ngày cho mọi rạp, tránh nhân số request theo số rạp.
   async showtimes(movieId: string): Promise<Showtime[]> {
-    const cinemas = await listCinemas()
-    const calls = cinemas.flatMap(cinema => [0, 1, 2, 3].map(offset =>
-      getJson<ShowtimeDto[]>(`/cinemas/${cinema.id}/showtimes?date=${dateKey(offset)}&movieId=${encodeURIComponent(movieId)}`)))
+    const days = showtimeDays()
+    const calls = days.map(day =>
+      getJson<ShowtimeDto[]>(`/showtimes?date=${showtimeDayKey(day)}&movieId=${encodeURIComponent(movieId)}`))
     const all = (await Promise.all(calls)).flat()
     return all.map(toShowtime).sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))
   },

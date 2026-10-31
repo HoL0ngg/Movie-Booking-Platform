@@ -7,6 +7,7 @@ const movie = {
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/v1/cinemas**', route => route.fulfill({ json: [] }))
+  await page.route('**/api/v1/showtimes?**', route => route.fulfill({ json: [] }))
 })
 
 test('catalog and detail read HTTP data with missing optional metadata', async ({ page }) => {
