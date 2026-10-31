@@ -219,7 +219,8 @@ public class BookingService {
         reservation.setUpdatedAt(now);
         outboxService.record(EventTypes.BOOKING_CONFIRMED, 1, bookingId, new BookingConfirmedPayload(
                 bookingId, reservationId, booking.getShowtimeId(), booking.getUserId(), paymentId, now,
-                items.stream().map(ReservationSeatEntity::getSeatId).toList()));
+                items.stream().map(ReservationSeatEntity::getSeatId).toList(),
+                booking.getAmountMinor(), booking.getCurrency()));
         return null;
     }
 
@@ -269,7 +270,7 @@ public class BookingService {
         List<UUID> seatIds = items.stream().map(ReservationSeatEntity::getSeatId).toList();
         outboxService.record(EventTypes.BOOKING_CANCELLED, 1, booking.getId(), new BookingCancelledPayload(
                 booking.getId(), reservation.getId(), booking.getPaymentId(), booking.getUserId(),
-                booking.getShowtimeId(), seatIds, reason, now));
+                booking.getShowtimeId(), seatIds, reason, now, booking.getAmountMinor(), booking.getCurrency()));
         if (RES_EXPIRED.equals(reservationStatus)) {
             outboxService.record(EventTypes.SEAT_HOLD_EXPIRED, 1, reservation.getId(),
                     new SeatHoldExpiredPayload(reservation.getId(), reservation.getUserId(),

@@ -5,12 +5,14 @@ import java.util.List;
 import java.util.UUID;
 
 public record BookingCancelledPayload(
-        UUID bookingId,
-        UUID reservationId,
-        UUID paymentId,
-        UUID userId,
-        UUID showtimeId,
-        List<UUID> seatIds,
-        String reasonCode,
-        Instant cancelledAt) {
+                UUID bookingId,
+                UUID reservationId,
+                UUID paymentId,
+                UUID userId,
+                UUID showtimeId,
+                List<UUID> seatIds,
+                String reasonCode,
+                Instant cancelledAt,
+                long amountMinor,
+                String currency) {
 }

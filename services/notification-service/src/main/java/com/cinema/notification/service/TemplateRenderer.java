@@ -3,7 +3,9 @@ package com.cinema.notification.service;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -31,8 +33,17 @@ public class TemplateRenderer {
             case "BookingConfirmed" -> {
                 Map<String, String> rows = new LinkedHashMap<>();
                 rows.put("Mã đặt vé", code(event.text("bookingId")));
+                rows.put("Tên phim",
+                        textOrPlaceholder(event, "movieTitle", "movie_name", "movieName", "title", "movie"));
                 rows.put("Mã suất chiếu", code(event.text("showtimeId")));
-                rows.put("Số ghế", String.valueOf(event.listSize("seatIds")));
+                rows.put("Thời gian bắt đầu",
+                        time(textOrPlaceholder(event, "startsAt", "starts_at", "showtimeStartsAt", "showtime_start")));
+                rows.put("Ghế", seatSummary(event));
+                rows.put("Giá mỗi ghế", seatPriceSummary(event));
+                rows.put("Cổng thanh toán", textOrPlaceholder(event, "paymentGateway", "payment_gateway", "provider",
+                        "gateway", "paymentProvider"));
+                rows.put("Tổng tiền", totalAmount(event));
+                rows.put("Số ghế", String.valueOf(seatCount(event)));
                 rows.put("Xác nhận lúc", time(event.text("confirmedAt")));
                 yield new RenderedMessage("Đặt vé thành công",
                         page("Đặt vé thành công", GREEN, "✓",
@@ -42,16 +53,35 @@ public class TemplateRenderer {
             case "BookingCancelled" -> {
                 Map<String, String> rows = new LinkedHashMap<>();
                 rows.put("Mã đặt vé", code(event.text("bookingId")));
+                rows.put("Tên phim",
+                        textOrPlaceholder(event, "movieTitle", "movie_name", "movieName", "title", "movie"));
+                rows.put("Mã suất chiếu", code(event.text("showtimeId")));
+                rows.put("Thời gian bắt đầu",
+                        time(textOrPlaceholder(event, "startsAt", "starts_at", "showtimeStartsAt", "showtime_start")));
+                rows.put("Ghế", seatSummary(event));
+                rows.put("Giá mỗi ghế", seatPriceSummary(event));
+                rows.put("Cổng thanh toán", textOrPlaceholder(event, "paymentGateway", "payment_gateway", "provider",
+                        "gateway", "paymentProvider"));
+                rows.put("Tổng tiền", totalAmount(event));
                 rows.put("Lý do", reason(event.text("reasonCode")));
                 rows.put("Hủy lúc", time(event.text("cancelledAt")));
                 yield new RenderedMessage("Đặt vé đã bị hủy",
                         page("Đặt vé đã bị hủy", RED, "✕",
-                                "Đặt vé của bạn đã bị hủy. Ghế đã được trả lại cho rạp.", rows,
+                                "", rows,
                                 "Nếu bạn đã thanh toán, tiền sẽ được hoàn lại và bạn sẽ nhận email xác nhận."));
             }
             case "RefundCompleted" -> {
                 Map<String, String> rows = new LinkedHashMap<>();
                 rows.put("Mã đặt vé", code(event.text("bookingId")));
+                rows.put("Tên phim",
+                        textOrPlaceholder(event, "movieTitle", "movie_name", "movieName", "title", "movie"));
+                rows.put("Ghế", seatSummary(event));
+                rows.put("Giá mỗi ghế", seatPriceSummary(event));
+                rows.put("Thời gian bắt đầu",
+                        time(textOrPlaceholder(event, "startsAt", "starts_at", "showtimeStartsAt", "showtime_start")));
+                rows.put("Cổng thanh toán", textOrPlaceholder(event, "paymentGateway", "payment_gateway", "provider",
+                        "gateway", "paymentProvider"));
+                rows.put("Tổng tiền", totalAmount(event));
                 rows.put("Số tiền hoàn", money(event.number("amountMinor"), event.text("currency")));
                 rows.put("Hoàn lúc", time(event.text("refundedAt")));
                 yield new RenderedMessage("Hoàn tiền thành công",
@@ -63,10 +93,11 @@ public class TemplateRenderer {
         };
     }
 
-    // ---------- Giao diện email (bảng + CSS inline để Gmail/Outlook hiển thị đúng) ----------
+    // ---------- Giao diện email (bảng + CSS inline để Gmail/Outlook hiển thị đúng)
+    // ----------
 
     private static String page(String title, String color, String icon, String intro,
-                               Map<String, String> rows, String note) {
+            Map<String, String> rows, String note) {
         StringBuilder details = new StringBuilder();
         for (Map.Entry<String, String> row : rows.entrySet()) {
             details.append("<tr>")
@@ -87,14 +118,16 @@ public class TemplateRenderer {
                 + "<div style=\"width:56px;height:56px;line-height:56px;border-radius:28px;background:" + color
                 + ";color:#ffffff;font-size:28px;font-weight:700;text-align:center;\">" + esc(icon) + "</div>"
                 + "<h1 style=\"margin:16px 0 8px;font-size:22px;color:#111827;\">" + esc(title) + "</h1>"
-                + "<p style=\"margin:0;font-size:15px;line-height:22px;color:#4b5563;\">" + esc(intro) + "</p></td></tr>"
+                + "<p style=\"margin:0;font-size:15px;line-height:22px;color:#4b5563;\">" + esc(intro)
+                + "</p></td></tr>"
                 // Chi tiết
                 + "<tr><td style=\"padding:20px 28px 8px;\">"
                 + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#f9fafb;border-radius:8px;padding:4px 16px;\">"
                 + "<tr><td style=\"padding:0 16px;\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">"
                 + details + "</table></td></tr></table></td></tr>"
                 // Ghi chú
-                + "<tr><td style=\"padding:16px 28px 28px;font-size:13px;line-height:20px;color:#6b7280;\">" + esc(note) + "</td></tr>"
+                + "<tr><td style=\"padding:16px 28px 28px;font-size:13px;line-height:20px;color:#6b7280;\">" + esc(note)
+                + "</td></tr>"
                 // Footer
                 + "<tr><td align=\"center\" style=\"padding:16px 28px;background:#f9fafb;font-size:12px;color:#9ca3af;\">"
                 + "Đây là email tự động, vui lòng không trả lời.<br>© Cinema Booking</td></tr>"
@@ -104,11 +137,17 @@ public class TemplateRenderer {
     // ---------- Định dạng giá trị ----------
 
     private static String code(String id) { // UUID dài → mã ngắn dễ đọc
+        if (id == null || id.isBlank()) {
+            return "—";
+        }
         String compact = id.replace("-", "").toUpperCase(Locale.ROOT);
         return "#" + (compact.length() > 8 ? compact.substring(0, 8) : compact);
     }
 
     private static String time(String iso) { // ISO-8601 UTC → giờ Việt Nam
+        if (iso == null || iso.isBlank()) {
+            return "—";
+        }
         try {
             return TIME.format(Instant.parse(iso).atZone(VN));
         } catch (RuntimeException ex) {
@@ -117,6 +156,9 @@ public class TemplateRenderer {
     }
 
     private static String money(String amountMinor, String currency) {
+        if (amountMinor == null || amountMinor.isBlank()) {
+            return "—";
+        }
         try {
             long value = Long.parseLong(amountMinor);
             String grouped = String.format(Locale.GERMANY, "%,d", value); // 150.000
@@ -124,6 +166,175 @@ public class TemplateRenderer {
         } catch (NumberFormatException ex) {
             return amountMinor + " " + currency;
         }
+    }
+
+    private static String textOrPlaceholder(EventMessage event, String... keys) {
+        for (String key : keys) {
+            Object raw = event.payload().get(key);
+            if (raw == null) {
+                continue;
+            }
+            if (raw instanceof String s && !s.isBlank()) {
+                return s;
+            }
+            if (raw instanceof Number n) {
+                return String.valueOf(n.longValue());
+            }
+            if (raw instanceof Boolean b) {
+                return b ? "true" : "false";
+            }
+        }
+        return "—";
+    }
+
+    private static String seatSummary(EventMessage event) {
+        String direct = firstListValue(event, "seatLabels", "seat_labels", "seatLabel", "seat_label", "seatIds",
+                "seat_ids");
+        if (direct != null) {
+            return direct;
+        }
+        Object raw = event.payload().get("seatDetails");
+        if (raw instanceof List<?> list && !list.isEmpty()) {
+            List<String> parts = new ArrayList<>();
+            for (Object item : list) {
+                if (item instanceof Map<?, ?> map) {
+                    String candidate = extractText(map.get("label"), map.get("seatLabel"), map.get("seat_label"),
+                            map.get("seat"), map.get("seatId"), map.get("seat_id"));
+                    if (candidate != null) {
+                        parts.add(candidate);
+                    }
+                } else if (item instanceof String s && !s.isBlank()) {
+                    parts.add(s);
+                }
+            }
+            if (!parts.isEmpty()) {
+                return String.join(", ", parts);
+            }
+        }
+        return "—";
+    }
+
+    private static String seatPriceSummary(EventMessage event) {
+        String direct = firstListValue(event, "seatPrices", "seat_prices", "seatPrice", "seat_price");
+        if (direct != null) {
+            return direct;
+        }
+        Object raw = event.payload().get("seatDetails");
+        if (raw instanceof List<?> list && !list.isEmpty()) {
+            List<String> parts = new ArrayList<>();
+            for (Object item : list) {
+                if (item instanceof Map<?, ?> map) {
+                    Object amount = map.get("priceMinor");
+                    if (amount == null) {
+                        amount = map.get("price_minor");
+                    }
+                    if (amount != null) {
+                        String currency = map.get("currency") instanceof String value && !value.isBlank()
+                                ? value
+                                : "VND";
+                        parts.add(money(String.valueOf(amount), currency));
+                    }
+                }
+            }
+            if (!parts.isEmpty()) {
+                return String.join(", ", parts);
+            }
+        }
+        return "—";
+    }
+
+    private static String totalAmount(EventMessage event) {
+        Object amount = event.payload().get("amountMinor");
+        if (amount instanceof Number number) {
+            return money(String.valueOf(number.longValue()), textOrPlaceholder(event, "currency"));
+        }
+        if (amount instanceof String value && !value.isBlank()) {
+            return money(value, textOrPlaceholder(event, "currency"));
+        }
+        Object rawSeats = event.payload().get("seatDetails");
+        if (rawSeats instanceof List<?> seats) {
+            long total = 0;
+            boolean hasPrices = false;
+            for (Object seat : seats) {
+                if (seat instanceof Map<?, ?> map) {
+                    Object price = map.get("priceMinor");
+                    if (price == null) {
+                        price = map.get("price_minor");
+                    }
+                    if (price instanceof Number number) {
+                        total += number.longValue();
+                        hasPrices = true;
+                    } else if (price instanceof String value) {
+                        try {
+                            total += Long.parseLong(value);
+                            hasPrices = true;
+                        } catch (NumberFormatException ignored) {
+                            return "—";
+                        }
+                    }
+                }
+            }
+            if (hasPrices) {
+                return money(String.valueOf(total), textOrPlaceholder(event, "currency"));
+            }
+        }
+        return "—";
+    }
+
+    private static int seatCount(EventMessage event) {
+        Object raw = event.payload().get("seatIds");
+        if (raw instanceof List<?> list) {
+            return list.size();
+        }
+        String seatText = firstListValue(event, "seatLabels", "seat_labels", "seatLabel", "seat_label");
+        if (seatText != null) {
+            return seatText.split(",").length;
+        }
+        return 0;
+    }
+
+    private static String firstListValue(EventMessage event, String... keys) {
+        for (String key : keys) {
+            Object raw = event.payload().get(key);
+            if (raw instanceof List<?> list && !list.isEmpty()) {
+                List<String> values = new ArrayList<>();
+                for (Object item : list) {
+                    String candidate = extractText(item, null);
+                    if (candidate != null) {
+                        values.add(candidate);
+                    }
+                }
+                if (!values.isEmpty()) {
+                    return String.join(", ", values);
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String extractText(Object... values) {
+        for (Object value : values) {
+            if (value == null) {
+                continue;
+            }
+            if (value instanceof String s && !s.isBlank()) {
+                return s;
+            }
+            if (value instanceof Number n) {
+                return String.valueOf(n.longValue());
+            }
+            if (value instanceof Map<?, ?> map) {
+                String nested = extractText(map.get("label"), map.get("seatLabel"), map.get("seat_label"),
+                        map.get("seat"), map.get("seatId"), map.get("seat_id"));
+                if (nested != null) {
+                    return nested;
+                }
+            }
+            if (value.toString() != null && !value.toString().isBlank()) {
+                return value.toString();
+            }
+        }
+        return null;
     }
 
     private static String reason(String reasonCode) { // mã lý do → tiếng Việt, mã lạ giữ nguyên
