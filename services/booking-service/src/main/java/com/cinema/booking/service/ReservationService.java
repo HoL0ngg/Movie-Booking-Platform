@@ -234,7 +234,8 @@ public class ReservationService {
             List<UUID> seatIds = items.stream().map(ReservationSeatEntity::getSeatId).toList();
             outboxService.record(EventTypes.BOOKING_CANCELLED, 1, pendingBooking.getId(),
                     new BookingCancelledPayload(pendingBooking.getId(), r.getId(), pendingBooking.getPaymentId(),
-                            r.getUserId(), r.getShowtimeId(), seatIds, reason, now));
+                            r.getUserId(), r.getShowtimeId(), seatIds, reason, now,
+                            pendingBooking.getAmountMinor(), pendingBooking.getCurrency()));
         }
 
         // Cùng transaction với thay đổi dữ liệu => event chỉ tồn tại nếu việc nhả ghế

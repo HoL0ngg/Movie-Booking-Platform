@@ -77,8 +77,8 @@ All fields below are inside `payload`; the standard envelope remains mandatory.
 | `PaymentRequested` | `paymentId`, `bookingId`, `reservationId`, `userId`, `amountMinor`, `currency`, `idempotencyKey`, `requestedAt`, `holdExpiresAt`, `provider`, `locale`, `clientIp`; `bankCode` is nullable |
 | `PaymentSucceeded` | `paymentId`, `bookingId`, `reservationId`, `amountMinor`, `currency`, `provider`, `providerTransactionId`, `succeededAt` |
 | `PaymentFailed` | `paymentId`, `bookingId`, `reservationId`, `provider`, `failureCode`, `failedAt` |
-| `BookingConfirmed` | `bookingId`, `reservationId`, `paymentId`, `userId`, `showtimeId`, `seatIds[]`, `confirmedAt` |
-| `BookingCancelled` | `bookingId`, `reservationId`, `paymentId` when present, `userId`, `showtimeId`, `seatIds[]`, `reasonCode`, `cancelledAt` |
+| `BookingConfirmed` | `bookingId`, `reservationId`, `paymentId`, `userId`, `showtimeId`, `seatIds[]`, `confirmedAt`, `amountMinor`, `currency` |
+| `BookingCancelled` | `bookingId`, `reservationId`, `paymentId` when present, `userId`, `showtimeId`, `seatIds[]`, `reasonCode`, `cancelledAt`, `amountMinor`, `currency` |
 | `RefundRequested` | `refundRequestId`, `paymentId`, `bookingId`, `userId`, `amountMinor`, `currency`, `reasonCode`, `idempotencyKey` |
 | `RefundCompleted` | `refundId`, `refundRequestId`, `paymentId`, `bookingId`, `userId`, `amountMinor`, `currency`, `providerRefundId` (nullable when provider supplies none), `refundedAt` |
 | `RefundFailed` | `refundId`, `refundRequestId`, `paymentId`, `failureCode`, `failedAt`, `retryable` |

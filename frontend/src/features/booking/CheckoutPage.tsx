@@ -45,10 +45,6 @@ export function CheckoutPage() {
       <div className="page-title">
         <p className="eyebrow">Thanh toán</p>
         <h1>Kiểm tra đơn hàng</h1>
-        <p>
-          Bạn sẽ được chuyển đến VNPay Sandbox. Trạng thái thanh toán chỉ được
-          xác nhận sau khi hệ thống nhận kết quả từ máy chủ.
-        </p>
       </div>
       <div className="checkout-grid">
         <section className="checkout-main">
