@@ -29,19 +29,21 @@ public class TemplateRenderer {
     private static final String BLUE = "#2563eb";
 
     public RenderedMessage render(EventMessage event) {
+        return render(event, null);
+    }
+
+    public RenderedMessage render(EventMessage event, String resolvedMovieTitle) {
         return switch (event.eventType()) {
             case "BookingConfirmed" -> {
                 Map<String, String> rows = new LinkedHashMap<>();
                 rows.put("Mã đặt vé", code(event.text("bookingId")));
-                rows.put("Tên phim",
-                        textOrPlaceholder(event, "movieTitle", "movie_name", "movieName", "title", "movie"));
+                rows.put("Tên phim", textOrResolvedMovieTitle(event, resolvedMovieTitle));
                 rows.put("Mã suất chiếu", code(event.text("showtimeId")));
                 rows.put("Thời gian bắt đầu",
                         time(textOrPlaceholder(event, "startsAt", "starts_at", "showtimeStartsAt", "showtime_start")));
                 rows.put("Ghế", seatSummary(event));
                 rows.put("Giá mỗi ghế", seatPriceSummary(event));
-                rows.put("Cổng thanh toán", textOrPlaceholder(event, "paymentGateway", "payment_gateway", "provider",
-                        "gateway", "paymentProvider"));
+                rows.put("Cổng thanh toán", gateway(event));
                 rows.put("Tổng tiền", totalAmount(event));
                 rows.put("Số ghế", String.valueOf(seatCount(event)));
                 rows.put("Xác nhận lúc", time(event.text("confirmedAt")));
@@ -187,9 +189,21 @@ public class TemplateRenderer {
         return "—";
     }
 
+    private static String textOrResolvedMovieTitle(EventMessage event, String resolvedMovieTitle) {
+        String title = textOrPlaceholder(event, "movieTitle", "movie_name", "movieName", "title", "movie");
+        return "—".equals(title) && resolvedMovieTitle != null && !resolvedMovieTitle.isBlank()
+                ? resolvedMovieTitle
+                : title;
+    }
+
+    private static String gateway(EventMessage event) {
+        String value = textOrPlaceholder(event, "paymentGateway", "payment_gateway", "provider", "gateway",
+                "paymentProvider");
+        return "vnpay".equalsIgnoreCase(value) ? "VNPAY" : value;
+    }
+
     private static String seatSummary(EventMessage event) {
-        String direct = firstListValue(event, "seatLabels", "seat_labels", "seatLabel", "seat_label", "seatIds",
-                "seat_ids");
+        String direct = firstListValue(event, "seatLabels", "seat_labels", "seatLabel", "seat_label");
         if (direct != null) {
             return direct;
         }
@@ -211,6 +225,10 @@ public class TemplateRenderer {
                 return String.join(", ", parts);
             }
         }
+        direct = firstListValue(event, "seatIds", "seat_ids");
+        if (direct != null) {
+            return direct;
+        }
         return "—";
     }
 
@@ -231,8 +249,10 @@ public class TemplateRenderer {
                     if (amount != null) {
                         String currency = map.get("currency") instanceof String value && !value.isBlank()
                                 ? value
-                                : "VND";
-                        parts.add(money(String.valueOf(amount), currency));
+                                : textOrPlaceholder(event, "currency");
+                        String price = money(String.valueOf(amount), currency);
+                        String label = extractText(map.get("seatLabel"), map.get("seat_label"), map.get("label"));
+                        parts.add(label == null ? price : label + ": " + price);
                     }
                 }
             }

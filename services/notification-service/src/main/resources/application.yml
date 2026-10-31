@@ -91,6 +91,8 @@ info:
     phase: 1
 
 notification: # 0.4 Cấu hình riêng của notification-service
+  movie:
+    base-url: ${MOVIE_SERVICE_URL:http://localhost:8082}
   auth:
     base-url: ${AUTH_SERVICE_URL:http://localhost:8081} # 0.5 Địa chỉ auth-service
     internal-token: ${INTERNAL_API_TOKEN:} # 0.6 PHẢI trùng với auth-service

@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory; // 5.7
 import org.springframework.dao.DataIntegrityViolationException; // 5.8
 import org.springframework.stereotype.Service; // 5.9
 
+import com.cinema.notification.client.MovieDirectoryClient;
 import com.cinema.notification.client.UserDirectoryClient; // 5.10
 import com.cinema.notification.entity.NotificationEntity; // 5.11
 import com.cinema.notification.messaging.EventMessage; // 5.12
@@ -25,12 +26,16 @@ public class NotificationIngestService { // 5.15 Biến event thành bản ghi t
 
     private final NotificationRepository notificationRepository; // 5.19
     private final UserDirectoryClient userDirectoryClient; // 5.20
+    private final MovieDirectoryClient movieDirectoryClient;
     private final TemplateRenderer templateRenderer; // 5.21
 
     public NotificationIngestService(NotificationRepository notificationRepository, // 5.22
-                                     UserDirectoryClient userDirectoryClient, TemplateRenderer templateRenderer) { // 5.23
+                                     UserDirectoryClient userDirectoryClient,
+                                     MovieDirectoryClient movieDirectoryClient,
+                                     TemplateRenderer templateRenderer) { // 5.23
         this.notificationRepository = notificationRepository; // 5.24
         this.userDirectoryClient = userDirectoryClient; // 5.25
+        this.movieDirectoryClient = movieDirectoryClient;
         this.templateRenderer = templateRenderer; // 5.26
     }
 
@@ -48,7 +53,11 @@ public class NotificationIngestService { // 5.15 Biến event thành bản ghi t
             log.warn("Skip notification: user not found eventId={} type={}", event.eventId(), event.eventType()); // 5.36
             return; // 5.37
         }
-        TemplateRenderer.RenderedMessage content = templateRenderer.render(event); // 5.38 Dựng tiêu đề + nội dung
+        String movieTitle = null;
+        if ("BookingConfirmed".equals(event.eventType()) && event.payload().containsKey("movieId")) {
+            movieTitle = movieDirectoryClient.findTitle(event.uuid("movieId")).orElse(null);
+        }
+        TemplateRenderer.RenderedMessage content = templateRenderer.render(event, movieTitle); // 5.38 Dựng tiêu đề + nội dung
         try { // 5.39
             notificationRepository.saveAndFlush(new NotificationEntity(UUID.randomUUID(), event.eventId(), // 5.40 Lưu PENDING; dispatcher sẽ gửi
                     event.eventType(), userId, EMAIL, email.get(), content.subject(), content.body(), Instant.now())); // 5.41

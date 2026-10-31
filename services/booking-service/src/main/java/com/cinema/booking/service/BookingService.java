@@ -151,7 +151,7 @@ public class BookingService {
 
     @Transactional
     public Failure confirmForPayment(UUID bookingId, UUID reservationId, UUID paymentId,
-            long amountMinor, String currency) {
+            long amountMinor, String currency, String paymentGateway) {
         var reservation = reservationRepository.lockById(reservationId).orElse(null);
         var booking = bookingRepository.lockByReservationId(reservationId).orElse(null);
         if (reservation == null || booking == null) {
@@ -212,14 +212,24 @@ public class BookingService {
             bookingItemRepository.save(bookingItem);
         }
 
+        var showtime = showtimeSnapshotRepository.findById(booking.getShowtimeId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "Showtime snapshot missing for confirmed booking " + bookingId));
+        List<BookingConfirmedPayload.SeatDetail> seatDetails = new ArrayList<>();
+        for (int idx = 0; idx < items.size(); idx++) {
+            seatDetails.add(new BookingConfirmedPayload.SeatDetail(
+                    items.get(idx).getSeatId(), seats.get(idx).getSeatLabel(), items.get(idx).getPriceMinor()));
+        }
+
         booking.setStatus(BOOKING_CONFIRMED);
         booking.setConfirmedAt(now);
         booking.setUpdatedAt(now);
         reservation.setStatus(RES_CONFIRMED);
         reservation.setUpdatedAt(now);
         outboxService.record(EventTypes.BOOKING_CONFIRMED, 1, bookingId, new BookingConfirmedPayload(
-                bookingId, reservationId, booking.getShowtimeId(), booking.getUserId(), paymentId, now,
-                items.stream().map(ReservationSeatEntity::getSeatId).toList(),
+                bookingId, reservationId, booking.getShowtimeId(), showtime.getMovieId(), showtime.getStartsAt(),
+                booking.getUserId(), paymentId, paymentGateway, now,
+                items.stream().map(ReservationSeatEntity::getSeatId).toList(), seatDetails,
                 booking.getAmountMinor(), booking.getCurrency()));
         return null;
     }

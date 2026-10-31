@@ -12,5 +12,6 @@ public record PaymentPayload(
         UUID reservationId,
         long amountMinor,
         String currency,
+        String provider,
         String failureCode) {
 }

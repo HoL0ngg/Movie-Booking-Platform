@@ -29,7 +29,7 @@ public class PaymentEventHandler {
         PaymentPayload p = requirePayload(event);
 
         BookingService.Failure failure = bookingService.confirmForPayment(
-                p.bookingId(), p.reservationId(), p.paymentId(), p.amountMinor(), p.currency());
+                p.bookingId(), p.reservationId(), p.paymentId(), p.amountMinor(), p.currency(), p.provider());
         if (failure != null) {
             LOG.warning("Không xác nhận được booking cho reservation " + p.reservationId()
                     + " sau khi thanh toán " + p.paymentId() + ": " + failure.reason());
@@ -53,9 +53,10 @@ public class PaymentEventHandler {
                     event.eventType() + " thiếu bookingId/reservationId/paymentId (" + event.eventId() + ")");
         }
         if (EventTypes.PAYMENT_SUCCEEDED.equals(event.eventType())
-                && (p.amountMinor() <= 0 || p.currency() == null || p.currency().isBlank())) {
+                && (p.amountMinor() <= 0 || p.currency() == null || p.currency().isBlank()
+                        || p.provider() == null || p.provider().isBlank())) {
             throw new PoisonMessageException(
-                    event.eventType() + " thiếu amountMinor/currency (" + event.eventId() + ")");
+                    event.eventType() + " thiếu amountMinor/currency/provider (" + event.eventId() + ")");
         }
         return p;
     }

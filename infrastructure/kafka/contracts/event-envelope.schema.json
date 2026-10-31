@@ -247,7 +247,7 @@
     },
     "BookingConfirmedPayload": {
       "type": "object",
-      "required": ["bookingId", "reservationId", "paymentId", "userId", "showtimeId", "seatIds", "confirmedAt"],
+      "required": ["bookingId", "reservationId", "paymentId", "userId", "showtimeId", "seatIds", "confirmedAt", "amountMinor", "currency"],
       "properties": {
         "bookingId": { "$ref": "#/$defs/Uuid" },
         "reservationId": { "$ref": "#/$defs/Uuid" },
@@ -255,7 +255,25 @@
         "userId": { "$ref": "#/$defs/Uuid" },
         "showtimeId": { "$ref": "#/$defs/Uuid" },
         "seatIds": { "$ref": "#/$defs/UuidList" },
-        "confirmedAt": { "type": "string", "format": "date-time" }
+        "confirmedAt": { "type": "string", "format": "date-time" },
+        "movieId": { "$ref": "#/$defs/Uuid" },
+        "startsAt": { "type": "string", "format": "date-time" },
+        "seatDetails": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["seatId", "seatLabel", "priceMinor"],
+            "properties": {
+              "seatId": { "$ref": "#/$defs/Uuid" },
+              "seatLabel": { "type": "string", "minLength": 1 },
+              "priceMinor": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "paymentGateway": { "type": "string", "minLength": 1 },
+        "amountMinor": { "type": "integer", "minimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
       },
       "additionalProperties": false
     },
