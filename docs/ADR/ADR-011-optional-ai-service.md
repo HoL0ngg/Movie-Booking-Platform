@@ -1,6 +1,7 @@
 # ADR-011: Optional AI Assistance Service
 
 - Status: Accepted
+- Current query workflow: [ADR-014](ADR-014-structured-ai-catalog-queries.md) supersedes the fixed prompt snapshot/cache and 45-second provider timeout described below. The original decision is retained as history; service ownership and safety boundaries remain applicable.
 - Date: 2026-10-03
 - Extends: ADR-001 deployable set; preserves ADR-009 ownership
 - Updated: 2026-10-15 — OpenRouter OpenAI-compatible API only, model `openrouter/free`

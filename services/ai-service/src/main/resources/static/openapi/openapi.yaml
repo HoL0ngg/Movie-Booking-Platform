@@ -7,10 +7,11 @@ info:
     and model openrouter/free. Enable with AI_CHAT_PROVIDER=openai
     and server-side OPENROUTER_API_KEY. Provider defaults to openai;
     explicitly set AI_CHAT_PROVIDER=none to disable chat.
-    This prototype chat endpoint is unauthenticated. Each turn is grounded with
-    read-only public data from movie-service (published movies, genres) and
-    cinema-service (cinemas, published showtimes for today and tomorrow), fetched
-    through their APIs and cached briefly. Seat availability, booking and payment
+    This prototype chat endpoint is unauthenticated. Each turn extracts a structured
+    query; Java validates and calls read-only movie/cinema public APIs as needed.
+    Schedules span at most eight days within the next 90 days; missing dates default
+    to today in Asia/Ho_Chi_Minh. Java renders actual API data without a second model call.
+    Malformed queries return clarification. Seat availability, booking and payment
     operations are not supported; model output is never proof of availability or price.
 servers:
   - url: http://localhost:8087
@@ -22,7 +23,7 @@ paths:
       description: >-
         Available only when OpenRouter is enabled. Client supplies bounded
         history; conversation state is not persisted. Production authorization,
-        request limits remain required. OpenRouter calls are bounded to 45 seconds
+        request limits remain required. OpenRouter calls are bounded to 20 seconds
         with no SDK retries; the gateway AI route waits up to 60 seconds.
       security: []
       requestBody:
@@ -33,7 +34,7 @@ paths:
               $ref: '#/components/schemas/ChatRequest'
       responses:
         '200':
-          description: Generated conversational response
+          description: Java-rendered catalog results, clarification, unsupported request or catalog unavailability message
           content:
             application/json:
               schema:

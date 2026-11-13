@@ -101,20 +101,12 @@ From the repository root:
 mvn package
 ```
 
-Backend test dependencies are temporarily removed and the parent sets `maven.test.skip=true`; `mvn test` currently runs no tests. Existing test sources remain in place except in `ai-service`, whose tests with missing dependencies were removed at the owner's request. Restore the dependencies as described in [README](../README.md#local-quick-start) and remove the skip property or pass `-Dmaven.test.skip=false` before running tests. Restored stateful service tests require Docker and real PostgreSQL Testcontainers, initialized with `db/schema.sql`, to verify mappings and constraints. Booking concurrency tests must also use PostgreSQL rather than H2.
+Backend test dependencies are temporarily removed and the parent sets `maven.test.skip=true`; `mvn test` currently runs no tests. Existing test sources remain in place; focused tests are restored in `ai-service` and `cinema-service`. Restore the dependencies as described in [README](../README.md#local-quick-start) and remove the skip property or pass `-Dmaven.test.skip=false` before running tests. Restored stateful service tests require Docker and real PostgreSQL Testcontainers, initialized with `db/schema.sql`, to verify mappings and constraints. Booking concurrency tests must also use PostgreSQL rather than H2.
 
 ## Production gaps
 
 Before any production deployment, define secret management, TLS, authenticated Kafka listeners and ACLs, multi-broker replication, database backup/restore, resource limits, network policy, image scanning, immutable application images, alert rules, dashboards, and deployment-specific availability targets.
 
-AI chat uses a 45-second SDK timeout without retries and a 60-second gateway route response timeout. Other gateway routes retain 5 seconds. OpenRouter/network errors return `503 AI_PROVIDER_UNAVAILABLE`; restart both AI service and gateway after these configuration changes.
+AI chat uses a 20-second SDK timeout without retries and a 60-second gateway route response timeout. Other gateway routes retain 5 seconds. OpenRouter/network errors return `503 AI_PROVIDER_UNAVAILABLE`; restart both AI service and gateway after these configuration changes.
 
-The standalone `services/ai-service/checks/OpenRouterSmokeCheck.java` check uses an in-process fake OpenRouter endpoint and never reads a real key. It checks disabled startup without credentials, enabled startup without inference, model/path/history, validation, unsupported routes, provider/network failures, no retries, safe errors, and trace IDs. It requires no JUnit dependencies. After packaging, run from the repository root:
-
-```powershell
-New-Item -ItemType Directory -Force services/ai-service/target/checks | Out-Null
-Push-Location services/ai-service/target/checks
-jar xf ../ai-service-0.1.0-SNAPSHOT.jar BOOT-INF/lib
-Pop-Location
-java --class-path "services/ai-service/target/classes;services/ai-service/target/checks/BOOT-INF/lib/*" services/ai-service/checks/OpenRouterSmokeCheck.java
-```
+AI structured catalog queries use one schema-guided extraction followed by Java validation, owner API reads and deterministic rendering, without a prompt cache. See [ADR-014](ADR/ADR-014-structured-ai-catalog-queries.md). Run focused AI tests with `mvn -pl services/ai-service test -Dmaven.test.skip=false` (no inference or Docker). Tests include disabled/fake-key startup, structured parsing, orchestration and public API adapter contracts. The former standalone smoke-check file is absent and its command is no longer applicable.

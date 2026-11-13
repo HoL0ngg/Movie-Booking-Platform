@@ -70,7 +70,7 @@ docker compose up -d
 mvn package
 ```
 
-Backend test dependencies are temporarily removed to simplify the build. The parent POM sets `maven.test.skip=true`, skipping test compilation and execution; existing `src/test` files are preserved except in `ai-service`, where tests with missing dependencies were removed at the owner's request. `mvn test` currently executes no tests. To restore them, add `spring-boot-starter-test` to the modules and, for stateful services, `spring-boot-testcontainers`, `testcontainers-postgresql`, and `testcontainers-junit-jupiter`. Then remove the skip property or use `-Dmaven.test.skip=false` with `mvn test`.
+Backend test dependencies are temporarily removed to simplify the build. The parent POM sets `maven.test.skip=true`, skipping test compilation and execution; existing `src/test` files are preserved with focused tests restored in `ai-service` and `cinema-service`. `mvn test` currently executes no tests. To restore them, add `spring-boot-starter-test` to the modules and, for stateful services, `spring-boot-testcontainers`, `testcontainers-postgresql`, and `testcontainers-junit-jupiter`. Then remove the skip property or use `-Dmaven.test.skip=false` with `mvn test`.
 
 Before starting a stateful service, configure its `*_DB_URL`, `*_DB_USER`, and `*_DB_PASSWORD` in the process environment for its provisioned database. Spring Boot does not load `.env` automatically. For a fresh local database, manually apply only the owning service's `db/schema.sql` once. SQL initialization is disabled and Hibernate only validates mappings; a missing or mismatched schema prevents startup. See [schema management](docs/database-design.md#schema-management) for the reference files. Do not replay these full schemas on deployed databases.
 
@@ -120,6 +120,8 @@ Before any implementation, read `AGENTS.md`, load the relevant skill under `skil
 
 Phase 1 established infrastructure and application skeletons. Phase 2 has added the database layer and public movie catalog reads while preserving these boundaries; remaining business APIs and workflows are future work.
 
-AI chat uses a 45-second SDK timeout with no retries and a 60-second gateway AI route timeout. Other routes retain 5 seconds. Provider/network failures return `503 AI_PROVIDER_UNAVAILABLE`; diagnostics include trace ID, exception type and upstream status without provider bodies or chat content.
+AI chat uses a 20-second SDK timeout with no retries and a 60-second gateway AI route timeout. Other routes retain 5 seconds. Provider/network failures return `503 AI_PROVIDER_UNAVAILABLE`; diagnostics include trace ID, exception type and upstream status without provider bodies or chat content.
 
 Keep `spring.ai.model.chat: ${AI_CHAT_PROVIDER:openai}`: both the controller and service require `openai`. Set `AI_CHAT_PROVIDER=none` to disable chat. The API base URL is `https://openrouter.ai/api/v1`. `OPENROUTER_MODEL` defaults to `openrouter/free`; this router may select different free models. `OPENROUTER_API_KEY` is preferred; existing `API_KEY` remains a compatibility fallback. A defined but empty `OPENROUTER_API_KEY` overrides that fallback. Restart AI service and gateway after changing configuration.
+
+AI structured catalog queries: one schema-guided extraction followed by Java validation, owner API reads and deterministic rendering; no prompt cache. See [ADR-014](docs/ADR/ADR-014-structured-ai-catalog-queries.md). Run focused AI tests with `mvn -pl services/ai-service test -Dmaven.test.skip=false` (no inference or Docker).

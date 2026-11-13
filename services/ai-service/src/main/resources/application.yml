@@ -21,7 +21,7 @@ spring:
     openai:
       base-url: https://openrouter.ai/api/v1
       api-key: ${OPENROUTER_API_KEY:${API_KEY:}}
-      timeout: 45s
+      timeout: 20s
       max-retries: 0
       chat:
         options:
@@ -31,15 +31,12 @@ spring:
 
 ai:
   catalog:
-    # Read-only grounding from owner APIs (never their databases). Called directly, not through the gateway.
+    # Java-controlled read-only queries to owner APIs (never their databases).
     movie-service-url: ${MOVIE_SERVICE_URL:http://localhost:8082}
     cinema-service-url: ${CINEMA_SERVICE_URL:http://localhost:8083}
     timezone: ${AI_CATALOG_TIMEZONE:Asia/Ho_Chi_Minh}
-    connect-timeout: 2s
-    read-timeout: 3s
-    cache-ttl: ${AI_CATALOG_CACHE_TTL:60s}
-    failure-cache-ttl: 15s
-    schedule-days: 2
+    connect-timeout: 1s
+    read-timeout: 2s
     max-movies: 40
     max-showtimes: 80
 
@@ -68,4 +65,4 @@ logging:
 info:
   app:
     name: ${spring.application.name}
-    stage: catalog-grounded-conversation
+    stage: structured-catalog-query

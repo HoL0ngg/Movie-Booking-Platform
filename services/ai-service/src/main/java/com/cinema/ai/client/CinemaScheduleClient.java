@@ -20,15 +20,22 @@ public class CinemaScheduleClient {
         this.restClient = restClient;
     }
 
-    public List<CatalogCinema> listCinemas() {
-        List<CatalogCinema> cinemas = restClient.get().uri("/api/v1/cinemas").retrieve().body(CINEMAS);
+    public List<CatalogCinema> listCinemas(String city) {
+        List<CatalogCinema> cinemas = restClient.get().uri(uri -> city == null
+                ? uri.path("/api/v1/cinemas").build()
+                : uri.path("/api/v1/cinemas").queryParam("city", "{city}").build(city))
+                .retrieve().body(CINEMAS);
         return cinemas == null ? List.of() : cinemas;
     }
 
     /** Published showtimes of every cinema on {@code date}, evaluated in each cinema's timezone by the owner. */
-    public List<CatalogShowtime> listPublishedShowtimes(LocalDate date) {
+    public List<CatalogShowtime> listPublishedShowtimes(LocalDate date, java.util.UUID movieId) {
         List<CatalogShowtime> showtimes = restClient.get()
-                .uri(uri -> uri.path("/api/v1/showtimes").queryParam("date", date.toString()).build())
+                .uri(uri -> {
+                    uri.path("/api/v1/showtimes").queryParam("date", date.toString());
+                    if (movieId != null) uri.queryParam("movieId", movieId.toString());
+                    return uri.build();
+                })
                 .retrieve()
                 .body(SHOWTIMES);
         return showtimes == null ? List.of() : showtimes;

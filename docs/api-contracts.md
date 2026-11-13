@@ -6,7 +6,7 @@ Static OpenAPI 3.1 contracts are published from each Spring Boot module at `/ope
 
 ## Conventions
 
-`ai-service` exposes the temporary `POST /api/v1/ai/chat` conversation operation when `AI_CHAT_PROVIDER=openai`. It uses the OpenRouter OpenAI-compatible API with server-side `OPENROUTER_API_KEY` and model `openrouter/free`. It accepts the current message and a bounded history from the client; it does not persist conversation state or query another service's database. Before each provider call it reads `GET /api/v1/movies`, `GET /api/v1/cinemas` and `GET /api/v1/showtimes?date=` (today and tomorrow) directly from the owning services with 2s/3s connect/read timeouts and a 60-second in-memory cache, and renders them into the system prompt. A failing source degrades to an "unavailable" note instead of an error. Seat availability is never loaded or asserted. The current prototype is unauthenticated and must not be treated as production authorization. Provider calls are never part of booking/payment transactions or Sagas.
+`ai-service` uses one Spring AI structured-output call to extract a validated catalog query. Java calls the movie/cinema public APIs as needed and renders factual results directly, without a second model call or prompt cache. Schedule queries cover at most eight consecutive days within 90 days; absent dates default to today in Asia/Ho_Chi_Minh. Invalid queries request clarification; owner API failures are distinguished from empty results. Chat remains temporarily unauthenticated; production authorization/request limits are still required. No seat availability, booking/payment operations or cross-service SQL. See [ADR-014](ADR/ADR-014-structured-ai-catalog-queries.md). The request/response shapes remain unchanged: `{message, history?}` and `{message}`.
 
 - Public APIs are rooted at `/api/v1` and routed by the API Gateway to the owning service.
 - JSON uses UTC ISO-8601 timestamps and opaque string IDs. Money is `{ "amountMinor": 125000, "currency": "VND" }`.
@@ -188,4 +188,4 @@ There is no public customer command API in the initial boundary. Notification se
 
 Phase 1 skeletons must publish machine-readable OpenAPI/event schemas. Later implementations add provider/consumer contract tests, standard error-shape tests, authorization tests, idempotency tests, and compatibility checks for rolling versions.
 
-AI chat provider failures return HTTP `503` with `code=AI_PROVIDER_UNAVAILABLE`, a safe message, canonical `traceId`, and timestamp. OpenRouter calls have a 45-second deadline and no SDK retries; the gateway AI route waits up to 60 seconds. Other routes retain the global 5-second response timeout.
+AI chat provider failures return HTTP `503` with `code=AI_PROVIDER_UNAVAILABLE`, a safe message, canonical `traceId`, and timestamp. OpenRouter calls have a 20-second deadline and no SDK retries; the gateway AI route waits up to 60 seconds. Other routes retain the global 5-second response timeout.
