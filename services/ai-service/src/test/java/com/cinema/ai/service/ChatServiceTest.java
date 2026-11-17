@@ -22,6 +22,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.chat.prompt.ChatOptions;
 
 class ChatServiceTest {
     private final ChatModel model = mock(ChatModel.class);
@@ -63,6 +64,7 @@ class ChatServiceTest {
     }
 
     private void respond(String text) {
+        when(model.getOptions()).thenReturn(ChatOptions.builder().build());
         when(model.call(any(Prompt.class))).thenReturn(new ChatResponse(List.of(new Generation(new AssistantMessage(text)))));
     }
 }

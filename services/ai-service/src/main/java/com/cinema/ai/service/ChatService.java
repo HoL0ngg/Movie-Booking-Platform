@@ -19,6 +19,7 @@ import com.cinema.ai.dto.ChatMessage;
 import com.cinema.ai.dto.ChatRequest;
 import com.cinema.ai.dto.ChatResponse;
 import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.cfg.EnumFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 @Service
@@ -54,7 +55,7 @@ public class ChatService {
     private final BeanOutputConverter<CatalogQuery> converter = new BeanOutputConverter<>(CatalogQuery.class);
     private final JsonMapper mapper = JsonMapper.builder()
             .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-            .enable(DeserializationFeature.FAIL_ON_NUMBERS_FOR_ENUMS)
+            .enable(EnumFeature.FAIL_ON_NUMBERS_FOR_ENUMS)
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();
 
     public ChatService(ChatClient.Builder builder, CatalogQueryService queries, CatalogProperties properties) {

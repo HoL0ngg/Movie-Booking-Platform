@@ -2,8 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/api/v1/movies/:path*",
-      "destination": "https://movie-booking-movie-service.onrender.com/api/v1/movies/:path*"
+      "source": "/api/v1/:path*",
+      "destination": "https://movie-booking-api-gateway.onrender.com/api/v1/:path*"
     },
     {
       "source": "/((?!api/).*)",
