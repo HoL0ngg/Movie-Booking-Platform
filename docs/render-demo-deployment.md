@@ -36,21 +36,24 @@ missing reference column is not a Hibernate startup requirement.
 ## Kafka and other Free limits
 
 Kafka delivery must work before claiming the booking/payment demo is complete.
-Until credentials are supplied, Kafka listeners/outbox publishing and payment
-reconciliation/refund dispatch stay paused by runtime configuration. Durable
-outbox rows are preserved; do not delete events or fake successful payments.
+If Kafka credentials are unavailable, keep Kafka-dependent workflows unavailable
+until the connection is restored. Durable outbox rows must be preserved; do not
+delete events or fake successful payments. The current demo has working Kafka
+TLS/authentication and publishing/consumers enabled.
 
 Aiven offers a genuine Kafka Free plan (no card/time-limited credit trial).
 It allows five topics with two partitions each. Create three domain topics plus
 one shared quarantine topic, `cinema.events.quarantine.v1`, and point the
 showtime/booking/payment quarantine properties there. Source/error headers
 must remain available for diagnosis; verify quarantine handling after connection.
-Use SASL/SCRAM over TLS, keeping certificate validation enabled. Never disable
+Use SASL/SCRAM over TLS with the supplied Aiven CA in the runtime
+`SPRING_APPLICATION_JSON` PEM truststore, keeping certificate validation enabled. Never disable
 TLS verification to simplify setup. The owner creates the Aiven account.
 
 Render Free blocks SMTP ports. Auth uses existing OTP logging mode for the demo;
 read OTP only from private server logs. Existing-account login works normally.
-Notification uses log mode. Do not expose OTP in a public API. HTTPS email delivery
+Notification uses log mode; `MANAGEMENT_HEALTH_MAIL_ENABLED=false` excludes the
+unused SMTP connection from auth/notification health. Do not expose OTP in a public API. HTTPS email delivery
 requires a separate provider/configuration if actual delivery is needed.
 
 Hosted payment uses VNPay Sandbox and explicitly disables
@@ -60,12 +63,15 @@ Only verified server-side results can confirm payments. No real-money test runs.
 AI uses `openrouter/free` only when an existing server key is available; otherwise
 it starts disabled and does not block booking.
 
-All current seeded schedules are in the past. Create fresh showtimes through
-cinema's API after Kafka works, then verify their booking inventory projection.
+The original seeded schedules were in the past. Six fresh showtimes on November
+17/18 were created through cinema's API after Kafka connected. Verify their
+booking inventory projection; create future schedules for a later class date.
 Never shift historical sold sessions or seed another service's database directly.
 
 Free services sleep and share Render's monthly instance hours. Wake the services
-before class; do not use continuous keep-alive traffic. Outbound bandwidth/build
+before class with `powershell -File infrastructure/scripts/warm-render-demo.ps1`
+from the repository root; this checks readiness in parallel for up to four minutes,
+then stops instead of generating continuous keep-alive traffic. Outbound bandwidth/build
 allowances are finite and overages may be billed if a payment method is attached.
 No upgrade or payment method is authorized by this deployment.
 
@@ -77,6 +83,36 @@ Docker Engine are documented in [movie deployment](render-movie-deployment.md).
 After each cloud deploy, check terminal `live` state, health, API responses,
 authorization rejection and end-to-end Vercel routing. Health alone does not
 prove Kafka delivery or the booking/payment Saga.
+
+## Verified deployment on 2026-11-17
+
+All eight Render web services are `live` on Free instances. Redis is Free; the
+existing Supabase organization is Free. The readiness script reports all eight
+`UP` after excluding unused SMTP health from the two log-mail services.
+
+- Vercel movie API returns the 40 published Supabase movies; authenticated profile
+  lookup works, while unauthenticated profile access returns 401.
+- Six published sessions on November 17/18 at Cinemate Ben Thanh each projected
+  100 seats through Kafka into booking's inventory (600 total).
+- Live API checks passed: seat hold, same-key replay returning the same reservation,
+  conflicting hold rejection, idempotent cancellation and seat release.
+- Checkout emitted through Kafka and payment generated the signed VNPay Sandbox
+  URL with the public Render return URL. No real or sandbox charge was executed;
+  successful provider IPN/query verification still requires a manual sandbox test.
+- A transient 502 during gateway redeployment had an ambiguous create outcome.
+  The persisted draft was inspected before retrying; an accidental duplicate draft
+  from timestamp formatting in the temporary smoke script was cancelled through
+  the owning API. No historical sold sessions were changed.
+- One pre-existing refund older than its 24-hour reconciliation window was marked
+  unresolved/failed by the normal job and needs manual business follow-up. It was
+  not deleted or made successful for the demo.
+
+AI is deployed with inference disabled because no OpenRouter key was present in
+the deployment environment. To enable it later, set the server-side existing key
+and `AI_CHAT_PROVIDER=openai`, retaining `OPENROUTER_MODEL=openrouter/free`.
+Auth OTP is visible only in private server logs; notification email is logged.
+For actual VNPay callbacks, configure the merchant Sandbox IPN URL as
+`https://movie-booking-payment-service.onrender.com/provider-webhooks/vnpay`.
 
 References: [Render Free](https://render.com/docs/free),
 [Aiven Kafka Free](https://aiven.io/docs/products/kafka/free-tier/kafka-free-tier),
