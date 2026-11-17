@@ -18,13 +18,13 @@ spring:
             - id: ai-service
               uri: ${AI_SERVICE_URL:http://localhost:8087}
               metadata:
-                response-timeout: 60000
+                response-timeout: ${AI_RESPONSE_TIMEOUT_MS:60000}
               predicates:
                 - Path=/api/v1/ai/**
             - id: auth-service
               uri: ${AUTH_SERVICE_URL:http://localhost:8081}
               metadata:
-                response-timeout: 10000
+                response-timeout: ${AUTH_RESPONSE_TIMEOUT_MS:10000}
               predicates:
                 - Path=/api/v1/auth/**,/api/v1/me
             - id: movie-service
