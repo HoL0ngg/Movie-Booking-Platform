@@ -34,6 +34,56 @@ test('loads eight daily schedules without multiplying requests by cinema count',
   expect(requests.some(url => /\/cinemas\/[^/]+\/showtimes/.test(url))).toBe(false)
 })
 
+test('retries a temporary cinema and daily schedule failure before showing times', async ({ page }) => {
+  let cinemaRequests = 0
+  let dailyRequests = 0
+  await page.route('**/api/v1/cinemas', route => {
+    cinemaRequests++
+    return cinemaRequests === 1
+      ? route.fulfill({ status: 502, json: { code: 'HTTP_ERROR' } })
+      : route.fallback()
+  })
+  await page.route('**/api/v1/showtimes?**', route => {
+    if (new URL(route.request().url()).searchParams.get('date') !== '2026-10-15') return route.fallback()
+    dailyRequests++
+    return dailyRequests === 1
+      ? route.fulfill({ status: 502, json: { code: 'HTTP_ERROR' } })
+      : route.fallback()
+  })
+  await page.goto('/showtimes?movieId=movie-1')
+  await expect.poll(() => cinemaRequests).toBe(1)
+  await expect.poll(() => dailyRequests).toBe(1)
+  await expect(page.getByRole('status')).toContainText('Máy chủ có thể cần khoảng 2 phút để khởi động.')
+  await page.clock.fastForward(5000)
+  await expect(page.locator('.time-grid a')).toHaveCount(cinemas.length)
+  expect(cinemaRequests).toBe(2)
+  expect(dailyRequests).toBe(2)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})
+
+test('does not retry a client error or mistake it for an empty schedule', async ({ page }) => {
+  let dailyRequests = 0
+  await page.route('**/api/v1/showtimes?**', route => {
+    if (new URL(route.request().url()).searchParams.get('date') !== '2026-10-15') return route.fallback()
+    dailyRequests++
+    return route.fulfill({ status: 400, json: { code: 'VALIDATION_ERROR' } })
+  })
+  await page.goto('/showtimes?movieId=movie-1')
+  await expect(page.getByRole('alert')).toHaveText('Không thể tải lịch chiếu từ máy chủ. Vui lòng thử lại.')
+  await page.clock.fastForward(60000)
+  expect(dailyRequests).toBe(1)
+  await expect(page.getByText('Không có suất chiếu trong ngày này.')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Thử lại', exact: true })).toBeVisible()
+})
+
+test('shows an empty schedule only after successful empty responses', async ({ page }) => {
+  await page.route('**/api/v1/showtimes?**', route => route.fulfill({ json: [] }))
+  await page.goto('/showtimes?movieId=movie-1')
+  await expect(page.getByText('Không có suất chiếu trong ngày này.')).toHaveCount(cinemas.length)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Thử lại', exact: true })).toHaveCount(0)
+})
+
 for (const mobile of [false, true]) {
   test(`selected movie shows dates and showtimes grouped by cinema on ${mobile ? 'mobile' : 'desktop'}`, async ({ page }) => {
     await page.setViewportSize(mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 })

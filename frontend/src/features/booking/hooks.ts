@@ -21,13 +21,20 @@ const retryUnlessClientError = (failureCount: number, error: unknown) => {
 };
 
 export const useCinemas = () =>
-  useQuery({ queryKey: ["cinemas"], queryFn: cinemaService.list });
+  useQuery({
+    queryKey: ["cinemas"],
+    queryFn: cinemaService.list,
+    retry: retryUnlessClientError,
+    retryDelay: (attempt) => Math.min(5000 * 2 ** attempt, 20000),
+  });
 
 export const useShowtimes = (movieId = "") =>
   useQuery({
     queryKey: ["showtimes", movieId],
     queryFn: () => cinemaService.showtimes(movieId),
     enabled: Boolean(movieId),
+    retry: retryUnlessClientError,
+    retryDelay: (attempt) => Math.min(5000 * 2 ** attempt, 20000),
   });
 
 export const useShowtime = (id = "") =>

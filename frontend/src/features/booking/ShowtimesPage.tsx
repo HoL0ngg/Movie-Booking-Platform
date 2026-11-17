@@ -55,7 +55,7 @@ function MovieShowtimes({ movieId }: { movieId: string }) {
         </button>)}</div>
       </div>
     </section>
-    {cinemas.isPending || showtimes.isPending ? <LoadingState label="Đang tải lịch chiếu…" /> : cinemas.isError || showtimes.isError ? <><ErrorState message="Không thể tải lịch chiếu." /><button className="secondary-button" onClick={() => { void cinemas.refetch(); void showtimes.refetch() }}>Thử lại</button></> : !cinemas.data.length ? <p role="status">Chưa có rạp chiếu phim.</p> :
+    {cinemas.isPending || showtimes.isPending ? <LoadingState label="Đang tải lịch chiếu… Máy chủ có thể cần khoảng 2 phút để khởi động." /> : cinemas.isError || showtimes.isError ? <><ErrorState message="Không thể tải lịch chiếu từ máy chủ. Vui lòng thử lại." /><button className="secondary-button" onClick={() => { void cinemas.refetch(); void showtimes.refetch() }}>Thử lại</button></> : !cinemas.data.length ? <p role="status">Chưa có rạp chiếu phim.</p> :
       <div className="cinema-list">{cinemas.data.map(cinema => { const times = filtered.filter(item => item.cinemaId === cinema.id); return <article className="cinema-row" key={cinema.id}><div><span className="cinema-dot" /><h2>{cinema.name}</h2><p>{cinema.address}</p></div><div className="time-grid">{times.length ? times.map(showtime => <Link key={showtime.id} to={`/showtimes/${showtime.id}/seats`} onClick={() => { setMovieId(showtime.movieId); setShowtimeId(showtime.id) }}><strong>{new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: cinemaTimeZone }).format(new Date(showtime.startsAt))}</strong><span>{showtime.format}</span></Link>) : <p className="muted">Không có suất chiếu trong ngày này.</p>}</div></article> })}</div>}
   </div>
 }
