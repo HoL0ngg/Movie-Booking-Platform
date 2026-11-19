@@ -19,14 +19,12 @@ export function HomePage() {
   const featured = now.data?.[0]
   return <>
     <section className="hero" style={featured ? { '--backdrop': `url(${featured.backdropUrl})` } as React.CSSProperties : undefined}>
-      <div className="hero-shade" />
       <div className="hero-content page-width">
         <p className="eyebrow">Phim nổi bật tuần này</p>
         <h1>{featured?.title ?? 'Mỗi bộ phim, một thế giới mới.'}</h1>
         <p>{featured?.synopsis ?? 'Khám phá những câu chuyện đáng nhớ trên màn ảnh lớn.'}</p>
         {featured && <div className="button-row"><Link className="primary-button" to={`/showtimes?movieId=${featured.id}`}>Đặt vé ngay <span>→</span></Link><Link className="secondary-button" to={`/movies/${featured.id}`}>Chi tiết phim</Link></div>}
       </div>
-      <div className="hero-index">01 <span>/ 03</span></div>
     </section>
     <form className="page-width movie-filter" role="search" onSubmit={e => e.preventDefault()}>
       <input type="search" value={text} maxLength={200} placeholder="Tìm phim theo tên…" aria-label="Tìm phim"
